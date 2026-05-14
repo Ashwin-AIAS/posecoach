@@ -1,0 +1,80 @@
+version: "3.9"
+
+# PoseCoach — Development Docker Compose
+# Usage: docker-compose up --build
+# Production: see deploy/docker-compose.prod.yml
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: posecoach
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: posecoach
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U posecoach"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      POSTGRES_URL: postgresql+asyncpg://posecoach:dev_password@postgres:5432/posecoach
+      REDIS_URL: redis://redis:6379/0
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET:-dev_secret_change_in_production}
+      MODEL_PATH: models/yolo26n-pose.pt
+      CHROMA_PATH: data/chroma
+      ALLOWED_ORIGINS: http://localhost:5173
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app          # Live reload — source mounted
+      - ./alembic:/app/alembic
+      - ./models:/app/models    # YOLO weights
+      - ./data:/app/data        # ChromaDB + eval results
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src     # Live reload — source mounted
+      - ./frontend/public:/app/public
+      - /app/node_modules           # Named volume prevents host override
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

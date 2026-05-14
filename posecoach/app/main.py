@@ -1,0 +1,113 @@
+import os
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
+import structlog
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from ultralytics import YOLO
+
+from app import db
+from app.cache import create_redis_client
+from app.logging_config import setup_logging
+from app.metrics import get_metrics_app
+from app.middleware import RequestIdMiddleware, SecurityHeadersMiddleware, TimingMiddleware
+
+logger = structlog.get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
+    setup_logging()
+
+    log = structlog.get_logger(__name__)
+    log.info("startup_begin")
+
+    # Load YOLO26 model once — 3-5s, stored in app.state for all requests
+    model_path = os.environ["MODEL_PATH"]
+    application.state.model = YOLO(model_path)
+    application.state.executor = ThreadPoolExecutor(max_workers=2)
+    log.info("model_loaded", path=model_path)
+
+    # Verify DB is reachable
+    async with db.engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
+    log.info("db_connected")
+
+    # Connect to Redis
+    application.state.redis = await create_redis_client()
+    log.info("redis_connected")
+
+    log.info("startup_complete")
+    yield
+
+    # --- SHUTDOWN ---
+    application.state.executor.shutdown(wait=True)
+    await db.engine.dispose()
+    await application.state.redis.aclose()
+    log.info("shutdown_complete")
+
+
+app = FastAPI(
+    title="PoseCoach API",
+    description="Real-time AI gym exercise form correction",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# CORS — added first so it is outermost (handles OPTIONS preflight before anything else)
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Custom middleware — applied inside CORS in this order: RequestId → Timing → SecurityHeaders
+app.add_middleware(RequestIdMiddleware)
+app.add_middleware(TimingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Prometheus metrics endpoint — only mounted when METRICS_TOKEN is configured
+if os.environ.get("METRICS_TOKEN"):
+    app.mount("/metrics", get_metrics_app())
+
+
+@app.get("/health")
+async def health_simple() -> dict[str, str]:
+    """Shallow health check for load balancer pings."""
+    return {"status": "ok"}
+
+
+@app.get("/health/deep")
+async def health_deep() -> dict[str, str]:
+    """
+    Deep health check — verifies all dependencies.
+    Returns 503 (not 200) if any dependency is down.
+    """
+    status: dict[str, str] = {"postgres": "error", "redis": "error", "model": "error"}
+
+    try:
+        async with db.engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        status["postgres"] = "ok"
+    except Exception as e:
+        logger.error("postgres_health_failed", error=str(e))
+
+    try:
+        pong = await app.state.redis.ping()
+        if pong:
+            status["redis"] = "ok"
+    except Exception as e:
+        logger.error("redis_health_failed", error=str(e))
+
+    if hasattr(app.state, "model") and app.state.model is not None:
+        status["model"] = "ok"
+
+    if "error" in status.values():
+        raise HTTPException(status_code=503, detail=status)
+
+    return {"status": "ok", **status}

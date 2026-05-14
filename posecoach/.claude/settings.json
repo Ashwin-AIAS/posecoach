@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Read:*",
+      "Write:*",
+      "Edit:*",
+      "Bash:python*",
+      "Bash:pytest*",
+      "Bash:ruff*",
+      "Bash:mypy*",
+      "Bash:docker*",
+      "Bash:alembic*",
+      "Bash:npm*",
+      "Bash:npx*",
+      "Bash:git*",
+      "Bash:pip*",
+      "Bash:kaggle*"
+    ],
+    "deny": [
+      "Bash:sudo:*",
+      "Bash:rm -rf /*",
+      "Bash:curl * | bash"
+    ]
+  }
+}

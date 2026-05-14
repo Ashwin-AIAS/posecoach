@@ -1,0 +1,17 @@
+# PoseCoach Frontend — Development
+# Used by docker-compose.yml for local development only
+# Production frontend is deployed to Vercel
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies (cached layer)
+COPY package*.json ./
+RUN npm ci
+
+# Source is mounted as volume in docker-compose — no COPY needed
+EXPOSE 5173
+
+# Vite dev server with host binding (required for Docker)
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
