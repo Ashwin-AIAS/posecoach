@@ -1,0 +1,27 @@
+# Virtual environment
+venv/
+
+# Large folders
+archive/
+papers/
+posecoach_claude_rebuild/
+promone collab/
+
+# Office documents and temp files
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+~$*
+
+# Root level specific files
+PoseCoach_Claude_Cheatsheet.md
+PoseCoach_Defense_Package.md
+PoseCoach_LitSurvey_Agent.md
+PoseCoach_P01_Colab.ipynb
+dataset_recommendation.md
+fit3d_info.json
+fit3d_template.json
+internal-comms-benchmark.md
+internal-comms-review.html
+posecoach_architecture_guide.html
