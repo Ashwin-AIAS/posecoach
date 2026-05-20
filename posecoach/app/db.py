@@ -4,11 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 
+_db_url = os.environ["POSTGRES_URL"]
+_is_sqlite = _db_url.startswith("sqlite")
+
 engine = create_async_engine(
-    os.environ["POSTGRES_URL"],
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
+    _db_url,
+    # pool_size/max_overflow not supported by SQLite (used in tests)
+    **({} if _is_sqlite else {"pool_size": 10, "max_overflow": 20}),
+    pool_pre_ping=not _is_sqlite,
     echo=False,
 )
 

@@ -10,6 +10,7 @@ from sqlalchemy import text
 from ultralytics import YOLO
 
 from app import db
+from app.api.v1.ws_inference import router as ws_router
 from app.cache import create_redis_client
 from app.logging_config import setup_logging
 from app.metrics import get_metrics_app
@@ -74,6 +75,8 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Prometheus metrics endpoint — only mounted when METRICS_TOKEN is configured
 if os.environ.get("METRICS_TOKEN"):
     app.mount("/metrics", get_metrics_app())
+
+app.include_router(ws_router)
 
 
 @app.get("/health")

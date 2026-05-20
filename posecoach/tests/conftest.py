@@ -1,45 +1,64 @@
-"""Shared test fixtures.
+"""Shared test fixtures — SQLite in-memory, never real Postgres."""
+from __future__ import annotations
 
-Prerequisites:
-    createdb -U posecoach posecoach_test
-    # or set TEST_DATABASE_URL env var before running pytest
-"""
 import os
-import subprocess
-from collections.abc import AsyncGenerator, Generator
+import sys
+from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock, MagicMock
 
-# Must be set before any app import — app/db.py creates the async engine at
-# module level by reading POSTGRES_URL, so patching after import is too late.
-_TEST_DB_URL: str = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://posecoach:dev_password@localhost:5432/posecoach_test",
-)
-os.environ["POSTGRES_URL"] = _TEST_DB_URL
+# ── Environment must be set before any app import ────────────────────────────
+os.environ.setdefault("POSTGRES_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("JWT_SECRET", "test_secret_at_least_32_chars_long_ok")
+os.environ.setdefault("MODEL_PATH", "models/yolo_posecoach_v1.onnx")
 
-import pytest
+# ── Stub heavy optional dependencies not installed in the test env ────────────
+# These must be stubbed BEFORE any app.* import touches them.
+for _mod in ("ultralytics", "prometheus_client"):
+    if _mod not in sys.modules:
+        sys.modules[_mod] = MagicMock()
+
+_redis_mock = MagicMock()
+_redis_mock.ping = AsyncMock(return_value=True)
+_redis_mock.aclose = AsyncMock()
+for _mod in ("redis", "redis.asyncio"):
+    if _mod not in sys.modules:
+        sys.modules[_mod] = MagicMock()
+
+# ── Fixtures ─────────────────────────────────────────────────────────────────
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
-@pytest.fixture(scope="session")
-def apply_migrations() -> Generator[None, None, None]:
-    """Run `alembic upgrade head` against the test DB; tear down after session."""
-    env = {**os.environ, "POSTGRES_URL": _TEST_DB_URL}
-    subprocess.run(["alembic", "upgrade", "head"], env=env, check=True)
-    yield
-    subprocess.run(["alembic", "downgrade", "base"], env=env, check=True)
+@pytest_asyncio.fixture(scope="function")
+async def test_db() -> AsyncGenerator[AsyncSession, None]:
+    from app.db import Base  # lazy — avoids triggering engine at collection time
 
-
-@pytest.fixture(scope="session")
-def test_engine(apply_migrations: None) -> AsyncEngine:
-    """Async engine pointed at the test DB (migrations already applied)."""
-    return create_async_engine(_TEST_DB_URL, echo=False)
-
-
-@pytest_asyncio.fixture
-async def db_session(test_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    """Per-test async session; rolled back after each test for full isolation."""
-    factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
-    async with factory() as session:
+    engine = create_async_engine(
+        TEST_DB_URL, connect_args={"check_same_thread": False}
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    Session = async_sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with Session() as session:
         yield session
-        await session.rollback()
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client(test_db: AsyncSession) -> AsyncGenerator[object, None]:
+    from httpx import ASGITransport, AsyncClient
+
+    from app.db import get_db
+    from app.main import app  # lazy
+
+    app.dependency_overrides[get_db] = lambda: test_db
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
+    app.dependency_overrides.clear()
