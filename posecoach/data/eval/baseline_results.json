@@ -1,0 +1,6 @@
+{
+  "model": "yolo26n-pose-pretrained",
+  "timestamp": "2026-05-19T19:09:05Z",
+  "pose_map50": 0.9231878256457223,
+  "pose_map": 0.8581502661319227
+}

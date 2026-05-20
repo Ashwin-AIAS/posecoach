@@ -1,0 +1,8 @@
+{
+  "model": "yolo26n-pose-posecoach-v1",
+  "timestamp": "2026-05-19T21:15:53Z",
+  "weights_path": "/kaggle/working/gymvision/models/yolo_posecoach_v1.pt",
+  "pose_map50": 0.9125662327374764,
+  "pose_map": 0.7638091296966364,
+  "thesis_gate_passed": true
+}

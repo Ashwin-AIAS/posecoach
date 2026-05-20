@@ -1,0 +1,13 @@
+{
+  "model": "yolo26n-pose-posecoach-v1",
+  "format": "onnx",
+  "provider": "CPUExecutionProvider",
+  "imgsz": 640,
+  "runs": 50,
+  "mean_ms": 54.87852396010567,
+  "median_ms": 54.12317450009141,
+  "p95_ms": 57.19159020118241,
+  "p99_ms": 74.70645558003523,
+  "total_estimate_ms": 71.87852396010567,
+  "thesis_gate_passed": true
+}

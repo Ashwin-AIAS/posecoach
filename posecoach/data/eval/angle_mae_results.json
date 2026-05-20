@@ -1,0 +1,55 @@
+{
+  "model": "yolo26n-pose-posecoach-v1",
+  "overall_mae_degrees": 12.29,
+  "thesis_gate_5deg": false,
+  "per_joint": {
+    "left_knee": {
+      "mae": 16.68,
+      "std": 31.45,
+      "p95": 102.09,
+      "n_samples": 839
+    },
+    "right_knee": {
+      "mae": 16.52,
+      "std": 27.81,
+      "p95": 84.46,
+      "n_samples": 840
+    },
+    "left_hip": {
+      "mae": 11.95,
+      "std": 25.71,
+      "p95": 64.99,
+      "n_samples": 830
+    },
+    "right_hip": {
+      "mae": 13.01,
+      "std": 27.93,
+      "p95": 65.05,
+      "n_samples": 808
+    },
+    "left_elbow": {
+      "mae": 11.43,
+      "std": 21.37,
+      "p95": 57.1,
+      "n_samples": 830
+    },
+    "right_elbow": {
+      "mae": 12.06,
+      "std": 23.12,
+      "p95": 64.87,
+      "n_samples": 808
+    },
+    "left_shoulder": {
+      "mae": 8.51,
+      "std": 20.93,
+      "p95": 42.31,
+      "n_samples": 830
+    },
+    "right_shoulder": {
+      "mae": 7.98,
+      "std": 17.09,
+      "p95": 49.0,
+      "n_samples": 808
+    }
+  }
+}
