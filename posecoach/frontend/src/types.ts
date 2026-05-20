@@ -1,0 +1,42 @@
+export type Exercise =
+  | "squat"
+  | "deadlift"
+  | "curl"
+  | "bench"
+  | "ohp"
+  | "lunge"
+  | "plank"
+
+export const EXERCISES: readonly Exercise[] = [
+  "squat",
+  "deadlift",
+  "curl",
+  "bench",
+  "ohp",
+  "lunge",
+  "plank",
+] as const
+
+export type Keypoint = readonly [number, number]
+
+export interface PoseResult {
+  readonly keypoints: readonly Keypoint[]
+  readonly confidence: readonly number[]
+  readonly score: number | null
+  readonly cues: readonly string[]
+  readonly latency_ms: number
+  readonly hold_s?: number
+}
+
+export interface PoseError {
+  readonly error: string
+  readonly supported?: readonly string[]
+}
+
+export type ServerMessage = PoseResult | PoseError
+
+export function isPoseError(msg: ServerMessage): msg is PoseError {
+  return "error" in msg
+}
+
+export type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error"
