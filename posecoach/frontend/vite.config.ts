@@ -47,11 +47,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // REST API
+      // REST API — backend routes are mounted under /api, no rewrite
       "/api": {
         target: "http://localhost:8000",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, "")
+        changeOrigin: true
       },
       // WebSocket
       "/ws": {

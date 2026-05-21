@@ -1,20 +1,30 @@
 import os
+from collections.abc import AsyncGenerator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 from ultralytics import YOLO
 
 from app import db
+from app.api.v1.chat import limiter as chat_limiter
+from app.api.v1.chat import router as chat_router
 from app.api.v1.ws_inference import router as ws_router
 from app.cache import create_redis_client
 from app.logging_config import setup_logging
 from app.metrics import get_metrics_app
 from app.middleware import RequestIdMiddleware, SecurityHeadersMiddleware, TimingMiddleware
+
+
+def _rate_limit_handler(request: object, exc: object) -> object:
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(status_code=429, content={"detail": "rate limit exceeded"})
 
 logger = structlog.get_logger(__name__)
 
@@ -58,6 +68,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# slowapi rate limiting (used by chat SSE endpoint, 10/min/IP)
+app.state.limiter = chat_limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 # CORS — added first so it is outermost (handles OPTIONS preflight before anything else)
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
@@ -77,6 +92,7 @@ if os.environ.get("METRICS_TOKEN"):
     app.mount("/metrics", get_metrics_app())
 
 app.include_router(ws_router)
+app.include_router(chat_router)
 
 
 @app.get("/health")

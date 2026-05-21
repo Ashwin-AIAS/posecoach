@@ -11,12 +11,38 @@ os.environ.setdefault("POSTGRES_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET", "test_secret_at_least_32_chars_long_ok")
 os.environ.setdefault("MODEL_PATH", "models/yolo_posecoach_v1.onnx")
+os.environ.setdefault("GEMINI_API_KEY", "test_gemini_key")
+os.environ.setdefault("OPENROUTER_API_KEY", "test_openrouter_key")
+os.environ.setdefault("CHROMA_PATH", "data/chroma_test")
 
 # ── Stub heavy optional dependencies not installed in the test env ────────────
 # These must be stubbed BEFORE any app.* import touches them.
 for _mod in ("ultralytics", "prometheus_client"):
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
+
+# Chatbot deps — stub before any app.chatbot import
+_chroma_mock = MagicMock()
+_chroma_collection = MagicMock()
+_chroma_collection.count.return_value = 0
+_chroma_collection.query.return_value = {"documents": [[]]}
+_chroma_mock.PersistentClient.return_value.get_or_create_collection.return_value = _chroma_collection
+if "chromadb" not in sys.modules:
+    sys.modules["chromadb"] = _chroma_mock
+
+_st_mock = MagicMock()
+_st_instance = MagicMock()
+_st_instance.encode.return_value = [[0.1] * 384]
+_st_mock.SentenceTransformer.return_value = _st_instance
+if "sentence_transformers" not in sys.modules:
+    sys.modules["sentence_transformers"] = _st_mock
+
+_genai_mock = MagicMock()
+if "google" not in sys.modules:
+    sys.modules["google"] = MagicMock()
+if "google.generativeai" not in sys.modules:
+    sys.modules["google.generativeai"] = _genai_mock
+    sys.modules["google"].generativeai = _genai_mock
 
 _redis_mock = MagicMock()
 _redis_mock.ping = AsyncMock(return_value=True)

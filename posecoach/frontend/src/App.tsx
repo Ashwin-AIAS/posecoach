@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { CameraFeed } from "./components/CameraFeed"
+import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { PoseOverlay } from "./components/PoseOverlay"
@@ -43,6 +44,7 @@ export default function App(): JSX.Element {
             connectionState={pose.connectionState}
             error={pose.error}
           />
+          <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
         </aside>
       </main>
     </div>
