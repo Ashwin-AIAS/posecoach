@@ -9,6 +9,7 @@ authors = [{ name = "Ashwin" }]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
 timeout = 30
 addopts = "-x --cov=app/analysis --cov-fail-under=80"
 
@@ -26,3 +27,18 @@ ignore = ["B008"]
 python_version = "3.11"
 strict = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
+
+# These libraries don't ship py.typed and the project does not install
+# their stubs (some are heavy GPU/ML packages we mock at test time).
+[[tool.mypy.overrides]]
+module = [
+    "chromadb",
+    "chromadb.*",
+    "sentence_transformers",
+    "google",
+    "google.generativeai",
+    "ultralytics",
+    "torch",
+    "prometheus_client",
+]
+ignore_missing_imports = true

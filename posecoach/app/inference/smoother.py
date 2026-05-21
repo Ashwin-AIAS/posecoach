@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-import numpy as np
+from typing import Any
+
+import numpy.typing as npt
 
 
 class KeypointSmoother:
@@ -12,14 +14,14 @@ class KeypointSmoother:
 
     def __init__(self, alpha: float = 0.6) -> None:
         self.alpha = alpha
-        self._prev: np.ndarray | None = None
+        self._prev: npt.NDArray[Any] | None = None
 
-    def update(self, kp: np.ndarray) -> np.ndarray:
+    def update(self, kp: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Smooth a (17, 2) keypoint array in-place and return smoothed copy."""
         if self._prev is None:
             self._prev = kp.copy()
             return kp
-        smoothed = self.alpha * kp + (1.0 - self.alpha) * self._prev
+        smoothed: npt.NDArray[Any] = self.alpha * kp + (1.0 - self.alpha) * self._prev
         self._prev = smoothed
         return smoothed
 

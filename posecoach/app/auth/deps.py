@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from typing import Literal, TypedDict
 
 from fastapi import Cookie, Depends, HTTPException, status
 from sqlalchemy import select
@@ -16,7 +17,17 @@ REFRESH_COOKIE = "refresh_token"
 COOKIE_SECURE = os.environ.get("ENVIRONMENT", "development") != "development"
 
 
-def cookie_kwargs(max_age: int, path: str = "/") -> dict[str, object]:
+class CookieKwargs(TypedDict):
+    """Typed kwargs for Response.set_cookie — matches starlette's signature."""
+
+    httponly: bool
+    secure: bool
+    samesite: Literal["lax", "strict", "none"]
+    max_age: int
+    path: str
+
+
+def cookie_kwargs(max_age: int, path: str = "/") -> CookieKwargs:
     """Standard secure-cookie kwargs for set_cookie."""
     return {
         "httponly": True,

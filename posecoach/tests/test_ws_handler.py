@@ -29,61 +29,79 @@ def _make_frame_b64() -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+def _make_tensor_mock(arr: np.ndarray) -> MagicMock:
+    """Build a MagicMock that mimics a torch tensor: `.cpu().numpy()` → arr."""
+    t = MagicMock()
+    t.cpu.return_value = t
+    t.numpy.return_value = arr
+    return t
+
+
 def _mock_yolo_results(n_persons: int = 1) -> MagicMock:
-    """Build a fake YOLO results object with n_persons detected."""
+    """Build a fake YOLO results object with n_persons detected.
+
+    Mirrors the YOLO26 one-to-one head shape: `results[0].keypoints.xyn`
+    is the per-person stack (shape (N, 17, 2)) and `keypoints.xyn[i]` is
+    a tensor with `.cpu().numpy()` → (17, 2) ndarray.
+    """
     results = MagicMock()
+
     if n_persons == 0:
-        results[0].keypoints.xyn.shape = (0, 17, 2)
-        results[0].keypoints.xyn.__len__ = lambda self: 0
-        # Make shape[0] == 0
+        kp_xyn_stack = MagicMock()
+        kp_xyn_stack.shape = (0, 17, 2)
         kp_mock = MagicMock()
-        kp_mock.xyn = MagicMock()
-        kp_mock.xyn.shape = (0,)
-        kp_mock.xyn.__getitem__ = lambda s, i: np.zeros((17, 2))
-        results[0].keypoints = kp_mock
-    else:
-        kp_xyn = np.random.default_rng(0).uniform(0.1, 0.9, (n_persons, 17, 2))
-        kp_conf = np.ones((n_persons, 17))
-        kp_mock = MagicMock()
-        kp_mock.xyn = MagicMock()
-        kp_mock.xyn.shape = (n_persons, 17, 2)
-        kp_mock.xyn.__getitem__ = lambda s, i: kp_xyn[i]
-        kp_mock.xyn.cpu = lambda: kp_mock.xyn
-        # Make kp_mock.xyn[0] return the array
-        xyn_tensor = MagicMock()
-        xyn_tensor.cpu.return_value = xyn_tensor
-        xyn_tensor.numpy.return_value = kp_xyn[0]
-        conf_tensor = MagicMock()
-        conf_tensor.cpu.return_value = conf_tensor
-        conf_tensor.numpy.return_value = kp_conf[0]
-        kp_mock.xyn = xyn_tensor
-        kp_mock.conf = conf_tensor
-        kp_mock.xyn.shape = (n_persons, 17, 2)
-        results[0].keypoints = kp_mock
+        kp_mock.xyn = kp_xyn_stack
+        results.__getitem__.return_value.keypoints = kp_mock
+        return results
+
+    kp_xyn = np.random.default_rng(0).uniform(0.1, 0.9, (n_persons, 17, 2))
+    kp_conf = np.ones((n_persons, 17), dtype=np.float32)
+
+    # xyn — runner accesses .shape AND .xyn[0].cpu().numpy()
+    xyn_stack = MagicMock()
+    xyn_stack.shape = (n_persons, 17, 2)
+    xyn_stack.__getitem__.side_effect = lambda i: _make_tensor_mock(kp_xyn[i])
+
+    conf_stack = MagicMock()
+    conf_stack.shape = (n_persons, 17)
+    conf_stack.__getitem__.side_effect = lambda i: _make_tensor_mock(kp_conf[i])
+
+    kp_mock = MagicMock()
+    kp_mock.xyn = xyn_stack
+    kp_mock.conf = conf_stack
+    results.__getitem__.return_value.keypoints = kp_mock
     return results
 
 
-def _setup_app_state() -> None:
-    """Inject mock model + real executor into app.state."""
+def _override_app_state(n_persons: int = 1) -> None:
+    """Override app.state with a real-ish YOLO mock and a thread executor.
+
+    MUST be called AFTER the TestClient lifespan has started — otherwise the
+    lifespan's `YOLO(model_path)` (from the stubbed ultralytics module) will
+    overwrite app.state.model with a generic MagicMock and inference output
+    will be unusable.
+    """
     mock_model = MagicMock()
-    mock_results = _mock_yolo_results(n_persons=1)
+    mock_results = _mock_yolo_results(n_persons=n_persons)
     mock_model.predict.return_value = mock_results
 
     app.state.model = mock_model
     app.state.executor = ThreadPoolExecutor(max_workers=1)
-    app.state.redis = MagicMock()
+    # Note: app.state.redis is set by the lifespan to the stubbed AsyncMock-
+    # backed client from conftest — don't replace it, or shutdown will fail
+    # on `await client.aclose()`.
 
 
 def test_ws_accepts_connection() -> None:
-    _setup_app_state()
     with TestClient(app) as client:
+        _override_app_state()
         with client.websocket_connect("/ws/inference") as ws:
             assert ws is not None
 
 
 def test_ws_missing_frame_returns_error() -> None:
-    _setup_app_state()
     with TestClient(app) as client:
+        _override_app_state()
         with client.websocket_connect("/ws/inference") as ws:
             ws.send_json({"exercise": "squat"})  # no frame
             data = ws.receive_json()
@@ -91,8 +109,8 @@ def test_ws_missing_frame_returns_error() -> None:
 
 
 def test_ws_invalid_exercise_returns_error() -> None:
-    _setup_app_state()
     with TestClient(app) as client:
+        _override_app_state()
         with client.websocket_connect("/ws/inference") as ws:
             ws.send_json({"frame": _make_frame_b64(), "exercise": "invalid_exercise"})
             data = ws.receive_json()
@@ -101,30 +119,30 @@ def test_ws_invalid_exercise_returns_error() -> None:
 
 
 def test_ws_valid_frame_returns_score_and_cues() -> None:
-    _setup_app_state()
     with TestClient(app) as client:
+        _override_app_state()
         with client.websocket_connect("/ws/inference") as ws:
             ws.send_json({"frame": _make_frame_b64(), "exercise": "squat"})
-            # May return _NO_PERSON_RESPONSE or real result depending on mock
             data = ws.receive_json()
-            # Both cases must have score key (None or float) and cues
             assert "cues" in data
+            assert "score" in data
+            assert "latency_ms" in data
 
 
 def test_ws_response_has_required_keys() -> None:
-    _setup_app_state()
     with TestClient(app) as client:
+        _override_app_state()
         with client.websocket_connect("/ws/inference") as ws:
             ws.send_json({"frame": _make_frame_b64(), "exercise": "squat"})
             data = ws.receive_json()
-            # _NO_PERSON_RESPONSE or real result — both have these
-            assert "cues" in data
+            for key in ("keypoints", "confidence", "score", "cues", "latency_ms"):
+                assert key in data
 
 
 @pytest.mark.parametrize("exercise", ["squat", "deadlift", "curl", "bench", "ohp", "lunge", "plank"])
 def test_ws_all_exercises_accepted(exercise: str) -> None:
-    _setup_app_state()
     with TestClient(app) as client:
+        _override_app_state()
         with client.websocket_connect("/ws/inference") as ws:
             ws.send_json({"frame": _make_frame_b64(), "exercise": exercise})
             data = ws.receive_json()

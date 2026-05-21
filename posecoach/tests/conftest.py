@@ -47,9 +47,20 @@ if "google.generativeai" not in sys.modules:
 _redis_mock = MagicMock()
 _redis_mock.ping = AsyncMock(return_value=True)
 _redis_mock.aclose = AsyncMock()
-for _mod in ("redis", "redis.asyncio"):
-    if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
+_redis_mock.get = AsyncMock(return_value=None)
+_redis_mock.set = AsyncMock(return_value=True)
+_redis_mock.delete = AsyncMock(return_value=1)
+_redis_lib_mock = MagicMock()
+_redis_lib_mock.from_url.return_value = _redis_mock
+_redis_lib_mock.Redis = MagicMock
+# `import redis.asyncio as redis` resolves via the parent's `.asyncio`
+# attribute, not sys.modules['redis.asyncio'] — make the mock self-referential
+# so both lookups land on the same object.
+_redis_lib_mock.asyncio = _redis_lib_mock
+# Force-replace — the real `redis` package may already be importable as a
+# transitive dependency (e.g. via fakeredis), which would skip a guarded stub.
+sys.modules["redis"] = _redis_lib_mock
+sys.modules["redis.asyncio"] = _redis_lib_mock
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 import pytest_asyncio

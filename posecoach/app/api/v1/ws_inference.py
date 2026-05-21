@@ -165,12 +165,12 @@ async def ws_inference(websocket: WebSocket) -> None:
         if session_id is not None:
             try:
                 async with AsyncSessionLocal() as close_db:
-                    row = await close_db.get(WorkoutSession, session_id)
-                    if row is not None:
+                    close_row = await close_db.get(WorkoutSession, session_id)
+                    if close_row is not None:
                         avg = score_total / score_count if score_count else 0.0
-                        row.avg_form_score = round(avg, 1)
-                        row.ended_at = datetime.now(UTC)
-                        row.keypoints_data = {"snapshots": snapshots, "exercise": session_exercise}
+                        close_row.avg_form_score = round(avg, 1)
+                        close_row.ended_at = datetime.now(UTC)
+                        close_row.keypoints_data = {"snapshots": snapshots, "exercise": session_exercise}
                         await close_db.commit()
                         logger.info(
                             "ws_session_closed",

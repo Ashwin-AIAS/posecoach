@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -32,4 +33,4 @@ class SessionSummary(BaseModel):
 
 
 class SessionDetail(SessionSummary):
-    keypoints_data: dict
+    keypoints_data: dict[str, Any]

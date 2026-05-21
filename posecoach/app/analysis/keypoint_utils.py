@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
+import numpy.typing as npt
 
 # COCO 17-keypoint indices
 NOSE = 0
@@ -36,7 +39,7 @@ ANGLE_TRIPLETS: dict[str, tuple[int, int, int]] = {
 }
 
 
-def compute_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
+def compute_angle(a: npt.NDArray[Any], b: npt.NDArray[Any], c: npt.NDArray[Any]) -> float:
     """Angle in degrees at vertex b, formed by rays b→a and b→c.
 
     Returns 0.0 when vectors are degenerate (near-zero length).
@@ -52,8 +55,8 @@ def compute_angle(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
 
 
 def compute_angles(
-    kp: np.ndarray,
-    kp_conf: np.ndarray,
+    kp: npt.NDArray[Any],
+    kp_conf: npt.NDArray[Any],
     conf_threshold: float = CONF_THRESHOLD,
 ) -> dict[str, float | None]:
     """Compute all named joint angles from a (17, 2) keypoint array.

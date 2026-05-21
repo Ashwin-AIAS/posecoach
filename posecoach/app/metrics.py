@@ -1,3 +1,4 @@
+from typing import Any
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, make_asgi_app
 
@@ -46,6 +47,6 @@ chat_requests_total = Counter(
 )
 
 
-def get_metrics_app():
+def get_metrics_app() -> Any:
     """Returns ASGI app for /metrics — mount only when METRICS_TOKEN is set."""
     return make_asgi_app(registry=registry)

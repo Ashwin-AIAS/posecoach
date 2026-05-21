@@ -14,6 +14,8 @@ import hashlib
 import re
 from pathlib import Path
 
+import numpy as np
+import numpy.typing as npt
 import structlog
 
 from app.chatbot.rag import COLLECTION_NAME, _get_collection, embed_texts
@@ -102,7 +104,9 @@ def ingest(source_dir: Path, reset: bool = False) -> int:
         logger.warning("nothing_to_ingest", source=str(source_dir))
         return 0
 
-    embeddings = embed_texts(documents)
+    embeddings: npt.NDArray[np.float32] = np.asarray(embed_texts(documents), dtype=np.float32)
+    # ChromaDB's signature types metadatas as Mapping[str, scalar] | list[...]; our
+    # list[dict[str, str]] is a valid element type but list/dict invariance trips mypy.
     collection.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
     logger.info("ingest_complete", total_chunks=len(documents))
     return len(documents)

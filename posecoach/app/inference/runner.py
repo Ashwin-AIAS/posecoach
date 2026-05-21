@@ -5,8 +5,10 @@ import base64
 import time
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import structlog
 from PIL import Image
 
@@ -17,16 +19,16 @@ _VRAM_CLEAR_EVERY = 100
 _frame_counter = 0
 
 
-def _decode_frame(frame_b64: str) -> np.ndarray:
+def _decode_frame(frame_b64: str) -> npt.NDArray[np.uint8]:
     """Base64 JPEG → (H, W, 3) uint8 RGB array, resized to 640×640."""
     raw = base64.b64decode(frame_b64)
     img = Image.open(BytesIO(raw)).convert("RGB").resize(
-        (_INFERENCE_SIZE, _INFERENCE_SIZE), Image.BILINEAR
+        (_INFERENCE_SIZE, _INFERENCE_SIZE), Image.Resampling.BILINEAR
     )
-    return np.array(img)
+    return np.array(img, dtype=np.uint8)
 
 
-def _predict(model: object, frame: np.ndarray) -> object:
+def _predict(model: object, frame: npt.NDArray[np.uint8]) -> object:
     """Synchronous YOLO predict — runs in thread executor, never on async loop."""
     global _frame_counter
     _frame_counter += 1
@@ -49,7 +51,7 @@ async def run_inference(
     model: object,
     executor: ThreadPoolExecutor,
     frame_b64: str,
-) -> tuple[np.ndarray, np.ndarray, float] | None:
+) -> tuple[npt.NDArray[Any], npt.NDArray[Any], float] | None:
     """Decode frame and run YOLO26 inference asynchronously.
 
     Returns (kp_xyn, kp_conf, latency_ms) for the first detected person,
@@ -77,8 +79,8 @@ async def run_inference(
         logger.info("no_person_detected", latency_ms=round(latency_ms, 1))
         return None
 
-    kp_xyn: np.ndarray = keypoints.xyn[0].cpu().numpy()   # (17, 2)
-    kp_conf: np.ndarray = keypoints.conf[0].cpu().numpy()  # (17,)
+    kp_xyn: npt.NDArray[Any] = keypoints.xyn[0].cpu().numpy()   # (17, 2)
+    kp_conf: npt.NDArray[Any] = keypoints.conf[0].cpu().numpy()  # (17,)
 
     logger.info("inference_complete", latency_ms=round(latency_ms, 1))
     return kp_xyn, kp_conf, latency_ms

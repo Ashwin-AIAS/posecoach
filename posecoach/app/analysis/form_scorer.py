@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 from app.analysis.keypoint_utils import CONF_THRESHOLD, compute_angles
 
@@ -124,8 +126,8 @@ def _score_joint(angle: float, lo: float, hi: float) -> float:
 
 def score_exercise(
     exercise: str,
-    kp: np.ndarray,
-    kp_conf: np.ndarray,
+    kp: npt.NDArray[Any],
+    kp_conf: npt.NDArray[Any],
     conf_threshold: float = CONF_THRESHOLD,
 ) -> FormResult:
     """Score exercise form and return FormResult with cues.

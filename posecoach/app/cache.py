@@ -1,5 +1,6 @@
 import os
-from typing import Any
+from collections.abc import Awaitable
+from typing import Any, cast
 
 import redis.asyncio as redis
 
@@ -11,10 +12,13 @@ async def create_redis_client() -> redis.Redis:
         encoding="utf-8",
         decode_responses=True,
     )
-    await client.ping()
+    # redis-py types ping() as Awaitable[bool] | bool; the async client always
+    # returns the Awaitable variant — cast to silence the misc-type error.
+    pong = cast("Awaitable[bool]", client.ping())
+    await pong
     return client
 
 
 def get_cache(app_state: Any) -> redis.Redis:
     """FastAPI dependency — returns the shared Redis client from app state."""
-    return app_state.redis
+    return cast(redis.Redis, app_state.redis)

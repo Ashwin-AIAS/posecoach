@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -33,7 +34,8 @@ class WorkoutSession(Base):
     exercise: Mapped[str] = mapped_column(String, nullable=False)
     rep_count: Mapped[int] = mapped_column(Integer, default=0)
     avg_form_score: Mapped[float] = mapped_column(Float, default=0.0)
-    keypoints_data: Mapped[dict] = mapped_column(JSON, default=dict)  # keypoints/scores only — never raw frames
+    # keypoints/scores only — never raw frames
+    keypoints_data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

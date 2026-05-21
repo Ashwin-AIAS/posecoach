@@ -10,6 +10,8 @@ import os
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+import numpy as np
+import numpy.typing as npt
 import structlog
 
 if TYPE_CHECKING:
@@ -61,7 +63,8 @@ def retrieve(query: str, top_k: int = DEFAULT_TOP_K) -> list[str]:
             logger.warning("rag_collection_empty")
             return []
         query_embedding = embed_texts([query])[0]
-        result = collection.query(query_embeddings=[query_embedding], n_results=top_k)
+        embeddings: npt.NDArray[np.float32] = np.asarray([query_embedding], dtype=np.float32)
+        result = collection.query(query_embeddings=embeddings, n_results=top_k)
         documents = result.get("documents", [[]])
         chunks: list[str] = list(documents[0]) if documents else []
         logger.info("rag_retrieved", query_len=len(query), chunks=len(chunks))

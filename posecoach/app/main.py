@@ -4,8 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
@@ -23,9 +24,7 @@ from app.metrics import get_metrics_app
 from app.middleware import RequestIdMiddleware, SecurityHeadersMiddleware, TimingMiddleware
 
 
-def _rate_limit_handler(request: object, exc: object) -> object:
-    from fastapi.responses import JSONResponse
-
+def _rate_limit_handler(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=429, content={"detail": "rate limit exceeded"})
 
 logger = structlog.get_logger(__name__)

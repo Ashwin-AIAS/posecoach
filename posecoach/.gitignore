@@ -44,6 +44,7 @@ docker-compose.override.yml
 # Playwright
 test-results/
 playwright-report/
+frontend/vite.config.ts.timestamp-*.mjs
 
 # Word/PPT temp files
 ~$*
