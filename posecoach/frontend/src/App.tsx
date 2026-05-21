@@ -4,13 +4,18 @@ import { CameraFeed } from "./components/CameraFeed"
 import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
 import { ExerciseSelector } from "./components/ExerciseSelector"
+import { HistoryPanel } from "./components/HistoryPanel"
 import { PoseOverlay } from "./components/PoseOverlay"
+import { UserMenu } from "./components/UserMenu"
+import { useAuth } from "./hooks/useAuth"
 import { useCamera } from "./hooks/useCamera"
 import { usePoseStream } from "./hooks/usePoseStream"
 import type { Exercise } from "./types"
 
 export default function App(): JSX.Element {
   const [exercise, setExercise] = useState<Exercise>("squat")
+  const [showHistory, setShowHistory] = useState(false)
+  const auth = useAuth()
   const camera = useCamera({ width: 640, height: 480, facingMode: "user" })
 
   useEffect(() => {
@@ -27,10 +32,15 @@ export default function App(): JSX.Element {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-900 text-gray-100">
-      <header className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+      <header className="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-4">
         <h1 className="text-lg font-semibold">PoseCoach</h1>
-        <ExerciseSelector value={exercise} onChange={setExercise} />
+        <div className="flex items-center gap-4">
+          <ExerciseSelector value={exercise} onChange={setExercise} />
+          <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
+        </div>
       </header>
+
+      {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
 
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 p-4 overflow-hidden">
         <div className="relative rounded-lg overflow-hidden bg-black flex items-center justify-center">

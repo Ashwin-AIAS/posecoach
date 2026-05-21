@@ -1,4 +1,3 @@
-import os
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, make_asgi_app
 

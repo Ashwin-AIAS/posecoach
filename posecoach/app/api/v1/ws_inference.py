@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -8,8 +9,11 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.analysis.form_scorer import SUPPORTED_EXERCISES, score_exercise
 from app.analysis.score_smoother import ScoreSmoother
+from app.auth.deps import ACCESS_COOKIE, get_user_from_cookie_optional
+from app.db import AsyncSessionLocal
 from app.inference.runner import run_inference
 from app.inference.smoother import KeypointSmoother
+from app.models import WorkoutSession
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -22,6 +26,9 @@ _NO_PERSON_RESPONSE: dict[str, Any] = {
     "latency_ms": 0.0,
 }
 
+# How often to persist a keypoint snapshot to the session JSON column
+SNAPSHOT_INTERVAL_S = 5.0
+
 
 @router.websocket("/ws/inference")
 async def ws_inference(websocket: WebSocket) -> None:
@@ -30,20 +37,38 @@ async def ws_inference(websocket: WebSocket) -> None:
     Client sends: {"frame": "<base64 JPEG>", "exercise": "squat"}
     Server sends: {"keypoints", "confidence", "score", "cues", "latency_ms"}
 
-    One EMA smoother instance per connection — reset on disconnect.
-    JPEG frames are processed in-memory and never written to disk.
+    If the client is authenticated (access_token cookie present), a WorkoutSession
+    row is created at connect and snapshots are appended every SNAPSHOT_INTERVAL_S
+    seconds. Anonymous use is allowed — no session is persisted.
+
+    JPEG frames are NEVER written to disk; only keypoint coords + scores are saved.
     """
     await websocket.accept()
 
     app = websocket.app
     model = app.state.model
     executor = app.state.executor
+    access_token = websocket.cookies.get(ACCESS_COOKIE)
 
     kp_smoother = KeypointSmoother(alpha=0.6)
     score_smoother = ScoreSmoother(alpha=0.6)
     hold_start: float | None = None  # for plank hold tracking
 
-    logger.info("ws_connected", client=websocket.client)
+    session_id: str | None = None
+    session_user_id: str | None = None
+    session_exercise: str | None = None
+    snapshots: list[dict[str, Any]] = []
+    score_total = 0.0
+    score_count = 0
+    last_snapshot_t = 0.0
+
+    # Resolve authenticated user (if any) via a short-lived DB session
+    async with AsyncSessionLocal() as auth_db:
+        user = await get_user_from_cookie_optional(access_token, auth_db)
+        if user is not None:
+            session_user_id = user.id
+
+    logger.info("ws_connected", client=websocket.client, authenticated=bool(session_user_id))
 
     try:
         while True:
@@ -61,6 +86,20 @@ async def ws_inference(websocket: WebSocket) -> None:
                     {"error": f"unsupported exercise '{exercise}'", "supported": sorted(SUPPORTED_EXERCISES)}
                 )
                 continue
+
+            # Create the session row on the first valid frame (so we know the exercise)
+            if session_user_id and session_id is None:
+                async with AsyncSessionLocal() as ws_db:
+                    row = WorkoutSession(
+                        user_id=session_user_id,
+                        exercise=exercise,
+                        keypoints_data={"snapshots": []},
+                    )
+                    ws_db.add(row)
+                    await ws_db.commit()
+                    session_id = row.id
+                    session_exercise = exercise
+                last_snapshot_t = time.monotonic()
 
             result = await run_inference(model, executor, frame_b64)
 
@@ -101,12 +140,20 @@ async def ws_inference(websocket: WebSocket) -> None:
             if hold_s is not None:
                 response["hold_s"] = hold_s
 
-            logger.info(
-                "frame_processed",
-                exercise=exercise,
-                score=round(smoothed_score, 1),
-                latency_ms=round(latency_ms, 1),
-            )
+            # Persist a snapshot every SNAPSHOT_INTERVAL_S seconds for authenticated users
+            if session_id is not None:
+                score_total += smoothed_score
+                score_count += 1
+                now = time.monotonic()
+                if now - last_snapshot_t >= SNAPSHOT_INTERVAL_S:
+                    snapshots.append(
+                        {
+                            "ts": time.time(),
+                            "score": round(smoothed_score, 1),
+                            "kp": kp_smooth.tolist(),
+                        }
+                    )
+                    last_snapshot_t = now
 
             await websocket.send_json(response)
 
@@ -115,3 +162,21 @@ async def ws_inference(websocket: WebSocket) -> None:
     finally:
         kp_smoother.reset()
         score_smoother.reset()
+        if session_id is not None:
+            try:
+                async with AsyncSessionLocal() as close_db:
+                    row = await close_db.get(WorkoutSession, session_id)
+                    if row is not None:
+                        avg = score_total / score_count if score_count else 0.0
+                        row.avg_form_score = round(avg, 1)
+                        row.ended_at = datetime.now(UTC)
+                        row.keypoints_data = {"snapshots": snapshots, "exercise": session_exercise}
+                        await close_db.commit()
+                        logger.info(
+                            "ws_session_closed",
+                            session_id=session_id,
+                            snapshots=len(snapshots),
+                            avg=round(avg, 1),
+                        )
+            except Exception as exc:  # noqa: BLE001 — session close must never crash
+                logger.error("ws_session_close_failed", error=str(exc))

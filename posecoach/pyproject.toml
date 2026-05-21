@@ -18,6 +18,9 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+# B008 — function calls in argument defaults are the standard FastAPI pattern
+# (Depends(), Cookie(), Query(), etc.). Disable globally rather than noqa-spam.
+ignore = ["B008"]
 
 [tool.mypy]
 python_version = "3.11"

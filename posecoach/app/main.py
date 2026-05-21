@@ -12,8 +12,10 @@ from sqlalchemy import text
 from ultralytics import YOLO
 
 from app import db
+from app.api.v1.auth import router as auth_router
 from app.api.v1.chat import limiter as chat_limiter
 from app.api.v1.chat import router as chat_router
+from app.api.v1.history import router as history_router
 from app.api.v1.ws_inference import router as ws_router
 from app.cache import create_redis_client
 from app.logging_config import setup_logging
@@ -93,6 +95,8 @@ if os.environ.get("METRICS_TOKEN"):
 
 app.include_router(ws_router)
 app.include_router(chat_router)
+app.include_router(auth_router)
+app.include_router(history_router)
 
 
 @app.get("/health")
