@@ -17,7 +17,7 @@ os.environ.setdefault("CHROMA_PATH", "data/chroma_test")
 
 # ── Stub heavy optional dependencies not installed in the test env ────────────
 # These must be stubbed BEFORE any app.* import touches them.
-for _mod in ("ultralytics", "prometheus_client"):
+for _mod in ("ultralytics",):
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
 

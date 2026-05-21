@@ -33,6 +33,15 @@ form_score_events_total = Counter(
     registry=registry,
 )
 
+# Distribution of form scores (0–100) per exercise — used for the Grafana heatmap.
+form_score = Histogram(
+    "posecoach_form_score",
+    "Distribution of per-frame form scores by exercise",
+    ["exercise"],
+    buckets=[10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+    registry=registry,
+)
+
 active_ws_connections = Gauge(
     "ws_connections_active",
     "Currently active WebSocket connections",

@@ -48,6 +48,7 @@ services:
       CHROMA_PATH: data/chroma
       ALLOWED_ORIGINS: http://localhost:5173
       ENVIRONMENT: development
+      METRICS_TOKEN: ${METRICS_TOKEN:-dev_metrics_token_change_me}
     ports:
       - "8000:8000"
     volumes:
@@ -76,5 +77,40 @@ services:
       - /app/node_modules           # Named volume prevents host override
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./deploy/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    environment:
+      METRICS_TOKEN: ${METRICS_TOKEN:-dev_metrics_token_change_me}
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  prometheus_data:
+  grafana_data:

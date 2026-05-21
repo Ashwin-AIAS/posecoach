@@ -13,7 +13,17 @@ from app.auth.deps import ACCESS_COOKIE, get_user_from_cookie_optional
 from app.db import AsyncSessionLocal
 from app.inference.runner import run_inference
 from app.inference.smoother import KeypointSmoother
+from app.metrics import active_ws_connections, form_score, form_score_events_total
 from app.models import WorkoutSession
+
+
+def _grade(score: float) -> str:
+    """Bucket a 0–100 form score into a coarse grade label for Prometheus."""
+    if score >= 80.0:
+        return "good"
+    if score >= 50.0:
+        return "fair"
+    return "poor"
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -44,6 +54,7 @@ async def ws_inference(websocket: WebSocket) -> None:
     JPEG frames are NEVER written to disk; only keypoint coords + scores are saved.
     """
     await websocket.accept()
+    active_ws_connections.inc()
 
     app = websocket.app
     model = app.state.model
@@ -120,6 +131,10 @@ async def ws_inference(websocket: WebSocket) -> None:
             # Smooth score
             smoothed_score = score_smoother.update(form.score)
 
+            # Prometheus: per-frame form score (histogram + grade counter)
+            form_score.labels(exercise=exercise).observe(smoothed_score)
+            form_score_events_total.labels(exercise=exercise, grade=_grade(smoothed_score)).inc()
+
             # Plank hold tracking
             hold_s: float | None = None
             if exercise == "plank":
@@ -160,6 +175,7 @@ async def ws_inference(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         logger.info("ws_disconnected", client=websocket.client)
     finally:
+        active_ws_connections.dec()
         kp_smoother.reset()
         score_smoother.reset()
         if session_id is not None:

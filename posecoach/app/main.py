@@ -1,12 +1,13 @@
 import os
+import secrets
 from collections.abc import AsyncGenerator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
@@ -20,7 +21,7 @@ from app.api.v1.history import router as history_router
 from app.api.v1.ws_inference import router as ws_router
 from app.cache import create_redis_client
 from app.logging_config import setup_logging
-from app.metrics import get_metrics_app
+from app.metrics import registry as metrics_registry
 from app.middleware import RequestIdMiddleware, SecurityHeadersMiddleware, TimingMiddleware
 
 
@@ -88,9 +89,27 @@ app.add_middleware(RequestIdMiddleware)
 app.add_middleware(TimingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
-# Prometheus metrics endpoint — only mounted when METRICS_TOKEN is configured
-if os.environ.get("METRICS_TOKEN"):
-    app.mount("/metrics", get_metrics_app())
+def _verify_metrics_token(request: Request) -> None:
+    """Authorize a request to /metrics — Prometheus scraper sends a Bearer token.
+
+    The endpoint is only mounted when METRICS_TOKEN is set in the environment.
+    A missing or wrong token returns 401 to avoid exposing internal counters.
+    """
+    expected = os.environ.get("METRICS_TOKEN", "")
+    if not expected:
+        raise HTTPException(status_code=404)
+    header = request.headers.get("Authorization", "")
+    provided = header.removeprefix("Bearer ").strip()
+    if not provided or not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="invalid metrics token")
+
+
+@app.get("/metrics", include_in_schema=False, dependencies=[Depends(_verify_metrics_token)])
+async def metrics() -> PlainTextResponse:
+    """Prometheus scrape endpoint — text/plain v0.0.4."""
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+    return PlainTextResponse(generate_latest(metrics_registry), media_type=CONTENT_TYPE_LATEST)
 
 app.include_router(ws_router)
 app.include_router(chat_router)

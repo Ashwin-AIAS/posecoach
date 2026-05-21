@@ -22,6 +22,7 @@ from slowapi.util import get_remote_address
 from app.chatbot import gemini_client, qwen_client, rag
 from app.chatbot import router as chat_router
 from app.chatbot.prompts import FALLBACK_MESSAGE, build_user_prompt
+from app.metrics import chat_requests_total
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
@@ -42,6 +43,7 @@ def _sse_event(token: str, done: bool = False) -> str:
 async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterator[str]:
     has_frame = bool(payload.frame)
     provider = chat_router.route(payload.query, has_frame=has_frame)
+    chat_requests_total.labels(provider=provider).inc()
 
     # RAG retrieval — best-effort, never blocks chat
     chunks = rag.retrieve(payload.query, top_k=3)

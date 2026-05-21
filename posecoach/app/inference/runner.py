@@ -12,6 +12,8 @@ import numpy.typing as npt
 import structlog
 from PIL import Image
 
+from app.metrics import inference_latency_seconds
+
 logger = structlog.get_logger(__name__)
 
 _INFERENCE_SIZE = 640
@@ -73,6 +75,7 @@ async def run_inference(
         return None
 
     latency_ms = (time.perf_counter() - t0) * 1000.0
+    inference_latency_seconds.observe(latency_ms / 1000.0)
 
     keypoints = results[0].keypoints  # type: ignore[index]
     if keypoints is None or keypoints.xyn.shape[0] == 0:

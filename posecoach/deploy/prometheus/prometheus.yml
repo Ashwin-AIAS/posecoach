@@ -1,0 +1,24 @@
+# PoseCoach Prometheus scrape config (development).
+#
+# Note: Prometheus does NOT expand $ENV variables inside the config file.
+# The bearer token below must match the METRICS_TOKEN env var on the backend
+# (default in docker-compose.yml: "dev_metrics_token_change_me"). For production,
+# mount a different file with credentials_file pointing at a secret-mounted path.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: posecoach-backend
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: [backend:8000]
+    authorization:
+      type: Bearer
+      credentials: dev_metrics_token_change_me
+
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
