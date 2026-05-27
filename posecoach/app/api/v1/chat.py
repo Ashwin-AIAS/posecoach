@@ -7,8 +7,9 @@ terminated by ``data: {"token": "", "done": true}\\n\\n``.
 Smart routing in ``router.route()`` decides Gemini vs Qwen per request.
 On LLM failure, a single FALLBACK_MESSAGE event is emitted before completion.
 """
-from __future__ import annotations
-
+# NOTE: no `from __future__ import annotations` here — slowapi wraps the
+# rate-limited @router.post("/stream") endpoint, and on the prod image's older
+# FastAPI/pydantic, lazy string annotations fail to resolve through the wrapper.
 import json
 from collections.abc import AsyncIterator
 
@@ -16,18 +17,15 @@ import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from app.chatbot import gemini_client, qwen_client, rag
 from app.chatbot import router as chat_router
 from app.chatbot.prompts import FALLBACK_MESSAGE, build_user_prompt
 from app.metrics import chat_requests_total
+from app.rate_limit import CHAT_RATE_LIMIT, limiter
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
-
-limiter = Limiter(key_func=get_remote_address)
 
 
 class ChatRequest(BaseModel):
@@ -78,7 +76,7 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
 
 
 @router.post("/stream")
-@limiter.limit("10/minute")
+@limiter.limit(CHAT_RATE_LIMIT)
 async def chat_stream(request: Request, payload: ChatRequest) -> StreamingResponse:
     """Stream a coaching answer back as SSE."""
     return StreamingResponse(

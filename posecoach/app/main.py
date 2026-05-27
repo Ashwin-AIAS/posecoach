@@ -15,7 +15,6 @@ from ultralytics import YOLO
 
 from app import db
 from app.api.v1.auth import router as auth_router
-from app.api.v1.chat import limiter as chat_limiter
 from app.api.v1.chat import router as chat_router
 from app.api.v1.history import router as history_router
 from app.api.v1.ws_inference import router as ws_router
@@ -23,12 +22,23 @@ from app.cache import create_redis_client
 from app.logging_config import setup_logging
 from app.metrics import registry as metrics_registry
 from app.middleware import RequestIdMiddleware, SecurityHeadersMiddleware, TimingMiddleware
+from app.rate_limit import limiter
+
+logger = structlog.get_logger(__name__)
 
 
 def _rate_limit_handler(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=429, content={"detail": "rate limit exceeded"})
 
-logger = structlog.get_logger(__name__)
+
+async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort 500 handler — never leak a stack trace to the client.
+
+    FastAPI's own ``HTTPException`` handler still owns 4xx responses; this only
+    fires for genuinely unhandled exceptions, returning a stable JSON shape.
+    """
+    logger.error("unhandled_exception", path=request.url.path, error=str(exc))
+    return JSONResponse(status_code=500, content={"error": "internal server error", "code": 500})
 
 
 @asynccontextmanager
@@ -70,9 +80,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# slowapi rate limiting (used by chat SSE endpoint, 10/min/IP)
-app.state.limiter = chat_limiter
+# slowapi rate limiting — shared limiter (auth 10/min + chat 10/min, per IP)
+app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+app.add_exception_handler(Exception, _unhandled_exception_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # CORS — added first so it is outermost (handles OPTIONS preflight before anything else)

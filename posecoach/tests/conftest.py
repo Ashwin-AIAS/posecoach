@@ -14,6 +14,9 @@ os.environ.setdefault("MODEL_PATH", "models/yolo_posecoach_v1.onnx")
 os.environ.setdefault("GEMINI_API_KEY", "test_gemini_key")
 os.environ.setdefault("OPENROUTER_API_KEY", "test_openrouter_key")
 os.environ.setdefault("CHROMA_PATH", "data/chroma_test")
+# Disable the shared slowapi limiter — its module-level counter would otherwise
+# accumulate across the many auth/chat calls in the suite and trip 429s.
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 # ── Stub heavy optional dependencies not installed in the test env ────────────
 # These must be stubbed BEFORE any app.* import touches them.
@@ -50,6 +53,7 @@ _redis_mock.aclose = AsyncMock()
 _redis_mock.get = AsyncMock(return_value=None)
 _redis_mock.set = AsyncMock(return_value=True)
 _redis_mock.delete = AsyncMock(return_value=1)
+_redis_mock.expire = AsyncMock(return_value=True)
 _redis_lib_mock = MagicMock()
 _redis_lib_mock.from_url.return_value = _redis_mock
 _redis_lib_mock.Redis = MagicMock

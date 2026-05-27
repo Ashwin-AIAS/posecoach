@@ -4,12 +4,14 @@ Both tokens live in httpOnly cookies. The refresh cookie is scoped to
 ``/api/v1/auth/refresh`` so it never travels with other requests. On every
 refresh the old token is revoked and a new pair is issued (rotation).
 """
-from __future__ import annotations
-
+# NOTE: deliberately NOT using `from __future__ import annotations`. slowapi wraps
+# rate-limited endpoints with functools.wraps, and on older FastAPI/pydantic
+# (as in the prod image) lazy string annotations like "RegisterRequest" fail to
+# resolve through the wrapper. Real annotation objects sidestep that entirely.
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +34,7 @@ from app.auth.security import (
 )
 from app.db import get_db
 from app.models import RefreshToken, User
+from app.rate_limit import AUTH_RATE_LIMIT, limiter
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -66,7 +69,9 @@ async def _issue_token_pair(user_id: str, db: AsyncSession, response: Response) 
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(AUTH_RATE_LIMIT)
 async def register(
+    request: Request,
     payload: RegisterRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
@@ -86,7 +91,9 @@ async def register(
 
 
 @router.post("/login", response_model=UserResponse)
+@limiter.limit(AUTH_RATE_LIMIT)
 async def login(
+    request: Request,
     payload: LoginRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),

@@ -1,0 +1,21 @@
+# Production web tier — builds the React SPA and serves it via NGINX, which also
+# reverse-proxies /api, /ws, and /chat/stream to the backend (see nginx/nginx.conf).
+#
+# Build context MUST be the repo root so this can read both frontend/ and nginx/:
+#   docker build -f deploy/Dockerfile.web -t posecoach-web .
+
+# ── Stage 1: build the static SPA bundle ─────────────────────────────────────
+FROM node:18-alpine AS build
+WORKDIR /build
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+# Frontend talks to /api and /ws on the same origin, so no VITE_API_URL is needed.
+RUN npm run build
+
+# ── Stage 2: NGINX serving the bundle + reverse proxy ────────────────────────
+FROM nginx:1.27-alpine
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY --from=build /build/dist /usr/share/nginx/html
+EXPOSE 80 443
+# TLS certs are mounted at runtime (see deploy/docker-compose.prod.yml).

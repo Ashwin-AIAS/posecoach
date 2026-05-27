@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -38,6 +39,10 @@ _NO_PERSON_RESPONSE: dict[str, Any] = {
 
 # How often to persist a keypoint snapshot to the session JSON column
 SNAPSHOT_INTERVAL_S = 5.0
+
+# One active inference socket per authenticated user. The Redis guard key carries
+# a TTL so a crashed process self-heals; it is refreshed while frames keep flowing.
+WS_CONN_TTL_S = 120
 
 
 @router.websocket("/ws/inference")
@@ -81,7 +86,26 @@ async def ws_inference(websocket: WebSocket) -> None:
 
     logger.info("ws_connected", client=websocket.client, authenticated=bool(session_user_id))
 
+    # One concurrent inference socket per authenticated user (Redis-backed).
+    redis = app.state.redis
+    conn_guard_key = f"ws:conn:{session_user_id}" if session_user_id else None
+    guard_acquired = False
+
     try:
+        if conn_guard_key is not None:
+            try:
+                guard_acquired = bool(await redis.set(conn_guard_key, "1", nx=True, ex=WS_CONN_TTL_S))
+            except Exception as exc:  # noqa: BLE001 — a Redis hiccup must not lock users out
+                logger.warning("ws_conn_guard_error", error=str(exc))
+                guard_acquired = True  # fail open
+            if not guard_acquired:
+                logger.info("ws_duplicate_rejected", user_id=session_user_id)
+                await websocket.send_json(
+                    {"error": "active session exists in another tab", "code": "duplicate_connection"}
+                )
+                await websocket.close(code=1008)  # policy violation
+                return
+
         while True:
             data: dict[str, Any] = await websocket.receive_json()
 
@@ -169,6 +193,10 @@ async def ws_inference(websocket: WebSocket) -> None:
                         }
                     )
                     last_snapshot_t = now
+                    # Keep the per-user connection guard alive while frames flow.
+                    if conn_guard_key is not None and guard_acquired:
+                        with contextlib.suppress(Exception):
+                            await redis.expire(conn_guard_key, WS_CONN_TTL_S)
 
             await websocket.send_json(response)
 
@@ -178,6 +206,10 @@ async def ws_inference(websocket: WebSocket) -> None:
         active_ws_connections.dec()
         kp_smoother.reset()
         score_smoother.reset()
+        # Release the per-user guard so the user can reconnect immediately.
+        if conn_guard_key is not None and guard_acquired:
+            with contextlib.suppress(Exception):
+                await redis.delete(conn_guard_key)
         if session_id is not None:
             try:
                 async with AsyncSessionLocal() as close_db:
