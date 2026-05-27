@@ -1,0 +1,62 @@
+{
+  "description": "50 curated coaching Q&A pairs for thesis chatbot evaluation. answer_keywords: a correct answer must contain at least one (case-insensitive). context_keywords: retrieval should surface at least one in the top-k chunks.",
+  "pairs": [
+    {"id": 1, "exercise": "squat", "question": "How deep should I squat?", "answer_keywords": ["parallel", "depth", "hip crease", "below"], "context_keywords": ["squat", "knee flexion", "depth"]},
+    {"id": 2, "exercise": "squat", "question": "My knees cave inward when I squat. How do I fix that?", "answer_keywords": ["knees out", "valgus", "push", "glute"], "context_keywords": ["valgus", "knees caving"]},
+    {"id": 3, "exercise": "squat", "question": "Why do I lean too far forward in the squat?", "answer_keywords": ["chest up", "forward lean", "core", "ankle"], "context_keywords": ["forward lean", "spine angle"]},
+    {"id": 4, "exercise": "squat", "question": "How should I brace my core before squatting?", "answer_keywords": ["deep breath", "brace", "core", "belt"], "context_keywords": ["brace", "breath"]},
+    {"id": 5, "exercise": "squat", "question": "What is butt wink and is it bad?", "answer_keywords": ["pelvic tilt", "posterior", "depth", "spine"], "context_keywords": ["butt wink", "pelvic tilt"]},
+    {"id": 6, "exercise": "squat", "question": "Should my heels stay on the floor when I squat?", "answer_keywords": ["heel", "flat", "floor", "weight"], "context_keywords": ["heel rise", "ankle"]},
+    {"id": 7, "exercise": "squat", "question": "Which muscles does the squat work?", "answer_keywords": ["quad", "glute", "hamstring"], "context_keywords": ["target muscles", "quad", "glute"]},
+    {"id": 8, "exercise": "squat", "question": "How do I start the descent of a squat?", "answer_keywords": ["hips", "knees", "sit back"], "context_keywords": ["break at the hips", "sit back"]},
+
+    {"id": 9, "exercise": "deadlift", "question": "How do I keep my back safe when deadlifting?", "answer_keywords": ["neutral", "flat", "brace", "spine"], "context_keywords": ["lumbar rounding", "neutral", "spine"]},
+    {"id": 10, "exercise": "deadlift", "question": "My hips shoot up too fast on the deadlift. Why?", "answer_keywords": ["hips", "chest", "leg", "timing"], "context_keywords": ["hips rising too fast", "stiff-leg"]},
+    {"id": 11, "exercise": "deadlift", "question": "Where should the bar travel during a deadlift?", "answer_keywords": ["close", "body", "shins", "bar path"], "context_keywords": ["bar drifting", "close to the body"]},
+    {"id": 12, "exercise": "deadlift", "question": "What does lockout look like on a deadlift?", "answer_keywords": ["stand tall", "hips", "lockout", "squeeze"], "context_keywords": ["hyperextending", "lockout"]},
+    {"id": 13, "exercise": "deadlift", "question": "How do I set up before pulling the bar?", "answer_keywords": ["wedge", "brace", "breath", "hips"], "context_keywords": ["wedge", "brace hard"]},
+    {"id": 14, "exercise": "deadlift", "question": "Which muscles does the deadlift train?", "answer_keywords": ["hamstring", "glute", "back", "posterior"], "context_keywords": ["target muscles", "hamstring", "glute"]},
+    {"id": 15, "exercise": "deadlift", "question": "Should I jerk the bar off the floor?", "answer_keywords": ["no", "controlled", "tension", "smooth"], "context_keywords": ["jerking the bar", "off the floor"]},
+
+    {"id": 16, "exercise": "bench", "question": "How far should I flare my elbows on bench press?", "answer_keywords": ["tuck", "45", "elbow", "flare"], "context_keywords": ["elbow flare", "abduction"]},
+    {"id": 17, "exercise": "bench", "question": "Why should I retract my shoulder blades when benching?", "answer_keywords": ["scapula", "retract", "stable", "shoulder"], "context_keywords": ["scapular retraction", "shoulder blades"]},
+    {"id": 18, "exercise": "bench", "question": "Where should the bar touch on my chest?", "answer_keywords": ["lower chest", "nipple", "sternum"], "context_keywords": ["lower chest", "nipple line"]},
+    {"id": 19, "exercise": "bench", "question": "Is bouncing the bar off my chest okay?", "answer_keywords": ["no", "control", "pause", "lower"], "context_keywords": ["bouncing off chest"]},
+    {"id": 20, "exercise": "bench", "question": "Should my feet stay planted during bench press?", "answer_keywords": ["feet", "floor", "drive", "planted"], "context_keywords": ["feet losing contact", "leg drive"]},
+    {"id": 21, "exercise": "bench", "question": "How do I set up for the bench press?", "answer_keywords": ["shoulder blades", "arch", "eyes under"], "context_keywords": ["eyes under the bar", "arch"]},
+
+    {"id": 22, "exercise": "ohp", "question": "Why do I lean back during the overhead press?", "answer_keywords": ["lumbar", "core", "glute", "brace"], "context_keywords": ["lumbar extension", "leaning back"]},
+    {"id": 23, "exercise": "ohp", "question": "Where should the bar finish at the top of an overhead press?", "answer_keywords": ["overhead", "lockout", "over", "head"], "context_keywords": ["lockout", "shoulder angle"]},
+    {"id": 24, "exercise": "ohp", "question": "Should I press the bar in front of my face or straight up?", "answer_keywords": ["straight", "back", "over", "head"], "context_keywords": ["pressing in front", "front of the body"]},
+    {"id": 25, "exercise": "ohp", "question": "How do my legs help during the overhead press?", "answer_keywords": ["glute", "quad", "foundation", "brace"], "context_keywords": ["squeeze your glutes", "foundation"]},
+    {"id": 26, "exercise": "ohp", "question": "Where does the bar start on the overhead press?", "answer_keywords": ["front delt", "shoulder", "collarbone"], "context_keywords": ["front delts", "starts"]},
+    {"id": 27, "exercise": "ohp", "question": "What is incomplete lockout on the press?", "answer_keywords": ["lockout", "full", "elbow", "overhead"], "context_keywords": ["incomplete lockout"]},
+
+    {"id": 28, "exercise": "curl", "question": "How do I stop swinging during bicep curls?", "answer_keywords": ["momentum", "control", "lighter", "swing"], "context_keywords": ["swinging", "momentum"]},
+    {"id": 29, "exercise": "curl", "question": "Should my elbows move during a curl?", "answer_keywords": ["elbow", "stationary", "ribs", "still"], "context_keywords": ["elbow drift", "glued"]},
+    {"id": 30, "exercise": "curl", "question": "How much should I lower the dumbbell on a curl?", "answer_keywords": ["full", "extension", "range", "lower"], "context_keywords": ["incomplete range", "extension"]},
+    {"id": 31, "exercise": "curl", "question": "What tempo should I use for bicep curls?", "answer_keywords": ["tempo", "control", "2 seconds", "3 seconds", "slow"], "context_keywords": ["tempo", "2 seconds up"]},
+    {"id": 32, "exercise": "curl", "question": "What should my wrist do during a curl?", "answer_keywords": ["neutral", "wrist", "straight"], "context_keywords": ["wrist", "neutral"]},
+    {"id": 33, "exercise": "curl", "question": "Which muscle does the bicep curl target?", "answer_keywords": ["bicep", "brachii", "arm"], "context_keywords": ["target muscles", "bicep"]},
+
+    {"id": 34, "exercise": "lunge", "question": "My front knee caves in during lunges. How do I fix it?", "answer_keywords": ["knee", "out", "valgus", "track"], "context_keywords": ["knee valgus", "collapsing inward"]},
+    {"id": 35, "exercise": "lunge", "question": "Should my front knee go past my toes in a lunge?", "answer_keywords": ["knee", "toes", "shin", "vertical"], "context_keywords": ["knee shooting", "past toes"]},
+    {"id": 36, "exercise": "lunge", "question": "How should I hold my torso during a lunge?", "answer_keywords": ["upright", "tall", "torso", "vertical"], "context_keywords": ["torso leaning", "torso position"]},
+    {"id": 37, "exercise": "lunge", "question": "How do I stop wobbling side to side during lunges?", "answer_keywords": ["balance", "core", "stance", "controlled"], "context_keywords": ["losing balance", "lateral wobble"]},
+    {"id": 38, "exercise": "lunge", "question": "Which leg should I push through coming up from a lunge?", "answer_keywords": ["front", "heel", "push", "front leg"], "context_keywords": ["pushing off back foot", "front foot"]},
+    {"id": 39, "exercise": "lunge", "question": "What does the back leg do in a lunge?", "answer_keywords": ["hip flexor", "knee", "toes", "stretch"], "context_keywords": ["back leg", "plantarflexion"]},
+
+    {"id": 40, "exercise": "plank", "question": "My hips sag during a plank. What's wrong?", "answer_keywords": ["glute", "core", "hips", "brace"], "context_keywords": ["hip sagging", "lumbar extension"]},
+    {"id": 41, "exercise": "plank", "question": "My hips pike up too high in the plank. How do I fix it?", "answer_keywords": ["lower", "hips", "neutral", "line"], "context_keywords": ["hip piking", "hip flexion"]},
+    {"id": 42, "exercise": "plank", "question": "Where should my elbows be in a forearm plank?", "answer_keywords": ["under", "shoulder", "elbow"], "context_keywords": ["elbows directly under", "shoulder position"]},
+    {"id": 43, "exercise": "plank", "question": "What should my head and neck do during a plank?", "answer_keywords": ["neutral", "neck", "down", "look"], "context_keywords": ["head dropping", "neck position"]},
+    {"id": 44, "exercise": "plank", "question": "Should I hold my breath during a plank?", "answer_keywords": ["breathe", "breathing", "don't hold"], "context_keywords": ["holding breath", "keep breathing"]},
+    {"id": 45, "exercise": "plank", "question": "How do I make my body straight in a plank?", "answer_keywords": ["glute", "core", "straight", "board", "neutral"], "context_keywords": ["stiff as a board", "spine alignment"]},
+
+    {"id": 46, "exercise": "general", "question": "How should I breathe during heavy lifts?", "answer_keywords": ["brace", "breath", "valsalva", "core"], "context_keywords": ["breathing and bracing", "brace"]},
+    {"id": 47, "exercise": "general", "question": "What is progressive overload?", "answer_keywords": ["increase", "weight", "reps", "over time", "gradual"], "context_keywords": ["progressive overload"]},
+    {"id": 48, "exercise": "general", "question": "How long should I rest between sets?", "answer_keywords": ["rest", "minute", "seconds", "recovery"], "context_keywords": ["rest periods", "between sets"]},
+    {"id": 49, "exercise": "general", "question": "How do I warm up before training?", "answer_keywords": ["warm", "light", "mobility", "ramp"], "context_keywords": ["warm-up protocol", "warm"]},
+    {"id": 50, "exercise": "general", "question": "When should I stop a set?", "answer_keywords": ["form", "breakdown", "failure", "pain"], "context_keywords": ["when to stop a set", "form"]}
+  ]
+}
