@@ -6,7 +6,8 @@
  * that succeeds the original request is retried; otherwise the error bubbles.
  */
 
-const REFRESH_PATH = "/api/v1/auth/refresh"
+const BASE_URL = (import.meta.env.VITE_API_URL as string) || ""
+const REFRESH_PATH = `${BASE_URL}/api/v1/auth/refresh`
 
 let pendingRefresh: Promise<boolean> | null = null
 
@@ -29,19 +30,20 @@ async function refreshOnce(): Promise<boolean> {
 }
 
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const targetUrl = input.startsWith("http") ? input : `${BASE_URL}${input}`
   const opts: RequestInit = {
     ...init,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...init.headers },
   }
 
-  let resp = await fetch(input, opts)
-  if (resp.status !== 401 || input.endsWith(REFRESH_PATH)) return resp
+  let resp = await fetch(targetUrl, opts)
+  if (resp.status !== 401 || targetUrl.endsWith(REFRESH_PATH)) return resp
 
   const refreshed = await refreshOnce()
   if (!refreshed) return resp
 
-  resp = await fetch(input, opts)
+  resp = await fetch(targetUrl, opts)
   return resp
 }
 

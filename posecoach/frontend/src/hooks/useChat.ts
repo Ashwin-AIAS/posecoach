@@ -32,6 +32,10 @@ interface UseChatResult {
 }
 
 function getDefaultEndpoint(): string {
+  const envUrl = (import.meta.env.VITE_API_URL as string) || ""
+  if (envUrl) {
+    return `${envUrl}/api/v1/chat/stream`
+  }
   if (typeof window === "undefined") return "http://localhost:8000/api/v1/chat/stream"
   return `${window.location.protocol}//${window.location.host}/api/v1/chat/stream`
 }

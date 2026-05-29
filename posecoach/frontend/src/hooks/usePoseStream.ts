@@ -23,6 +23,11 @@ interface UsePoseStreamResult {
 }
 
 function getDefaultWsUrl(): string {
+  const envUrl = (import.meta.env.VITE_API_URL as string) || ""
+  if (envUrl) {
+    const wsBase = envUrl.replace(/^http/, "ws")
+    return `${wsBase}/ws/inference`
+  }
   if (typeof window === "undefined") return "ws://localhost:8000/ws/inference"
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:"
   return `${proto}//${window.location.host}/ws/inference`
