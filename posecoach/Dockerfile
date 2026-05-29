@@ -27,8 +27,9 @@ COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
 
-# Models and data directories (mounted as volumes in docker-compose)
-RUN mkdir -p models data/chroma
+# Models and data directories
+COPY models/ ./models/
+RUN mkdir -p data/chroma
 
 # Non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
