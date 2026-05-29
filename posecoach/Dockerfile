@@ -29,7 +29,12 @@ COPY alembic.ini .
 
 # Models and data directories
 COPY models/ ./models/
+COPY data/knowledge_base/ ./data/knowledge_base/
 RUN mkdir -p data/chroma
+
+# Build the RAG vector index so the chatbot has retrieval context in production.
+# Runs once at image-build time; the resulting Chroma DB is baked into the image.
+RUN python -m app.chatbot.ingest --reset
 
 # Non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
