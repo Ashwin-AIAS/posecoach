@@ -1,3 +1,14 @@
+---
+title: PoseCoach API
+emoji: 🏋️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 8000
+pinned: false
+short_description: Real-time AI gym form correction backend (YOLO26 + RAG)
+---
+
 # PoseCoach AI 🏋️‍♂️🤖
 
 > **A Vicon-Validated Real-Time Pose Assessment and RAG-Augmented Coaching System for Resistance Training**
