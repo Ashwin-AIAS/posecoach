@@ -22,7 +22,7 @@ passlib[bcrypt]==1.7.4            # Password hashing
 slowapi==0.1.9                    # Rate limiting
 
 # ── Computer Vision ────────────────────────────────────────
-ultralytics==8.3.0               # YOLO26-Pose
+ultralytics==8.4.51              # YOLO26-Pose (Pose26 class; 8.3.x lacks YOLO26 support)
 torch==2.4.1                     # GPU/CPU inference
 torchvision==0.19.1
 opencv-python-headless==4.10.0.84
