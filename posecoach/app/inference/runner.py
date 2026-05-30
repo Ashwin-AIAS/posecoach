@@ -38,7 +38,11 @@ def _predict(model: object, frame: npt.NDArray[np.uint8]) -> object:
     # conf=0.10: fine-tuned model was trained on Vicon/Fit3D (studio); webcam input
     # has a different distribution so default 0.25 threshold filters everything out.
     # imgsz=320: cuts inference time ~4x on CPU-starved Render free tier.
-    results = model.predict(frame, verbose=False, conf=0.10, imgsz=320)  # type: ignore[attr-defined]
+    # Note: ONNX Runtime requires matching static shape of 640x640 if exported that way.
+    is_onnx = isinstance(getattr(model, "path", ""), str) and getattr(model, "path", "").endswith(".onnx")
+    imgsz = 640 if is_onnx else 320
+
+    results = model.predict(frame, verbose=False, conf=0.10, imgsz=imgsz)  # type: ignore[attr-defined]
 
     # Periodically clear GPU VRAM to prevent OOM
     if _frame_counter % _VRAM_CLEAR_EVERY == 0:
