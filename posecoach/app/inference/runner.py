@@ -35,7 +35,10 @@ def _predict(model: object, frame: npt.NDArray[np.uint8]) -> object:
     global _frame_counter
     _frame_counter += 1
 
-    results = model.predict(frame, verbose=False)  # type: ignore[attr-defined]
+    # conf=0.10: fine-tuned model was trained on Vicon/Fit3D (studio); webcam input
+    # has a different distribution so default 0.25 threshold filters everything out.
+    # imgsz=320: cuts inference time ~4x on CPU-starved Render free tier.
+    results = model.predict(frame, verbose=False, conf=0.10, imgsz=320)  # type: ignore[attr-defined]
 
     # Periodically clear GPU VRAM to prevent OOM
     if _frame_counter % _VRAM_CLEAR_EVERY == 0:

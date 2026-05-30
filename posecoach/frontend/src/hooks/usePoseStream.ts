@@ -4,7 +4,7 @@ import type { Exercise, PoseResult, ServerMessage } from "../types"
 import { isPoseError } from "../types"
 import { useWebSocket } from "./useWebSocket"
 
-const MIN_FRAME_INTERVAL_MS = 66 // ≈ 15 FPS
+const MIN_FRAME_INTERVAL_MS = 500 // 2 FPS — matches throughput on Render free/Starter CPU
 const FRAME_WIDTH = 320
 const FRAME_HEIGHT = 240
 const JPEG_QUALITY = 0.7
