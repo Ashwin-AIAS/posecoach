@@ -50,6 +50,16 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
 
     # Load YOLO26 model once — 3-5s, stored in app.state for all requests
     model_path = os.environ["MODEL_PATH"]
+
+    # Ultralytics 8.4.x ONNX bug: InferenceSession enters a bad state after the
+    # first predict(), causing results[0].keypoints to be None on all subsequent
+    # calls. The PT model avoids this — use it when present alongside the ONNX.
+    if model_path.endswith(".onnx"):
+        pt_path = model_path[:-5] + ".pt"
+        if os.path.exists(pt_path):
+            log.info("pt_preferred_over_onnx", pt=pt_path)
+            model_path = pt_path
+
     application.state.model = YOLO(model_path, task="pose")
     application.state.executor = ThreadPoolExecutor(max_workers=2)
     log.info("model_loaded", path=model_path)
