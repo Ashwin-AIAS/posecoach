@@ -42,6 +42,13 @@ def _predict(model: object, frame: npt.NDArray[np.uint8]) -> object:
     is_onnx = isinstance(getattr(model, "path", ""), str) and getattr(model, "path", "").endswith(".onnx")
     imgsz = 640 if is_onnx else 320
 
+    # Ultralytics 8.4.x: predictor.args.task can silently reset to 'detect' on the
+    # 2nd+ call when the model was loaded from ONNX. Force it back to 'pose' so that
+    # results[0].keypoints is never None.
+    predictor = getattr(model, "predictor", None)
+    if predictor is not None and getattr(getattr(predictor, "args", None), "task", None) != "pose":
+        predictor.args.task = "pose"  # type: ignore[union-attr]
+
     results = model.predict(frame, verbose=False, conf=0.10, imgsz=imgsz)  # type: ignore[attr-defined]
 
     # Periodically clear GPU VRAM to prevent OOM

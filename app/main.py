@@ -50,16 +50,6 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
 
     # Load YOLO26 model once — 3-5s, stored in app.state for all requests
     model_path = os.environ["MODEL_PATH"]
-
-    # Ultralytics 8.4.x has an ONNX predictor-state bug where results[0].keypoints
-    # returns None on the 2nd+ inference because the predictor's task arg gets reset.
-    # Use the PT model when available — it avoids the bug with full Pose26 support.
-    if model_path.endswith(".onnx"):
-        pt_path = model_path[:-5] + ".pt"
-        if os.path.exists(pt_path):
-            log.info("pt_preferred_over_onnx", pt=pt_path)
-            model_path = pt_path
-
     application.state.model = YOLO(model_path, task="pose")
     application.state.executor = ThreadPoolExecutor(max_workers=2)
     log.info("model_loaded", path=model_path)
