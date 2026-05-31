@@ -1,7 +1,7 @@
 import { memo } from "react"
 
 import type { ConnectionState, PoseResult } from "../types"
-import { scoreColor } from "../lib/skeleton"
+import { jointLabel, scoreColor } from "../lib/skeleton"
 
 interface CoachingCuesProps {
   readonly result: PoseResult | null
@@ -9,25 +9,47 @@ interface CoachingCuesProps {
   readonly error: string | null
 }
 
+const STATE_LABEL: Record<ConnectionState, string> = {
+  idle: "Idle",
+  connecting: "Connecting…",
+  open: "Live",
+  closed: "Disconnected",
+  error: "Error",
+}
+
+const STATE_DOT: Record<ConnectionState, string> = {
+  idle: "bg-gray-500",
+  connecting: "bg-score-mid animate-pulse-dot",
+  open: "bg-score-good",
+  closed: "bg-score-bad",
+  error: "bg-score-bad",
+}
+
 function ConnectionPill({ state }: { state: ConnectionState }): JSX.Element {
-  const label: Record<ConnectionState, string> = {
-    idle: "Idle",
-    connecting: "Connecting…",
-    open: "Live",
-    closed: "Disconnected",
-    error: "Error",
-  }
-  const color: Record<ConnectionState, string> = {
-    idle: "bg-gray-600",
-    connecting: "bg-yellow-600",
-    open: "bg-green-600",
-    closed: "bg-red-700",
-    error: "bg-red-700",
-  }
   return (
-    <span className={`text-xs px-2 py-1 rounded ${color[state]}`} data-testid="connection-pill">
-      {label[state]}
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-surface-hairline bg-surface-base/60 px-2.5 py-1 text-[11px] font-medium text-gray-300"
+      data-testid="connection-pill"
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${STATE_DOT[state]}`} aria-hidden="true" />
+      {STATE_LABEL[state]}
     </span>
+  )
+}
+
+function JointBar({ name, value }: { name: string; value: number }): JSX.Element {
+  const color = scoreColor(value)
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-16 shrink-0 text-[11px] text-gray-400">{jointLabel(name)}</span>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-hairline">
+        <div
+          className="h-full rounded-full transition-[width] duration-300 ease-out"
+          style={{ width: `${Math.max(0, Math.min(100, value))}%`, backgroundColor: color }}
+        />
+      </div>
+      <span className="hud-numerals w-6 shrink-0 text-right text-[11px] text-gray-400">{Math.round(value)}</span>
+    </div>
   )
 }
 
@@ -36,34 +58,52 @@ function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps
   const cues = result?.cues ?? []
   const holdS = result?.hold_s
   const latency = result?.latency_ms ?? null
+  const jointScores = result?.joint_scores ?? {}
+  // Worst joints first — surface the problem areas.
+  const joints = Object.entries(jointScores).sort((a, b) => a[1] - b[1])
 
   return (
-    <div className="bg-gray-900 bg-opacity-90 text-white p-4 rounded-lg shadow-lg space-y-3">
-      <div className="flex justify-between items-center">
-        <h2 className="text-sm uppercase tracking-wide text-gray-400">Form score</h2>
+    <section className="rounded-2xl border border-surface-hairline bg-surface-raised/70 p-4 shadow-card backdrop-blur-md">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Form score</h2>
         <ConnectionPill state={connectionState} />
       </div>
 
-      <div className="flex items-baseline gap-3">
+      <div className="mt-2 flex items-baseline gap-2">
         <span
-          className="text-5xl font-bold tabular-nums"
+          className="hud-numerals font-display text-6xl font-semibold leading-none transition-colors duration-300"
           style={{ color: scoreColor(score) }}
           data-testid="score-value"
         >
           {score === null ? "—" : Math.round(score)}
         </span>
-        <span className="text-sm text-gray-500">/ 100</span>
+        <span className="text-sm text-gray-600">/ 100</span>
         {holdS !== undefined && (
-          <span className="ml-auto text-xs text-gray-400" data-testid="hold-timer">
-            Hold: {holdS.toFixed(1)}s
+          <span
+            className="ml-auto rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent"
+            data-testid="hold-timer"
+          >
+            Hold {holdS.toFixed(1)}s
           </span>
         )}
       </div>
 
+      {joints.length > 0 && (
+        <div className="mt-4 space-y-1.5" data-testid="joint-bars">
+          {joints.map(([name, value]) => (
+            <JointBar key={name} name={name} value={value} />
+          ))}
+        </div>
+      )}
+
       {cues.length > 0 && (
-        <ul className="space-y-1" data-testid="cues-list">
+        <ul className="mt-4 space-y-1.5" data-testid="cues-list">
           {cues.map((cue) => (
-            <li key={cue} className="text-base text-amber-300">
+            <li
+              key={cue}
+              className="flex animate-caption-in items-start gap-2 text-sm text-gray-100"
+            >
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
               {cue}
             </li>
           ))}
@@ -71,17 +111,17 @@ function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps
       )}
 
       {error !== null && (
-        <p className="text-sm text-red-400" data-testid="error-msg">
+        <p className="mt-3 text-sm text-score-bad" data-testid="error-msg">
           {error}
         </p>
       )}
 
       {latency !== null && (
-        <p className="text-xs text-gray-500" data-testid="latency-display">
-          Latency: {Math.round(latency)} ms
+        <p className="mt-3 text-[11px] text-gray-600" data-testid="latency-display">
+          Latency {Math.round(latency)} ms
         </p>
       )}
-    </div>
+    </section>
   )
 }
 

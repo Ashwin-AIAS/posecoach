@@ -42,6 +42,8 @@ export interface PoseResult {
   readonly cues: readonly string[]
   readonly latency_ms: number
   readonly hold_s?: number
+  /** Per-joint 0–100 form scores, keyed by joint angle name (e.g. "left_knee_angle"). */
+  readonly joint_scores?: Readonly<Record<string, number>>
 }
 
 export interface PoseError {

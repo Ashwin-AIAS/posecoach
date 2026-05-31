@@ -66,3 +66,13 @@ export function scoreColor(score: number | null): string {
   if (score >= 60) return SCORE_MID
   return SCORE_BAD
 }
+
+/** Short HUD label for a scorer joint key, e.g. "left_knee_angle" → "L Knee". */
+export function jointLabel(key: string): string {
+  if (key === "hip_trunk_angle") return "Trunk"
+  const cleaned = key.replace(/_angle$/, "").replace(/_/g, " ")
+  return cleaned
+    .replace(/^left /, "L ")
+    .replace(/^right /, "R ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}

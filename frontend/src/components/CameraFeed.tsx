@@ -8,25 +8,38 @@ interface CameraFeedProps {
 export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
   function CameraFeed({ error, ready }, ref) {
     return (
-      <div className="relative w-full h-full bg-black">
+      <div className="relative h-full w-full bg-surface-base">
         <video
           ref={ref}
-          className="w-full h-full object-cover"
+          className="mirror h-full w-full object-cover"
           autoPlay
           playsInline
           muted
         />
-        {!ready && !error && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-            <span>Starting camera…</span>
+
+        {!ready && error === null && (
+          <div className="absolute inset-0 grid place-content-center gap-3 bg-surface-base/80 text-center">
+            <span
+              className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-surface-hairline border-t-accent"
+              aria-hidden="true"
+            />
+            <p className="text-sm text-gray-400">Starting camera…</p>
           </div>
         )}
+
         {error !== null && (
-          <div className="absolute inset-0 flex items-center justify-center bg-red-900 bg-opacity-90 text-white text-center p-4">
-            <div>
-              <p className="font-semibold">Camera unavailable</p>
-              <p className="text-sm mt-2">{error}</p>
+          <div
+            className="absolute inset-0 grid place-content-center gap-3 bg-surface-base/95 px-6 text-center"
+            role="alert"
+          >
+            <div className="mx-auto grid h-12 w-12 place-content-center rounded-full bg-score-bad/15 text-2xl">
+              📷
             </div>
+            <p className="font-display text-lg font-semibold text-white">Camera unavailable</p>
+            <p className="mx-auto max-w-sm text-sm text-gray-400">{error}</p>
+            <p className="text-xs text-gray-600">
+              Allow camera access in your browser settings, then reload.
+            </p>
           </div>
         )}
       </div>

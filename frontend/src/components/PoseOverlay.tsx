@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef } from "react"
 
 import type { PoseResult } from "../types"
-import { CONF_LOW, KEYPOINT_COUNT, SKELETON_EDGES, confidenceColor } from "../lib/skeleton"
+import { ACCENT_COLOR, CONF_LOW, KEYPOINT_COUNT, SKELETON_EDGES, confidenceColor } from "../lib/skeleton"
 
 interface PoseOverlayProps {
   readonly result: PoseResult | null
@@ -28,20 +28,24 @@ function PoseOverlayInner({ result }: PoseOverlayProps): JSX.Element {
     if (result === null || result.keypoints.length !== KEYPOINT_COUNT) return
     const { keypoints, confidence } = result
 
-    // Draw limb connections
-    ctx.lineWidth = 3
+    // Draw limb connections with the accent color + soft glow
+    ctx.lineWidth = 4
+    ctx.lineCap = "round"
+    ctx.strokeStyle = ACCENT_COLOR
+    ctx.shadowColor = ACCENT_COLOR
+    ctx.shadowBlur = 8
     for (const [a, b] of SKELETON_EDGES) {
       if (confidence[a] < CONF_LOW || confidence[b] < CONF_LOW) continue
       const [xa, ya] = keypoints[a]
       const [xb, yb] = keypoints[b]
-      ctx.strokeStyle = "#60a5fa"
       ctx.beginPath()
       ctx.moveTo(xa * canvas.width, ya * canvas.height)
       ctx.lineTo(xb * canvas.width, yb * canvas.height)
       ctx.stroke()
     }
 
-    // Draw joints
+    // Draw joints (confidence-colored), no glow for crisp dots
+    ctx.shadowBlur = 0
     for (let i = 0; i < KEYPOINT_COUNT; i++) {
       const conf = confidence[i]
       const color = confidenceColor(conf)
