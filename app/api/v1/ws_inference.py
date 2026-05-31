@@ -9,6 +9,8 @@ import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.analysis.form_scorer import SUPPORTED_EXERCISES, score_exercise
+from app.analysis.keypoint_utils import compute_angles
+from app.analysis.rep_counter import RepCounter
 from app.analysis.score_smoother import ScoreSmoother
 from app.auth.deps import ACCESS_COOKIE, get_user_from_cookie_optional
 from app.db import AsyncSessionLocal
@@ -50,7 +52,7 @@ async def ws_inference(websocket: WebSocket) -> None:
     """Real-time pose inference endpoint.
 
     Client sends: {"frame": "<base64 JPEG>", "exercise": "squat"}
-    Server sends: {"keypoints", "confidence", "score", "cues", "latency_ms", "joint_scores"}
+    Server sends: {"keypoints", "confidence", "score", "cues", "latency_ms", "joint_scores", "reps"}
 
     If the client is authenticated (access_token cookie present), a WorkoutSession
     row is created at connect and snapshots are appended every SNAPSHOT_INTERVAL_S
@@ -69,6 +71,7 @@ async def ws_inference(websocket: WebSocket) -> None:
     kp_smoother = KeypointSmoother(alpha=0.6)
     score_smoother = ScoreSmoother(alpha=0.6)
     hold_start: float | None = None  # for plank hold tracking
+    rep_counter: RepCounter | None = None  # created on first frame; reset on exercise change
 
     session_id: str | None = None
     session_user_id: str | None = None
@@ -152,6 +155,11 @@ async def ws_inference(websocket: WebSocket) -> None:
             # Score form
             form = score_exercise(exercise, kp_smooth, kp_conf)
 
+            # Rep counting (streaming, deterministic) — reset on exercise change
+            if rep_counter is None or rep_counter.exercise != exercise:
+                rep_counter = RepCounter(exercise)
+            reps = rep_counter.update(compute_angles(kp_smooth, kp_conf))
+
             # Smooth score
             smoothed_score = score_smoother.update(form.score)
 
@@ -177,6 +185,7 @@ async def ws_inference(websocket: WebSocket) -> None:
                 "latency_ms": round(latency_ms, 1),
                 # Per-joint 0–100 scores power the coaching panel's per-joint bars.
                 "joint_scores": {k: round(v, 1) for k, v in form.joint_scores.items()},
+                "reps": reps,
             }
             if hold_s is not None:
                 response["hold_s"] = hold_s
@@ -219,6 +228,7 @@ async def ws_inference(websocket: WebSocket) -> None:
                     if close_row is not None:
                         avg = score_total / score_count if score_count else 0.0
                         close_row.avg_form_score = round(avg, 1)
+                        close_row.rep_count = rep_counter.count if rep_counter is not None else 0
                         close_row.ended_at = datetime.now(UTC)
                         close_row.keypoints_data = {"snapshots": snapshots, "exercise": session_exercise}
                         await close_db.commit()
@@ -227,6 +237,7 @@ async def ws_inference(websocket: WebSocket) -> None:
                             session_id=session_id,
                             snapshots=len(snapshots),
                             avg=round(avg, 1),
+                            reps=close_row.rep_count,
                         )
             except Exception as exc:  # noqa: BLE001 — session close must never crash
                 logger.error("ws_session_close_failed", error=str(exc))

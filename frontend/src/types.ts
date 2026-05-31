@@ -42,6 +42,8 @@ export interface PoseResult {
   readonly cues: readonly string[]
   readonly latency_ms: number
   readonly hold_s?: number
+  /** Running rep count for the active set (0 for isometric holds like plank). */
+  readonly reps?: number
   /** Per-joint 0–100 form scores, keyed by joint angle name (e.g. "left_knee_angle"). */
   readonly joint_scores?: Readonly<Record<string, number>>
 }

@@ -21,6 +21,8 @@ function CameraHudInner({ result, active, exercise, onShowHowTo }: CameraHudProp
   const score = result?.score ?? null
   const topCue = result?.cues?.[0]
   const holdS = result?.hold_s
+  const reps = result?.reps ?? 0
+  const isPlank = exercise === "plank"
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
@@ -39,11 +41,25 @@ function CameraHudInner({ result, active, exercise, onShowHowTo }: CameraHudProp
         ?
       </button>
 
-      {/* Plank hold badge */}
-      {holdS !== undefined && (
-        <div className="absolute left-3 top-3 rounded-full border border-surface-hairline/70 bg-surface-base/45 px-3 py-1.5 backdrop-blur-md">
-          <span className="hud-numerals text-sm font-semibold text-accent">{holdS.toFixed(1)}s</span>
-          <span className="ml-1.5 text-[11px] uppercase tracking-wide text-gray-400">hold</span>
+      {/* Top-left: plank hold timer, otherwise the large rep counter */}
+      {isPlank ? (
+        holdS !== undefined && (
+          <div className="absolute left-3 top-3 rounded-2xl border border-surface-hairline/70 bg-surface-base/45 px-3 py-2 backdrop-blur-md">
+            <span className="hud-numerals font-display text-2xl font-semibold text-accent">
+              {holdS.toFixed(1)}s
+            </span>
+            <span className="ml-1.5 text-[11px] uppercase tracking-wide text-gray-400">hold</span>
+          </div>
+        )
+      ) : (
+        <div
+          className="absolute left-3 top-3 flex items-baseline gap-1.5 rounded-2xl border border-surface-hairline/70 bg-surface-base/45 px-3 py-2 backdrop-blur-md"
+          data-testid="rep-counter"
+        >
+          <span className="hud-numerals font-display text-3xl font-semibold leading-none text-white">
+            {reps}
+          </span>
+          <span className="text-[11px] uppercase tracking-wide text-gray-400">reps</span>
         </div>
       )}
 

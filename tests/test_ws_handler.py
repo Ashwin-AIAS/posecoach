@@ -136,7 +136,7 @@ def test_ws_response_has_required_keys() -> None:
         with client.websocket_connect("/ws/inference") as ws:
             ws.send_json({"frame": _make_frame_b64(), "exercise": "squat"})
             data = ws.receive_json()
-            for key in ("keypoints", "confidence", "score", "cues", "latency_ms", "joint_scores"):
+            for key in ("keypoints", "confidence", "score", "cues", "latency_ms", "joint_scores", "reps"):
                 assert key in data
 
 

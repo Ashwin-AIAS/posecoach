@@ -180,6 +180,11 @@ def _get_range(exercise: str, joint: str) -> tuple[float, float] | None:
     return joint_data["p5"], joint_data["p95"]
 
 
+def joint_range(exercise: str, joint: str) -> tuple[float, float] | None:
+    """Public accessor for a joint's (p5, p95) range — used by the rep counter."""
+    return _get_range(exercise, joint)
+
+
 def _score_joint(angle: float, lo: float, hi: float) -> float:
     """Score a single joint angle against its [p5, p95] range (0–100)."""
     if lo <= angle <= hi:
