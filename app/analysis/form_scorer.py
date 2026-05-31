@@ -14,28 +14,52 @@ _RANGES_PATH = Path(__file__).parent / "angle_ranges.json"
 with _RANGES_PATH.open() as _f:
     _FIT3D: dict[str, dict[str, dict[str, float]]] = json.load(_f)
 
-SUPPORTED_EXERCISES = frozenset({"squat", "deadlift", "curl", "bench", "ohp", "lunge", "plank"})
+SUPPORTED_EXERCISES = frozenset(
+    {
+        # Original 7
+        "squat", "deadlift", "curl", "bench", "ohp", "lunge", "plank",
+        # Expanded set (Fit3D-validated, nc=1 — scoring + UI only, no retraining)
+        "pushup", "hammer_curl", "lateral_raise", "barbell_row",
+        "db_shoulder_press", "diamond_pushup", "drag_curl", "one_arm_row",
+    }
+)
 
-# Maps our 7 exercise names to the closest Fit3D data key
+# Maps each UI exercise name to its validated Fit3D data key
 _EXERCISE_DATA_KEY: dict[str, str | None] = {
-    "squat":    "squat",
-    "deadlift": "deadlift",
-    "curl":     "dumbbell_biceps_curls",
-    "bench":    "pushup",
-    "ohp":      "neutral_overhead_shoulder_press",
-    "lunge":    "dumbbell_reverse_lunge",
-    "plank":    None,  # isometric — uses hardcoded alignment ranges below
+    "squat":             "squat",
+    "deadlift":          "deadlift",
+    "curl":              "dumbbell_biceps_curls",
+    "bench":             "pushup",
+    "ohp":               "neutral_overhead_shoulder_press",
+    "lunge":             "dumbbell_reverse_lunge",
+    "plank":             None,  # isometric — uses hardcoded alignment ranges below
+    "pushup":            "pushup",
+    "hammer_curl":       "dumbbell_hammer_curls",
+    "lateral_raise":     "side_lateral_raise",
+    "barbell_row":       "barbell_row",
+    "db_shoulder_press": "dumbbell_overhead_shoulder_press",
+    "diamond_pushup":    "diamond_pushup",
+    "drag_curl":         "drag_curl",
+    "one_arm_row":       "one_arm_row",
 }
 
 # Joints scored per exercise (subset of ANGLE_TRIPLETS + hip_trunk_angle)
 _EXERCISE_JOINTS: dict[str, list[str]] = {
-    "squat":    ["left_knee_angle", "right_knee_angle", "left_hip_angle", "right_hip_angle"],
-    "deadlift": ["left_hip_angle", "right_hip_angle", "left_knee_angle", "right_knee_angle"],
-    "curl":     ["left_elbow_angle", "right_elbow_angle"],
-    "bench":    ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
-    "ohp":      ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
-    "lunge":    ["left_knee_angle", "right_knee_angle", "left_hip_angle", "right_hip_angle"],
-    "plank":    ["left_hip_angle", "right_hip_angle", "hip_trunk_angle"],
+    "squat":             ["left_knee_angle", "right_knee_angle", "left_hip_angle", "right_hip_angle"],
+    "deadlift":          ["left_hip_angle", "right_hip_angle", "left_knee_angle", "right_knee_angle"],
+    "curl":              ["left_elbow_angle", "right_elbow_angle"],
+    "bench":             ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
+    "ohp":               ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
+    "lunge":             ["left_knee_angle", "right_knee_angle", "left_hip_angle", "right_hip_angle"],
+    "plank":             ["left_hip_angle", "right_hip_angle", "hip_trunk_angle"],
+    "pushup":            ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
+    "hammer_curl":       ["left_elbow_angle", "right_elbow_angle"],
+    "lateral_raise":     ["left_shoulder_angle", "right_shoulder_angle"],
+    "barbell_row":       ["left_hip_angle", "right_hip_angle", "left_elbow_angle", "right_elbow_angle"],
+    "db_shoulder_press": ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
+    "diamond_pushup":    ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
+    "drag_curl":         ["left_elbow_angle", "right_elbow_angle"],
+    "one_arm_row":       ["left_elbow_angle", "right_elbow_angle", "left_hip_angle", "right_hip_angle"],
 }
 
 # Hardcoded biomechanical ranges for plank (neutral spine alignment)
@@ -87,6 +111,48 @@ _CUES: dict[str, dict[str, dict[str, str]]] = {
         "right_hip_angle":  {"low": "Lower hips to neutral",         "high": "Raise hips to neutral"},
         "hip_trunk_angle":  {"low": "Engage core to flatten back",   "high": "Squeeze glutes to lower hips"},
     },
+    "pushup": {
+        "left_elbow_angle":  {"low": "Don't let chest drop too far", "high": "Lower chest closer to floor"},
+        "right_elbow_angle": {"low": "Don't let chest drop too far", "high": "Lower chest closer to floor"},
+        "left_shoulder_angle":  {"low": "Let elbows track slightly outward", "high": "Tuck elbows closer to body"},
+        "right_shoulder_angle": {"low": "Let elbows track slightly outward", "high": "Tuck elbows closer to body"},
+    },
+    "hammer_curl": {
+        "left_elbow_angle":  {"low": "Lower to full arm extension",  "high": "Curl higher for peak squeeze"},
+        "right_elbow_angle": {"low": "Lower to full arm extension",  "high": "Curl higher for peak squeeze"},
+    },
+    "lateral_raise": {
+        "left_shoulder_angle":  {"low": "Raise arms to shoulder height", "high": "Stop at shoulder height"},
+        "right_shoulder_angle": {"low": "Raise arms to shoulder height", "high": "Stop at shoulder height"},
+    },
+    "barbell_row": {
+        "left_hip_angle":   {"low": "Raise chest, hinge a little less", "high": "Hinge forward more at hips"},
+        "right_hip_angle":  {"low": "Raise chest, hinge a little less", "high": "Hinge forward more at hips"},
+        "left_elbow_angle":  {"low": "Lower the bar with control",   "high": "Pull elbows back and up"},
+        "right_elbow_angle": {"low": "Lower the bar with control",   "high": "Pull elbows back and up"},
+    },
+    "db_shoulder_press": {
+        "left_elbow_angle":  {"low": "Press up to full lockout",     "high": "Lower weights to shoulder level"},
+        "right_elbow_angle": {"low": "Press up to full lockout",     "high": "Lower weights to shoulder level"},
+        "left_shoulder_angle":  {"low": "Drive elbows out and up",   "high": "Keep elbows slightly in front"},
+        "right_shoulder_angle": {"low": "Drive elbows out and up",   "high": "Keep elbows slightly in front"},
+    },
+    "diamond_pushup": {
+        "left_elbow_angle":  {"low": "Don't let chest drop too far", "high": "Lower chest closer to floor"},
+        "right_elbow_angle": {"low": "Don't let chest drop too far", "high": "Lower chest closer to floor"},
+        "left_shoulder_angle":  {"low": "Relax elbows slightly outward", "high": "Keep elbows tucked close in"},
+        "right_shoulder_angle": {"low": "Relax elbows slightly outward", "high": "Keep elbows tucked close in"},
+    },
+    "drag_curl": {
+        "left_elbow_angle":  {"low": "Lower with control to extension", "high": "Drag bar up along body"},
+        "right_elbow_angle": {"low": "Lower with control to extension", "high": "Drag bar up along body"},
+    },
+    "one_arm_row": {
+        "left_elbow_angle":  {"low": "Lower the weight with control", "high": "Pull elbow up toward hip"},
+        "right_elbow_angle": {"low": "Lower the weight with control", "high": "Pull elbow up toward hip"},
+        "left_hip_angle":   {"low": "Keep your back flat and braced", "high": "Hinge forward, support on bench"},
+        "right_hip_angle":  {"low": "Keep your back flat and braced", "high": "Hinge forward, support on bench"},
+    },
 }
 
 
@@ -133,7 +199,7 @@ def score_exercise(
     """Score exercise form and return FormResult with cues.
 
     Args:
-        exercise: One of the 7 supported exercises.
+        exercise: One of the supported exercises (see SUPPORTED_EXERCISES).
         kp: Shape (17, 2) normalized keypoints from YOLO.
         kp_conf: Shape (17,) keypoint confidence scores.
         conf_threshold: Skip joints below this confidence.

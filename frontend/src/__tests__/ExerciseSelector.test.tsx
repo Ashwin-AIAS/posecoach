@@ -5,8 +5,9 @@ import { ExerciseSelector } from "../components/ExerciseSelector"
 import { EXERCISES } from "../types"
 
 describe("ExerciseSelector", () => {
-  it("renders all 7 supported exercises", () => {
+  it("renders every supported exercise", () => {
     render(<ExerciseSelector value="squat" onChange={vi.fn()} />)
+    expect(screen.getAllByRole("radio")).toHaveLength(EXERCISES.length)
     for (const ex of EXERCISES) {
       const label = ex === "ohp" ? "OHP" : ex.charAt(0).toUpperCase() + ex.slice(1)
       expect(screen.getByRole("radio", { name: label })).toBeInTheDocument()

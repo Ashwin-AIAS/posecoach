@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import re
+from collections.abc import Mapping
 from pathlib import Path
 
 import numpy as np
@@ -86,7 +87,8 @@ def ingest(source_dir: Path, reset: bool = False) -> int:
 
     ids: list[str] = []
     documents: list[str] = []
-    metadatas: list[dict[str, str]] = []
+    # Typed as Mapping (not dict) so it matches ChromaDB's invariant list parameter.
+    metadatas: list[Mapping[str, str | int | float | bool]] = []
 
     for md_file in sorted(source_dir.glob("*.md")):
         if md_file.name.lower() == "readme.md":
@@ -105,8 +107,6 @@ def ingest(source_dir: Path, reset: bool = False) -> int:
         return 0
 
     embeddings: npt.NDArray[np.float32] = np.asarray(embed_texts(documents), dtype=np.float32)
-    # ChromaDB's signature types metadatas as Mapping[str, scalar] | list[...]; our
-    # list[dict[str, str]] is a valid element type but list/dict invariance trips mypy.
     collection.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
     logger.info("ingest_complete", total_chunks=len(documents))
     return len(documents)

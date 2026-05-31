@@ -1,4 +1,4 @@
-"""All 7 exercises must return a valid FormResult from score_exercise."""
+"""Every supported exercise must return a valid FormResult from score_exercise."""
 from __future__ import annotations
 
 import numpy as np

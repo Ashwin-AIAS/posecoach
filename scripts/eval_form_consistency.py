@@ -11,9 +11,9 @@ numbers are reported per exercise:
   is the worst-case stability figure; mid-range "good form" sits on the flat
   100-plateau and would trivially report 0.
 
-The thesis gate is ``max(determinism_cv, robustness_cv) < 5%`` across all 7
-exercises. Test skeletons are built by forward kinematics so each scored joint
-lands at a chosen point of its Fit3D ``[p5, p95]`` range.
+The thesis gate is ``max(determinism_cv, robustness_cv) < 5%`` across all
+supported exercises. Test skeletons are built by forward kinematics so each
+scored joint lands at a chosen point of its Fit3D ``[p5, p95]`` range.
 
 Output: ``data/eval/consistency_results.json``. Exit 0 if the gate passes, 1 if
 it fails. Pure numpy — no model or network required.
@@ -150,7 +150,7 @@ def _target_angles(exercise: str, where: str) -> dict[str, float]:
     """Build target angles for each scored joint, defaults elsewhere.
 
     Args:
-        exercise: One of the 7 supported exercises.
+        exercise: One of the supported exercises (see SUPPORTED_EXERCISES).
         where: ``"mid"`` → midpoint of [p5, p95] (good form, flat plateau);
             ``"edge"`` → the p95 boundary (scorer most sensitive).
     """

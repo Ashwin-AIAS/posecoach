@@ -4,8 +4,21 @@ import type { PoseError, PoseResult } from "../types"
 import { EXERCISES, isPoseError } from "../types"
 
 describe("EXERCISES list", () => {
-  it("contains all 7 thesis-supported exercises", () => {
-    expect(EXERCISES).toEqual(["squat", "deadlift", "curl", "bench", "ohp", "lunge", "plank"])
+  it("keeps the original 7 thesis-supported exercises at the front", () => {
+    expect(EXERCISES.slice(0, 7)).toEqual([
+      "squat",
+      "deadlift",
+      "curl",
+      "bench",
+      "ohp",
+      "lunge",
+      "plank",
+    ])
+  })
+
+  it("exposes the full expanded set with no duplicates", () => {
+    expect(EXERCISES.length).toBe(15)
+    expect(new Set(EXERCISES).size).toBe(EXERCISES.length)
   })
 })
 
