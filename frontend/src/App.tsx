@@ -6,6 +6,7 @@ import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
+import { HowToDrawer } from "./components/HowToDrawer"
 import { PoseOverlay } from "./components/PoseOverlay"
 import { UserMenu } from "./components/UserMenu"
 import { useAuth } from "./hooks/useAuth"
@@ -34,6 +35,7 @@ const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): 
 export default function App(): JSX.Element {
   const [exercise, setExercise] = useState<Exercise>("squat")
   const [showHistory, setShowHistory] = useState(false)
+  const [howTo, setHowTo] = useState<Exercise | null>(null)
   const auth = useAuth()
   const camera = useCamera({ width: 640, height: 480, facingMode: "user" })
 
@@ -61,19 +63,23 @@ export default function App(): JSX.Element {
         <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
       </header>
 
-      <div className="border-b border-surface-hairline bg-surface-base/60 px-4 py-2">
-        <div className="overflow-x-auto">
-          <ExerciseSelector value={exercise} onChange={setExercise} />
-        </div>
+      <div className="relative z-20 border-b border-surface-hairline bg-surface-base/60 px-4 py-2">
+        <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
       </div>
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
+      <HowToDrawer exercise={howTo} onClose={() => setHowTo(null)} />
 
       <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[1fr_360px]">
         <div className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-surface-hairline bg-black shadow-card">
           <CameraFeed ref={camera.videoRef} error={camera.error} ready={camera.ready} />
           <PoseOverlay result={pose.result} />
-          <CameraHud result={pose.result} active={camera.ready} />
+          <CameraHud
+            result={pose.result}
+            active={camera.ready}
+            exercise={exercise}
+            onShowHowTo={setHowTo}
+          />
         </div>
 
         <aside className="flex flex-col gap-4 overflow-y-auto">

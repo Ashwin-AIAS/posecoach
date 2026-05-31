@@ -23,6 +23,8 @@ export interface ExerciseMeta {
   /** 11-char YouTube video id — curated form demo, verified embeddable. */
   readonly youtubeId: string
   readonly difficulty: Difficulty
+  /** Short static form cues for the how-to learning surface (plain English). */
+  readonly formTips: readonly string[]
 }
 
 /** Display order for category sections in the selector grid. */
@@ -47,6 +49,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Quads", "Glutes", "Hamstrings"],
     youtubeId: "CWl0apMgshk",
     difficulty: "Intermediate",
+    formTips: ["Drive knees out, chest tall", "Hit depth — hips below knees"],
   },
   deadlift: {
     id: "deadlift",
@@ -55,6 +58,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Glutes", "Hamstrings", "Lower Back"],
     youtubeId: "wYREQkVtvEc",
     difficulty: "Advanced",
+    formTips: ["Flat back, brace your core", "Push hips back, bar stays close"],
   },
   lunge: {
     id: "lunge",
@@ -63,6 +67,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Quads", "Glutes", "Hamstrings"],
     youtubeId: "RZKXLMxPF_I",
     difficulty: "Beginner",
+    formTips: ["Front knee tracks over ankle", "Torso tall, controlled descent"],
   },
   bench: {
     id: "bench",
@@ -71,6 +76,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Chest", "Triceps", "Front Delts"],
     youtubeId: "rT7DgCr-3pg",
     difficulty: "Intermediate",
+    formTips: ["Lower bar to mid-chest", "Press to full lockout"],
   },
   pushup: {
     id: "pushup",
@@ -79,6 +85,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Chest", "Triceps", "Front Delts"],
     youtubeId: "IODxDxX7oi4",
     difficulty: "Beginner",
+    formTips: ["Body in a straight line", "Lower chest toward the floor"],
   },
   diamond_pushup: {
     id: "diamond_pushup",
@@ -87,6 +94,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Triceps", "Chest"],
     youtubeId: "J0DnG1_S92I",
     difficulty: "Intermediate",
+    formTips: ["Hands form a diamond shape", "Elbows tucked, chest low"],
   },
   barbell_row: {
     id: "barbell_row",
@@ -95,6 +103,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Lats", "Rhomboids", "Biceps"],
     youtubeId: "rqTOAM8WoeM",
     difficulty: "Intermediate",
+    formTips: ["Hinge ~45°, keep back flat", "Pull bar to your lower ribs"],
   },
   one_arm_row: {
     id: "one_arm_row",
@@ -103,6 +112,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Lats", "Rhomboids", "Biceps"],
     youtubeId: "pYcpY20QaE8",
     difficulty: "Beginner",
+    formTips: ["Brace on bench, flat back", "Pull the elbow toward your hip"],
   },
   ohp: {
     id: "ohp",
@@ -111,6 +121,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Front Delts", "Triceps"],
     youtubeId: "F3QY5vMz_6I",
     difficulty: "Intermediate",
+    formTips: ["Brace core, squeeze glutes", "Press to full lockout overhead"],
   },
   db_shoulder_press: {
     id: "db_shoulder_press",
@@ -119,6 +130,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Front Delts", "Triceps"],
     youtubeId: "fuQpuu--bMI",
     difficulty: "Beginner",
+    formTips: ["Start at shoulder height", "Press up without flaring elbows"],
   },
   lateral_raise: {
     id: "lateral_raise",
@@ -127,6 +139,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Side Delts"],
     youtubeId: "3VcKaXpzqRo",
     difficulty: "Beginner",
+    formTips: ["Raise to shoulder height", "Lead with elbows, soft bend"],
   },
   curl: {
     id: "curl",
@@ -135,6 +148,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Biceps"],
     youtubeId: "ykJmrZ5v0Oo",
     difficulty: "Beginner",
+    formTips: ["Elbows pinned to your sides", "Full extension at the bottom"],
   },
   hammer_curl: {
     id: "hammer_curl",
@@ -143,6 +157,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Biceps", "Brachialis", "Forearms"],
     youtubeId: "BRVDS6HVR9Q",
     difficulty: "Beginner",
+    formTips: ["Neutral grip, thumbs up", "Control the lowering phase"],
   },
   drag_curl: {
     id: "drag_curl",
@@ -151,6 +166,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Biceps"],
     youtubeId: "LMdNTHH6G8I",
     difficulty: "Intermediate",
+    formTips: ["Drag the bar up your torso", "Elbows drift back, not up"],
   },
   plank: {
     id: "plank",
@@ -159,6 +175,7 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     primaryMuscles: ["Abs", "Core", "Lower Back"],
     youtubeId: "gSDNblPRh1U",
     difficulty: "Beginner",
+    formTips: ["Squeeze glutes, keep back flat", "Shoulders stacked over elbows"],
   },
 }
 

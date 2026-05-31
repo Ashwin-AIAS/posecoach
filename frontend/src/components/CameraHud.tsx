@@ -1,12 +1,14 @@
 import { memo } from "react"
 
-import type { PoseResult } from "../types"
+import type { Exercise, PoseResult } from "../types"
 import { ScoreRing } from "./ScoreRing"
 
 interface CameraHudProps {
   readonly result: PoseResult | null
   /** Whether the camera stage is live (hide the HUD before the feed is ready). */
   readonly active: boolean
+  readonly exercise: Exercise
+  readonly onShowHowTo: (ex: Exercise) => void
 }
 
 /**
@@ -14,7 +16,7 @@ interface CameraHudProps {
  * ring and the top coaching cue rendered as a lower-third caption. Pointer
  * events pass through to the stage; only chrome animates (never the frame path).
  */
-function CameraHudInner({ result, active }: CameraHudProps): JSX.Element | null {
+function CameraHudInner({ result, active, exercise, onShowHowTo }: CameraHudProps): JSX.Element | null {
   if (!active) return null
   const score = result?.score ?? null
   const topCue = result?.cues?.[0]
@@ -26,6 +28,16 @@ function CameraHudInner({ result, active }: CameraHudProps): JSX.Element | null 
       <div className="absolute right-3 top-3 rounded-2xl border border-surface-hairline/70 bg-surface-base/45 p-1.5 backdrop-blur-md">
         <ScoreRing score={score} size={104} />
       </div>
+
+      {/* How-to info button (re-opens the demo for the active exercise) */}
+      <button
+        type="button"
+        onClick={() => onShowHowTo(exercise)}
+        aria-label="Show how-to demo"
+        className="pointer-events-auto absolute bottom-4 right-4 grid h-9 w-9 place-content-center rounded-full border border-surface-hairline/70 bg-surface-base/55 text-gray-300 backdrop-blur-md transition hover:border-accent hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        ?
+      </button>
 
       {/* Plank hold badge */}
       {holdS !== undefined && (

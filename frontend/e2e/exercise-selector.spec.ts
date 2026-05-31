@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * Exercise selector E2E — verifies the user can switch between the 7
- * supported exercises (mirrors SUPPORTED_EXERCISES in app/analysis/form_scorer.py).
+ * Exercise selector E2E — verifies the user can open the categorized grid and
+ * switch between exercises (labels mirror EXERCISE_META in src/lib/exercises.ts).
  *
  * Backend is mocked — no FastAPI / Postgres / model required.
  */
@@ -18,28 +18,37 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
-test("exercise radiogroup shows all 7 supported exercises", async ({ page }) => {
+test("opening the selector reveals the categorized exercise grid", async ({ page }) => {
   await page.goto("/")
 
+  await page.getByTestId("exercise-change-btn").click()
   const group = page.getByRole("radiogroup", { name: "Exercise" })
   await expect(group).toBeVisible()
 
-  for (const label of ["Squat", "Deadlift", "Curl", "Bench", "OHP", "Lunge", "Plank"]) {
+  for (const label of ["Squat", "Deadlift", "Bicep Curl", "Bench Press", "Overhead Press", "Push-Up"]) {
     await expect(group.getByRole("radio", { name: label })).toHaveCount(1)
   }
 })
 
-test("clicking an exercise updates aria-checked", async ({ page }) => {
+test("selecting an exercise updates the collapsed bar", async ({ page }) => {
   await page.goto("/")
-  const group = page.getByRole("radiogroup", { name: "Exercise" })
 
-  // Squat is the default
+  await page.getByTestId("exercise-change-btn").click()
+  const group = page.getByRole("radiogroup", { name: "Exercise" })
   await expect(group.getByRole("radio", { name: "Squat" })).toHaveAttribute("aria-checked", "true")
 
   await group.getByRole("radio", { name: "Deadlift" }).click()
-  await expect(group.getByRole("radio", { name: "Deadlift" })).toHaveAttribute("aria-checked", "true")
-  await expect(group.getByRole("radio", { name: "Squat" })).toHaveAttribute("aria-checked", "false")
+  // Sheet closes; the collapsed bar now shows the new selection.
+  await expect(page.getByRole("radiogroup", { name: "Exercise" })).toBeHidden()
+  await expect(page.getByText("Deadlift")).toBeVisible()
+})
 
-  await group.getByRole("radio", { name: "Plank" }).click()
-  await expect(group.getByRole("radio", { name: "Plank" })).toHaveAttribute("aria-checked", "true")
+test("the search box filters the grid", async ({ page }) => {
+  await page.goto("/")
+
+  await page.getByTestId("exercise-change-btn").click()
+  await page.getByTestId("exercise-search").fill("press")
+  const group = page.getByRole("radiogroup", { name: "Exercise" })
+  await expect(group.getByRole("radio", { name: "Overhead Press" })).toBeVisible()
+  await expect(group.getByRole("radio", { name: "Squat" })).toHaveCount(0)
 })

@@ -30,12 +30,14 @@ describe("exercise metadata", () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it("gives every exercise a label, a valid category, and at least one muscle", () => {
+  it("gives every exercise a label, a valid category, muscles, and form tips", () => {
     const categories = new Set<ExerciseCategory>(EXERCISE_CATEGORIES)
     for (const meta of EXERCISE_META_LIST) {
       expect(meta.label.trim().length).toBeGreaterThan(0)
       expect(categories.has(meta.category)).toBe(true)
       expect(meta.primaryMuscles.length).toBeGreaterThan(0)
+      expect(meta.formTips.length).toBeGreaterThan(0)
+      for (const tip of meta.formTips) expect(tip.trim().length).toBeGreaterThan(0)
     }
   })
 
