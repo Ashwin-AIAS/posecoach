@@ -50,7 +50,7 @@ async def ws_inference(websocket: WebSocket) -> None:
     """Real-time pose inference endpoint.
 
     Client sends: {"frame": "<base64 JPEG>", "exercise": "squat"}
-    Server sends: {"keypoints", "confidence", "score", "cues", "latency_ms"}
+    Server sends: {"keypoints", "confidence", "score", "cues", "latency_ms", "joint_scores"}
 
     If the client is authenticated (access_token cookie present), a WorkoutSession
     row is created at connect and snapshots are appended every SNAPSHOT_INTERVAL_S
@@ -175,6 +175,8 @@ async def ws_inference(websocket: WebSocket) -> None:
                 "score": round(smoothed_score, 1),
                 "cues": form.cues,
                 "latency_ms": round(latency_ms, 1),
+                # Per-joint 0–100 scores power the coaching panel's per-joint bars.
+                "joint_scores": {k: round(v, 1) for k, v in form.joint_scores.items()},
             }
             if hold_s is not None:
                 response["hold_s"] = hold_s

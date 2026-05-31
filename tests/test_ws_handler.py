@@ -18,6 +18,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET", "test_secret_at_least_32_chars_long_ok")
 os.environ.setdefault("MODEL_PATH", "models/yolo_posecoach_v1.onnx")
 
+from app.analysis.form_scorer import SUPPORTED_EXERCISES
 from app.main import app
 
 
@@ -135,11 +136,11 @@ def test_ws_response_has_required_keys() -> None:
         with client.websocket_connect("/ws/inference") as ws:
             ws.send_json({"frame": _make_frame_b64(), "exercise": "squat"})
             data = ws.receive_json()
-            for key in ("keypoints", "confidence", "score", "cues", "latency_ms"):
+            for key in ("keypoints", "confidence", "score", "cues", "latency_ms", "joint_scores"):
                 assert key in data
 
 
-@pytest.mark.parametrize("exercise", ["squat", "deadlift", "curl", "bench", "ohp", "lunge", "plank"])
+@pytest.mark.parametrize("exercise", sorted(SUPPORTED_EXERCISES))
 def test_ws_all_exercises_accepted(exercise: str) -> None:
     with TestClient(app) as client:
         _override_app_state()
