@@ -45,15 +45,24 @@ export const SKELETON_EDGES: ReadonlyArray<readonly [number, number]> = [
 export const CONF_HIGH = 0.7
 export const CONF_LOW = 0.4
 
+/** Electric-blue accent — keep in sync with the --accent token in index.css. */
+export const ACCENT_COLOR = "#3D9BFF"
+
+// Form-score ramp: red → amber → green (matches the `score` tokens in tailwind.config).
+const SCORE_BAD = "#FF4D4D"
+const SCORE_MID = "#FFB23D"
+const SCORE_GOOD = "#36D399"
+const SCORE_NONE = "#6B7280"
+
 export function confidenceColor(conf: number): string {
-  if (conf >= CONF_HIGH) return "#22c55e"
-  if (conf >= CONF_LOW) return "#eab308"
+  if (conf >= CONF_HIGH) return SCORE_GOOD
+  if (conf >= CONF_LOW) return SCORE_MID
   return "transparent"
 }
 
 export function scoreColor(score: number | null): string {
-  if (score === null) return "#6b7280"
-  if (score >= 80) return "#22c55e"
-  if (score >= 60) return "#eab308"
-  return "#ef4444"
+  if (score === null) return SCORE_NONE
+  if (score >= 80) return SCORE_GOOD
+  if (score >= 60) return SCORE_MID
+  return SCORE_BAD
 }

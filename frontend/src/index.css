@@ -1,24 +1,48 @@
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  /* Electric-blue accent (#3D9BFF) as "R G B" channels — swap here to retheme. */
+  --accent: 61 155 255;
+}
 
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
-  background-color: #111827;
-  color: #f9fafb;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #0a0b0d;
+  color: #f4f6f8;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
 }
 
-video {
-  -webkit-transform: scaleX(-1);
-  transform: scaleX(-1);
-}
-
+/* Mirror the camera and overlay so the user sees themselves as in a mirror. */
+video.mirror,
 canvas.pose-overlay {
   -webkit-transform: scaleX(-1);
   transform: scaleX(-1);
+}
+
+/* Tabular figures for HUD numbers (score, latency, reps). */
+.hud-numerals {
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

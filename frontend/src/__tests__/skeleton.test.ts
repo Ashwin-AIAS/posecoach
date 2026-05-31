@@ -41,13 +41,13 @@ describe("skeleton constants", () => {
 
 describe("confidenceColor", () => {
   it("returns green for high confidence", () => {
-    expect(confidenceColor(0.95)).toBe("#22c55e")
-    expect(confidenceColor(CONF_HIGH)).toBe("#22c55e")
+    expect(confidenceColor(0.95)).toBe("#36D399")
+    expect(confidenceColor(CONF_HIGH)).toBe("#36D399")
   })
 
-  it("returns yellow for medium confidence", () => {
-    expect(confidenceColor(0.5)).toBe("#eab308")
-    expect(confidenceColor(CONF_LOW)).toBe("#eab308")
+  it("returns amber for medium confidence", () => {
+    expect(confidenceColor(0.5)).toBe("#FFB23D")
+    expect(confidenceColor(CONF_LOW)).toBe("#FFB23D")
   })
 
   it("returns transparent below the low threshold", () => {
@@ -58,21 +58,21 @@ describe("confidenceColor", () => {
 
 describe("scoreColor", () => {
   it("returns green for excellent form", () => {
-    expect(scoreColor(95)).toBe("#22c55e")
-    expect(scoreColor(80)).toBe("#22c55e")
+    expect(scoreColor(95)).toBe("#36D399")
+    expect(scoreColor(80)).toBe("#36D399")
   })
 
-  it("returns yellow for ok form", () => {
-    expect(scoreColor(70)).toBe("#eab308")
-    expect(scoreColor(60)).toBe("#eab308")
+  it("returns amber for ok form", () => {
+    expect(scoreColor(70)).toBe("#FFB23D")
+    expect(scoreColor(60)).toBe("#FFB23D")
   })
 
   it("returns red for poor form", () => {
-    expect(scoreColor(40)).toBe("#ef4444")
-    expect(scoreColor(0)).toBe("#ef4444")
+    expect(scoreColor(40)).toBe("#FF4D4D")
+    expect(scoreColor(0)).toBe("#FF4D4D")
   })
 
   it("returns gray when score is unknown", () => {
-    expect(scoreColor(null)).toBe("#6b7280")
+    expect(scoreColor(null)).toBe("#6B7280")
   })
 })
