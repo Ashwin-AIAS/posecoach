@@ -4,6 +4,7 @@ import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
 import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
+import { EmptyStageHint } from "./components/EmptyStageHint"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
 import { HowToDrawer } from "./components/HowToDrawer"
@@ -13,6 +14,7 @@ import { SessionSummary } from "./components/SessionSummary"
 import { UserMenu } from "./components/UserMenu"
 import { useAuth } from "./hooks/useAuth"
 import { useCamera } from "./hooks/useCamera"
+import { useCueVoice, isSpeechSupported } from "./hooks/useCueVoice"
 import { usePoseStream } from "./hooks/usePoseStream"
 import { useSessionStats } from "./hooks/useSessionStats"
 import type { SessionStats } from "./hooks/useSessionStats"
@@ -41,6 +43,7 @@ export default function App(): JSX.Element {
   const [showHistory, setShowHistory] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
   const [summary, setSummary] = useState<SessionStats | null>(null)
+  const [voice, setVoice] = useState(false)
   const auth = useAuth()
   const camera = useCamera({ width: 640, height: 480, facingMode: "user" })
 
@@ -57,6 +60,11 @@ export default function App(): JSX.Element {
   })
 
   const stats = useSessionStats(pose.result)
+  const topCue = pose.result?.cues?.[0]
+  useCueVoice(topCue, voice)
+
+  const detected = pose.result !== null && pose.result.score !== null
+  const showHint = camera.ready && !detected && summary === null
 
   // A new exercise is a new set — reset the accumulated stats.
   useEffect(() => {
@@ -83,7 +91,27 @@ export default function App(): JSX.Element {
           </h1>
           <LatencyBadge ms={pose.result?.latency_ms ?? null} />
         </div>
-        <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
+        <div className="flex items-center gap-3">
+          {isSpeechSupported() && (
+            <button
+              type="button"
+              onClick={() => setVoice((v) => !v)}
+              aria-pressed={voice}
+              aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
+              title="Voice coaching cues"
+              className={
+                "rounded-full border px-2.5 py-1 text-sm transition " +
+                (voice
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-surface-hairline text-gray-400 hover:text-white")
+              }
+              data-testid="voice-toggle"
+            >
+              {voice ? "🔊" : "🔈"}
+            </button>
+          )}
+          <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
+        </div>
       </header>
 
       <div className="relative z-20 flex items-center justify-between gap-3 border-b border-surface-hairline bg-surface-base/60 px-4 py-2">
@@ -116,6 +144,7 @@ export default function App(): JSX.Element {
             exercise={exercise}
             onShowHowTo={setHowTo}
           />
+          {showHint && <EmptyStageHint exercise={exercise} onShowHowTo={setHowTo} />}
         </div>
 
         <aside className="flex flex-col gap-4 overflow-y-auto">
