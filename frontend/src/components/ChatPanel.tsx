@@ -50,57 +50,74 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 px-3 rounded-lg shadow"
+        className="rounded-xl border border-surface-hairline bg-surface-raised px-3 py-2.5 text-sm font-medium text-gray-200 shadow-card transition hover:border-accent/50 hover:text-white"
         data-testid="chat-open-btn"
       >
-        Ask the coach
+        💬 Ask the coach
       </button>
     )
   }
 
   return (
     <div
-      className="bg-gray-900 bg-opacity-90 text-white p-4 rounded-lg shadow-lg flex flex-col gap-2 min-h-[280px] max-h-[480px]"
+      className="flex max-h-[480px] min-h-[280px] flex-col gap-2 rounded-2xl border border-surface-hairline bg-surface-raised/70 p-4 shadow-card backdrop-blur-md"
       data-testid="chat-panel"
     >
-      <div className="flex justify-between items-center">
-        <h2 className="text-sm uppercase tracking-wide text-gray-400">Coach</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Coach</h2>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-xs text-gray-400 hover:text-white"
+          className="rounded-md p-1 text-xs text-gray-400 hover:bg-surface-overlay hover:text-white"
           aria-label="Collapse chat"
         >
           ✕
         </button>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 pr-1" data-testid="chat-messages">
+      <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto pr-1" data-testid="chat-messages">
         {messages.length === 0 && (
-          <p className="text-xs text-gray-500">
-            Ask anything about form, programming, or technique. Tap "with frame" to get visual analysis.
+          <p className="text-xs leading-relaxed text-gray-500">
+            Ask anything about form, programming, or technique. Tap “+ Frame” to get visual analysis of
+            your current pose.
           </p>
         )}
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={
-              m.role === "user"
-                ? "bg-blue-900 bg-opacity-40 text-sm p-2 rounded ml-6"
-                : "bg-gray-800 text-sm p-2 rounded mr-6 whitespace-pre-wrap"
-            }
-          >
-            {m.role === "user" && m.hasFrame && (
-              <span className="text-[10px] uppercase text-blue-300 mr-2">[frame]</span>
-            )}
-            {m.text || (m.role === "assistant" && state === "streaming" ? "…" : "")}
-          </div>
-        ))}
+        {messages.map((m) => {
+          const isUser = m.role === "user"
+          const streaming = m.role === "assistant" && state === "streaming" && !m.text
+          return (
+            <div key={m.id} className={isUser ? "flex justify-end" : "flex justify-start"}>
+              <div
+                className={
+                  "max-w-[85%] rounded-2xl px-3 py-2 text-sm " +
+                  (isUser
+                    ? "rounded-br-sm bg-accent-soft text-white"
+                    : "rounded-bl-sm whitespace-pre-wrap bg-surface-overlay text-gray-100")
+                }
+              >
+                {isUser && m.hasFrame && (
+                  <span className="mr-1.5 align-middle text-[10px] font-medium uppercase tracking-wide text-accent">
+                    [frame]
+                  </span>
+                )}
+                {streaming ? (
+                  <span className="inline-flex gap-1 py-1" aria-label="Coach is typing">
+                    <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-gray-400" />
+                    <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-gray-400 [animation-delay:0.2s]" />
+                    <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-gray-400 [animation-delay:0.4s]" />
+                  </span>
+                ) : (
+                  m.text
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-score-bad">{error}</p>}
 
-      <div className="flex gap-2 items-stretch">
+      <div className="flex items-stretch gap-2">
         <input
           type="text"
           value={input}
@@ -112,7 +129,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
             }
           }}
           placeholder="Why are my knees caving in?"
-          className="flex-1 bg-gray-800 text-white text-sm px-3 py-2 rounded outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 rounded-lg border border-surface-hairline bg-surface-base px-3 py-2 text-sm text-white outline-none placeholder:text-gray-600 focus:border-accent"
           disabled={state === "streaming"}
           data-testid="chat-input"
         />
@@ -120,7 +137,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
           type="button"
           onClick={() => void submit(false)}
           disabled={state === "streaming" || !input.trim()}
-          className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-xs px-3 rounded"
+          className="rounded-lg bg-accent px-3 text-xs font-medium text-surface-base transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-surface-hairline disabled:text-gray-500"
         >
           Send
         </button>
@@ -128,7 +145,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
           type="button"
           onClick={() => void submit(true)}
           disabled={state === "streaming" || !input.trim()}
-          className="bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-xs px-3 rounded"
+          className="rounded-lg border border-accent/40 px-3 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:border-surface-hairline disabled:text-gray-600"
           title="Send with a snapshot of the current frame"
         >
           + Frame

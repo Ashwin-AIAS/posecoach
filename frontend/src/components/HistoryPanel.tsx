@@ -50,22 +50,22 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-gray-900 text-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+        className="flex max-h-[80vh] w-full max-w-2xl animate-scale-in flex-col rounded-2xl border border-surface-hairline bg-surface-raised p-6 text-white shadow-card"
         data-testid="history-panel"
       >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Workout history</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold">Workout history</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-sm"
+            className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
             aria-label="Close"
           >
             ✕
@@ -73,18 +73,24 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
         </div>
 
         {loading && <p className="text-sm text-gray-400">Loading…</p>}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-score-bad">{error}</p>}
         {!loading && !error && sessions.length === 0 && (
-          <p className="text-sm text-gray-500">No sessions yet. Sign in and train to populate.</p>
+          <div className="grid place-content-center gap-2 py-12 text-center">
+            <div className="mx-auto grid h-12 w-12 place-content-center rounded-full bg-surface-overlay text-2xl">
+              📊
+            </div>
+            <p className="text-sm text-gray-400">No sessions yet.</p>
+            <p className="text-xs text-gray-600">Sign in and train — your sets will appear here.</p>
+          </div>
         )}
 
-        <ul className="flex-1 overflow-y-auto divide-y divide-gray-800">
+        <ul className="flex-1 divide-y divide-surface-hairline overflow-y-auto">
           {sessions.map((s) => (
-            <li key={s.id} className="py-3 flex items-center gap-4" data-testid="history-row">
-              <div className="flex-1 min-w-0">
+            <li key={s.id} className="flex items-center gap-4 py-3" data-testid="history-row">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
-                  <span className="font-medium capitalize">{s.exercise}</span>
-                  <span className="text-xs text-gray-500">{formatDate(s.started_at)}</span>
+                  <span className="font-medium capitalize">{s.exercise.replace(/_/g, " ")}</span>
+                  <span className="text-xs text-gray-600">{formatDate(s.started_at)}</span>
                 </div>
                 <div className="text-xs text-gray-400">
                   {s.rep_count > 0 && <span>{s.rep_count} reps · </span>}
@@ -94,7 +100,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
               <button
                 type="button"
                 onClick={() => void remove(s.id)}
-                className="text-xs text-red-400 hover:text-red-300"
+                className="text-xs text-gray-500 transition hover:text-score-bad"
               >
                 Delete
               </button>

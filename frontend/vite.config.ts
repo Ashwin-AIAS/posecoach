@@ -8,13 +8,15 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "PoseCoach",
+        name: "PoseCoach — AI Form Coach",
         short_name: "PoseCoach",
         description: "Real-time AI gym exercise form correction",
         start_url: "/",
         display: "standalone",
-        background_color: "#111827",
-        theme_color: "#111827",
+        orientation: "portrait",
+        categories: ["health", "fitness", "sports"],
+        background_color: "#0A0B0D",
+        theme_color: "#0A0B0D",
         icons: [
           {
             src: "icon-192.png",

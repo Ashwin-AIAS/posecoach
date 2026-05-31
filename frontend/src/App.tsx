@@ -7,6 +7,7 @@ import { CoachingCues } from "./components/CoachingCues"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
 import { HowToDrawer } from "./components/HowToDrawer"
+import { InstallBanner } from "./components/InstallBanner"
 import { PoseOverlay } from "./components/PoseOverlay"
 import { UserMenu } from "./components/UserMenu"
 import { useAuth } from "./hooks/useAuth"
@@ -69,6 +70,7 @@ export default function App(): JSX.Element {
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
       <HowToDrawer exercise={howTo} onClose={() => setHowTo(null)} />
+      <InstallBanner />
 
       <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[1fr_360px]">
         <div className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-surface-hairline bg-black shadow-card">

@@ -35,7 +35,7 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -43,17 +43,17 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="bg-gray-900 text-white p-6 rounded-lg shadow-xl w-full max-w-sm space-y-4"
+        className="w-full max-w-sm animate-scale-in space-y-4 rounded-2xl border border-surface-hairline bg-surface-raised p-6 text-white shadow-card"
         data-testid="auth-modal"
       >
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold">
             {mode === "login" ? "Sign in" : "Create account"}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-sm"
+            className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
             aria-label="Close"
           >
             ✕
@@ -68,7 +68,7 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            className="w-full mt-1 bg-gray-800 px-3 py-2 rounded outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 w-full rounded-lg border border-surface-hairline bg-surface-base px-3 py-2 outline-none focus:border-accent"
           />
         </label>
 
@@ -81,26 +81,26 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
             required
             minLength={mode === "register" ? 8 : 1}
             autoComplete={mode === "login" ? "current-password" : "new-password"}
-            className="w-full mt-1 bg-gray-800 px-3 py-2 rounded outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 w-full rounded-lg border border-surface-hairline bg-surface-base px-3 py-2 outline-none focus:border-accent"
           />
         </label>
 
-        {localError && <p className="text-red-400 text-sm">{localError}</p>}
+        {localError && <p className="text-sm text-score-bad">{localError}</p>}
 
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 py-2 rounded font-medium"
+          className="w-full rounded-lg bg-accent py-2 font-medium text-surface-base transition hover:brightness-110 disabled:bg-surface-hairline disabled:text-gray-500"
         >
           {submitting ? "…" : mode === "login" ? "Sign in" : "Register"}
         </button>
 
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-center text-xs text-gray-400">
           {mode === "login" ? "No account?" : "Already have an account?"}{" "}
           <button
             type="button"
             onClick={() => setMode(mode === "login" ? "register" : "login")}
-            className="text-blue-400 hover:text-blue-300 underline"
+            className="text-accent underline hover:brightness-110"
           >
             {mode === "login" ? "Register" : "Sign in"}
           </button>
