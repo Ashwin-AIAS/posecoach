@@ -9,10 +9,13 @@ import { HistoryPanel } from "./components/HistoryPanel"
 import { HowToDrawer } from "./components/HowToDrawer"
 import { InstallBanner } from "./components/InstallBanner"
 import { PoseOverlay } from "./components/PoseOverlay"
+import { SessionSummary } from "./components/SessionSummary"
 import { UserMenu } from "./components/UserMenu"
 import { useAuth } from "./hooks/useAuth"
 import { useCamera } from "./hooks/useCamera"
 import { usePoseStream } from "./hooks/usePoseStream"
+import { useSessionStats } from "./hooks/useSessionStats"
+import type { SessionStats } from "./hooks/useSessionStats"
 import type { Exercise } from "./types"
 
 const LATENCY_BUDGET_MS = 100
@@ -37,6 +40,7 @@ export default function App(): JSX.Element {
   const [exercise, setExercise] = useState<Exercise>("squat")
   const [showHistory, setShowHistory] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
+  const [summary, setSummary] = useState<SessionStats | null>(null)
   const auth = useAuth()
   const camera = useCamera({ width: 640, height: 480, facingMode: "user" })
 
@@ -52,6 +56,24 @@ export default function App(): JSX.Element {
     active: camera.ready,
   })
 
+  const stats = useSessionStats(pose.result)
+
+  // A new exercise is a new set — reset the accumulated stats.
+  useEffect(() => {
+    stats.reset()
+  }, [exercise, stats])
+
+  const finishSet = (): void => {
+    setSummary(stats.snapshot())
+    camera.stop()
+  }
+
+  const closeSummary = (): void => {
+    setSummary(null)
+    stats.reset()
+    void camera.start()
+  }
+
   return (
     <div className="flex h-screen w-screen flex-col bg-surface-base font-sans text-gray-100">
       <header className="flex items-center justify-between gap-4 border-b border-surface-hairline bg-surface-raised/40 px-4 py-3 backdrop-blur-md">
@@ -64,12 +86,24 @@ export default function App(): JSX.Element {
         <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
       </header>
 
-      <div className="relative z-20 border-b border-surface-hairline bg-surface-base/60 px-4 py-2">
+      <div className="relative z-20 flex items-center justify-between gap-3 border-b border-surface-hairline bg-surface-base/60 px-4 py-2">
         <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
+        <button
+          type="button"
+          onClick={finishSet}
+          disabled={!camera.ready}
+          className="shrink-0 rounded-full border border-surface-hairline bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 transition hover:border-accent/50 hover:text-white disabled:opacity-40"
+          data-testid="finish-set-btn"
+        >
+          Finish set
+        </button>
       </div>
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
       <HowToDrawer exercise={howTo} onClose={() => setHowTo(null)} />
+      {summary !== null && (
+        <SessionSummary exercise={exercise} stats={summary} onClose={closeSummary} />
+      )}
       <InstallBanner />
 
       <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[1fr_360px]">
