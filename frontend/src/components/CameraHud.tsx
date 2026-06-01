@@ -1,6 +1,7 @@
 import { memo } from "react"
 
 import type { Exercise, PoseResult } from "../types"
+import type { WorstJoint } from "../lib/joints"
 import { ScoreRing } from "./ScoreRing"
 
 interface CameraHudProps {
@@ -9,6 +10,8 @@ interface CameraHudProps {
   readonly active: boolean
   readonly exercise: Exercise
   readonly onShowHowTo: (ex: Exercise) => void
+  /** Lowest-scoring joint to name, or null when form is good. */
+  readonly worst?: WorstJoint | null
 }
 
 /**
@@ -16,7 +19,7 @@ interface CameraHudProps {
  * ring and the top coaching cue rendered as a lower-third caption. Pointer
  * events pass through to the stage; only chrome animates (never the frame path).
  */
-function CameraHudInner({ result, active, exercise, onShowHowTo }: CameraHudProps): JSX.Element | null {
+function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }: CameraHudProps): JSX.Element | null {
   if (!active) return null
   const score = result?.score ?? null
   const topCue = result?.cues?.[0]
@@ -30,6 +33,16 @@ function CameraHudInner({ result, active, exercise, onShowHowTo }: CameraHudProp
       <div className="absolute right-3 top-3 rounded-2xl border border-surface-hairline/70 bg-surface-base/45 p-1.5 backdrop-blur-md">
         <ScoreRing score={score} size={104} />
       </div>
+
+      {/* Worst-joint callout — the exact body part to fix (multi-joint scoring) */}
+      {worst !== null && (
+        <div
+          className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-score-bad/40 bg-score-bad/15 px-3 py-1 text-sm font-medium text-score-bad backdrop-blur-md"
+          data-testid="worst-joint-chip"
+        >
+          Fix: {worst.bodyPart}
+        </div>
+      )}
 
       {/* How-to info button (re-opens the demo for the active exercise) */}
       <button

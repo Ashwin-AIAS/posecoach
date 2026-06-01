@@ -24,9 +24,9 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
-/* Mirror the camera and overlay so the user sees themselves as in a mirror. */
-video.mirror,
-canvas.pose-overlay {
+/* Mirror class — applied to the front-camera <video> and its overlay <canvas>
+   so the user sees themselves as in a mirror. Dropped for the back camera. */
+.mirror {
   -webkit-transform: scaleX(-1);
   transform: scaleX(-1);
 }

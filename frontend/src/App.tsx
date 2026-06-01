@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 
 import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
@@ -18,6 +18,7 @@ import { useCueVoice, isSpeechSupported } from "./hooks/useCueVoice"
 import { usePoseStream } from "./hooks/usePoseStream"
 import { useSessionStats } from "./hooks/useSessionStats"
 import type { SessionStats } from "./hooks/useSessionStats"
+import { worstJoint } from "./lib/joints"
 import type { Exercise } from "./types"
 
 const LATENCY_BUDGET_MS = 100
@@ -63,6 +64,12 @@ export default function App(): JSX.Element {
   const topCue = pose.result?.cues?.[0]
   useCueVoice(topCue, voice)
 
+  // Lowest-scoring joint — only set when overall form is poor (no nagging on good reps).
+  const worst = useMemo(
+    () => worstJoint(pose.result?.joint_scores, pose.result?.score ?? null),
+    [pose.result],
+  )
+
   const detected = pose.result !== null && pose.result.score !== null
   const showHint = camera.ready && !detected && summary === null
 
@@ -92,6 +99,19 @@ export default function App(): JSX.Element {
           <LatencyBadge ms={pose.result?.latency_ms ?? null} />
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void camera.flip()}
+            disabled={!camera.ready}
+            aria-label={
+              camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
+            }
+            title="Flip camera (front / back)"
+            className="rounded-full border border-surface-hairline px-2.5 py-1 text-sm text-gray-400 transition hover:text-white disabled:opacity-40"
+            data-testid="flip-camera"
+          >
+            🔄
+          </button>
           {isSpeechSupported() && (
             <button
               type="button"
@@ -136,13 +156,23 @@ export default function App(): JSX.Element {
 
       <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[1fr_360px]">
         <div className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-surface-hairline bg-black shadow-card">
-          <CameraFeed ref={camera.videoRef} error={camera.error} ready={camera.ready} />
-          <PoseOverlay result={pose.result} />
+          <CameraFeed
+            ref={camera.videoRef}
+            error={camera.error}
+            ready={camera.ready}
+            mirrored={camera.facingMode === "user"}
+          />
+          <PoseOverlay
+            result={pose.result}
+            mirrored={camera.facingMode === "user"}
+            worst={worst}
+          />
           <CameraHud
             result={pose.result}
             active={camera.ready}
             exercise={exercise}
             onShowHowTo={setHowTo}
+            worst={worst}
           />
           {showHint && <EmptyStageHint exercise={exercise} onShowHowTo={setHowTo} />}
         </div>

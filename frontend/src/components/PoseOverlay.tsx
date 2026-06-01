@@ -1,13 +1,20 @@
 import { memo, useEffect, useRef } from "react"
 
 import type { PoseResult } from "../types"
+import type { WorstJoint } from "../lib/joints"
 import { ACCENT_COLOR, CONF_LOW, KEYPOINT_COUNT, SKELETON_EDGES, confidenceColor } from "../lib/skeleton"
+
+const WORST_RING_COLOR = "#FF4D4D"
 
 interface PoseOverlayProps {
   readonly result: PoseResult | null
+  /** Mirror the overlay to match the mirrored front-camera display. */
+  readonly mirrored: boolean
+  /** Lowest-scoring joint to emphasise, or null when form is good. */
+  readonly worst?: WorstJoint | null
 }
 
-function PoseOverlayInner({ result }: PoseOverlayProps): JSX.Element {
+function PoseOverlayInner({ result, mirrored, worst = null }: PoseOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -56,12 +63,28 @@ function PoseOverlayInner({ result }: PoseOverlayProps): JSX.Element {
       ctx.arc(x * canvas.width, y * canvas.height, 5, 0, Math.PI * 2)
       ctx.fill()
     }
-  }, [result])
+
+    // Emphasise the worst-scoring joint with a red ring on top of the skeleton.
+    // Drawn in true keypoint coords, so the CSS mirror keeps it aligned.
+    if (worst !== null && confidence[worst.keypointIndex] >= CONF_LOW) {
+      const [wx, wy] = keypoints[worst.keypointIndex]
+      const cx = wx * canvas.width
+      const cy = wy * canvas.height
+      ctx.lineWidth = 3
+      ctx.strokeStyle = WORST_RING_COLOR
+      ctx.shadowColor = WORST_RING_COLOR
+      ctx.shadowBlur = 12
+      ctx.beginPath()
+      ctx.arc(cx, cy, 14, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.shadowBlur = 0
+    }
+  }, [result, worst])
 
   return (
     <canvas
       ref={canvasRef}
-      className="pose-overlay absolute inset-0 w-full h-full pointer-events-none"
+      className={`${mirrored ? "mirror " : ""}absolute inset-0 w-full h-full pointer-events-none`}
       aria-hidden="true"
     />
   )

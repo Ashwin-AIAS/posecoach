@@ -3,15 +3,17 @@ import { forwardRef } from "react"
 interface CameraFeedProps {
   readonly error: string | null
   readonly ready: boolean
+  /** Mirror the feed (front camera only); the back camera is shown un-mirrored. */
+  readonly mirrored: boolean
 }
 
 export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
-  function CameraFeed({ error, ready }, ref) {
+  function CameraFeed({ error, ready, mirrored }, ref) {
     return (
       <div className="relative h-full w-full bg-surface-base">
         <video
           ref={ref}
-          className="mirror h-full w-full object-cover"
+          className={`${mirrored ? "mirror " : ""}h-full w-full object-cover`}
           autoPlay
           playsInline
           muted
