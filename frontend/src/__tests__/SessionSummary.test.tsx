@@ -8,7 +8,14 @@ import type { SessionStats } from "../hooks/useSessionStats"
 vi.mock("../lib/api", () => ({ apiJson: vi.fn() }))
 const mockApiJson = vi.mocked(apiJson)
 
-const stats: SessionStats = { reps: 9, avgScore: 84.4, bestScore: 96, samples: 120 }
+const stats: SessionStats = {
+  reps: 9,
+  avgScore: 84.4,
+  bestScore: 96,
+  samples: 120,
+  repScores: [],
+  holdSeries: [],
+}
 
 describe("SessionSummary", () => {
   beforeEach(() => mockApiJson.mockReset())

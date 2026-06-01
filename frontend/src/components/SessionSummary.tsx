@@ -18,7 +18,13 @@ interface SessionSummaryProps {
   readonly onClose: () => void
 }
 
-function Sparkline({ values }: { values: readonly number[] }): JSX.Element {
+function Sparkline({
+  values,
+  label = "Average score trend",
+}: {
+  values: readonly number[]
+  label?: string
+}): JSX.Element {
   const w = 220
   const h = 48
   const max = Math.max(...values, 100)
@@ -31,7 +37,7 @@ function Sparkline({ values }: { values: readonly number[] }): JSX.Element {
   const lastX = (values.length - 1) * step
   const lastY = h - ((values[values.length - 1] - min) / span) * h
   return (
-    <svg width={w} height={h} className="w-full" role="img" aria-label="Average score trend">
+    <svg width={w} height={h} className="w-full" role="img" aria-label={label}>
       <polyline
         points={points}
         fill="none"
@@ -41,6 +47,40 @@ function Sparkline({ values }: { values: readonly number[] }): JSX.Element {
         strokeLinejoin="round"
       />
       <circle cx={lastX} cy={lastY} r={3} fill="rgb(var(--accent))" />
+    </svg>
+  )
+}
+
+/** One bar per counted rep, height ∝ that rep's form score, colored by score. */
+function RepBars({ values }: { values: readonly number[] }): JSX.Element {
+  const w = 220
+  const h = 48
+  const gap = 3
+  const slot = w / values.length
+  const barW = Math.max(2, slot - gap)
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className="h-12 w-full"
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="Per-rep form scores"
+    >
+      {values.map((v, i) => {
+        const clamped = Math.max(0, Math.min(100, v))
+        const barH = Math.max(1, (clamped / 100) * h)
+        return (
+          <rect
+            key={i}
+            x={(i * slot).toFixed(1)}
+            y={(h - barH).toFixed(1)}
+            width={barW.toFixed(1)}
+            height={barH.toFixed(1)}
+            rx={1}
+            fill={scoreColor(v)}
+          />
+        )
+      })}
     </svg>
   )
 }
@@ -128,6 +168,22 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
             color={best > 0 ? scoreColor(best) : undefined}
           />
         </div>
+
+        {stats.repScores.length > 0 ? (
+          <div className="mt-5">
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+              Per-rep scores
+            </h3>
+            <RepBars values={stats.repScores} />
+          </div>
+        ) : stats.holdSeries.length > 1 ? (
+          <div className="mt-5">
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+              Hold timeline
+            </h3>
+            <Sparkline values={stats.holdSeries} label="Hold form-score timeline" />
+          </div>
+        ) : null}
 
         <div className="mt-5">
           <h3 className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Recent trend</h3>

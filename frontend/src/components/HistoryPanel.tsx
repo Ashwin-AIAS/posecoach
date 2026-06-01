@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useState } from "react"
 
 import { apiFetch, apiJson } from "../lib/api"
+import { HistoryTrend } from "./HistoryTrend"
 
 interface SessionSummary {
   readonly id: string
@@ -81,6 +82,12 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
             </div>
             <p className="text-sm text-gray-400">No sessions yet.</p>
             <p className="text-xs text-gray-600">Sign in and train — your sets will appear here.</p>
+          </div>
+        )}
+
+        {!loading && !error && sessions.length > 0 && (
+          <div className="mb-4 border-b border-surface-hairline pb-4">
+            <HistoryTrend sessions={sessions} />
           </div>
         )}
 
