@@ -45,6 +45,7 @@ async def stream_chat(
     """Stream text tokens from Gemini 2.0 Flash."""
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[str | None] = asyncio.Queue()
+    failure: dict[str, BaseException] = {}
 
     def _produce() -> None:
         try:
@@ -56,6 +57,7 @@ async def stream_chat(
                     loop.call_soon_threadsafe(queue.put_nowait, text)
         except Exception as exc:  # noqa: BLE001
             logger.error("gemini_stream_failed", error=str(exc))
+            failure["exc"] = exc
         finally:
             loop.call_soon_threadsafe(queue.put_nowait, None)
 
@@ -69,3 +71,9 @@ async def stream_chat(
             yield item
     finally:
         await task
+
+    # Surface the failure so the caller can emit the fallback message instead of
+    # ending the SSE stream silently. Without this, a Gemini error is swallowed
+    # here and the user just sees an empty assistant reply.
+    if "exc" in failure:
+        raise failure["exc"]
