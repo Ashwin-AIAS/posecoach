@@ -20,7 +20,9 @@ RUN apt-get update && apt-get install -y \
 
 # Python dependencies (cached layer — only rebuilds when requirements.txt changes)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --timeout=300 --retries=10 \
+      torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu \
+ && pip install --no-cache-dir --timeout=300 --retries=10 -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/
