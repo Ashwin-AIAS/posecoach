@@ -42,6 +42,59 @@ export const SKELETON_EDGES: ReadonlyArray<readonly [number, number]> = [
   [KP.RIGHT_KNEE, KP.RIGHT_ANKLE],
 ]
 
+/** COCO-17 keypoint names, indexed by keypoint id (joint-name lookup). */
+export const JOINT_NAMES: readonly string[] = [
+  "nose",
+  "left_eye",
+  "right_eye",
+  "left_ear",
+  "right_ear",
+  "left_shoulder",
+  "right_shoulder",
+  "left_elbow",
+  "right_elbow",
+  "left_wrist",
+  "right_wrist",
+  "left_hip",
+  "right_hip",
+  "left_knee",
+  "right_knee",
+  "left_ankle",
+  "right_ankle",
+]
+
+/**
+ * Scored angle key → [pointA, vertex, pointC] keypoint indices, mirroring
+ * `ANGLE_TRIPLETS` in `app/analysis/keypoint_utils.py`. The vertex is the middle
+ * index — the joint the angle is measured at (used for arc rendering).
+ */
+export const ANGLE_TRIPLETS: Readonly<Record<string, readonly [number, number, number]>> = {
+  left_knee_angle: [KP.LEFT_HIP, KP.LEFT_KNEE, KP.LEFT_ANKLE],
+  right_knee_angle: [KP.RIGHT_HIP, KP.RIGHT_KNEE, KP.RIGHT_ANKLE],
+  left_hip_angle: [KP.LEFT_SHOULDER, KP.LEFT_HIP, KP.LEFT_KNEE],
+  right_hip_angle: [KP.RIGHT_SHOULDER, KP.RIGHT_HIP, KP.RIGHT_KNEE],
+  left_elbow_angle: [KP.LEFT_SHOULDER, KP.LEFT_ELBOW, KP.LEFT_WRIST],
+  right_elbow_angle: [KP.RIGHT_SHOULDER, KP.RIGHT_ELBOW, KP.RIGHT_WRIST],
+  left_shoulder_angle: [KP.LEFT_HIP, KP.LEFT_SHOULDER, KP.LEFT_ELBOW],
+  right_shoulder_angle: [KP.RIGHT_HIP, KP.RIGHT_SHOULDER, KP.RIGHT_ELBOW],
+}
+
+/**
+ * Maps a bone's distal ("child") keypoint to the scored angle whose form score
+ * colors that bone. Bones whose child has no scored angle (forearm, shin, neck)
+ * are absent → rendered slate. Keys are the `edge[1]` index of SKELETON_EDGES.
+ */
+export const CHILD_JOINT_ANGLE: Readonly<Record<number, string>> = {
+  [KP.LEFT_KNEE]: "left_knee_angle",
+  [KP.RIGHT_KNEE]: "right_knee_angle",
+  [KP.LEFT_HIP]: "left_hip_angle",
+  [KP.RIGHT_HIP]: "right_hip_angle",
+  [KP.LEFT_ELBOW]: "left_elbow_angle",
+  [KP.RIGHT_ELBOW]: "right_elbow_angle",
+  [KP.LEFT_SHOULDER]: "left_shoulder_angle",
+  [KP.RIGHT_SHOULDER]: "right_shoulder_angle",
+}
+
 export const CONF_HIGH = 0.7
 export const CONF_LOW = 0.4
 

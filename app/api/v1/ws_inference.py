@@ -8,7 +8,7 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.analysis.form_scorer import SUPPORTED_EXERCISES, score_exercise
+from app.analysis.form_scorer import SUPPORTED_EXERCISES, score_exercise, worst_joint
 from app.analysis.keypoint_utils import compute_angles
 from app.analysis.rep_counter import RepCounter
 from app.analysis.score_smoother import ScoreSmoother
@@ -52,7 +52,8 @@ async def ws_inference(websocket: WebSocket) -> None:
     """Real-time pose inference endpoint.
 
     Client sends: {"frame": "<base64 JPEG>", "exercise": "squat"}
-    Server sends: {"keypoints", "confidence", "score", "cues", "latency_ms", "joint_scores", "reps"}
+    Server sends: {"keypoints", "confidence", "score", "cues", "latency_ms",
+    "joint_scores", "worst_joint", "rep_state", "measured_angles", "reps"}
 
     If the client is authenticated (access_token cookie present), a WorkoutSession
     row is created at connect and snapshots are appended every SNAPSHOT_INTERVAL_S
@@ -185,6 +186,12 @@ async def ws_inference(websocket: WebSocket) -> None:
                 "latency_ms": round(latency_ms, 1),
                 # Per-joint 0–100 scores power the coaching panel's per-joint bars.
                 "joint_scores": {k: round(v, 1) for k, v in form.joint_scores.items()},
+                # Lowest-scoring joint — drives the overlay's worst-joint spotlight.
+                "worst_joint": worst_joint(form.joint_scores),
+                # Rep phase ("up"/"down"/"hold") — drives trails, breathing, particles.
+                "rep_state": rep_counter.state,
+                # Raw measured angles (degrees) per scored joint — drives the arcs.
+                "measured_angles": {k: round(v, 1) for k, v in form.measured_angles.items()},
                 "reps": reps,
             }
             if hold_s is not None:

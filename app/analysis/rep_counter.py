@@ -81,6 +81,18 @@ class RepCounter:
         """Reps counted so far on this connection."""
         return self._count
 
+    @property
+    def state(self) -> str:
+        """Coarse phase of the rep cycle, for the live overlay.
+
+        Returns ``"hold"`` for isometric exercises (no tracked rep joints, e.g.
+        plank), otherwise the internal flex/extend phase: ``"up"`` while extended
+        and ``"down"`` while flexed.
+        """
+        if self._down_thr is None or self._up_thr is None:
+            return "hold"
+        return self._state
+
     def reset(self) -> None:
         """Reset count and state (call on disconnect or exercise change)."""
         self._count = 0

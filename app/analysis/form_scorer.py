@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -161,6 +162,19 @@ class FormResult:
     score: float
     cues: list[str] = field(default_factory=list)
     joint_scores: dict[str, float] = field(default_factory=dict)
+    # Raw measured angle (degrees) for each scored joint — powers the overlay arcs.
+    measured_angles: dict[str, float] = field(default_factory=dict)
+
+
+def worst_joint(joint_scores: Mapping[str, float]) -> str | None:
+    """Return the key of the lowest-scoring joint, or None if there are none.
+
+    Ties resolve to the first joint encountered (stable for a given dict order),
+    keeping the live overlay's spotlight deterministic.
+    """
+    if not joint_scores:
+        return None
+    return min(joint_scores, key=lambda k: joint_scores[k])
 
 
 def _get_range(exercise: str, joint: str) -> tuple[float, float] | None:
@@ -218,6 +232,7 @@ def score_exercise(
     target_joints = _EXERCISE_JOINTS[exercise]
 
     joint_scores: dict[str, float] = {}
+    measured_angles: dict[str, float] = {}
     cue_candidates: list[tuple[float, str]] = []  # (deficit, cue)
 
     for joint in target_joints:
@@ -230,6 +245,7 @@ def score_exercise(
         lo, hi = bounds
         js = _score_joint(angle, lo, hi)
         joint_scores[joint] = js
+        measured_angles[joint] = round(angle, 1)
 
         if js < 100.0:
             direction = "low" if angle < lo else "high"
@@ -250,4 +266,9 @@ def score_exercise(
             cues.append(cue)
             seen.add(cue)
 
-    return FormResult(score=round(overall, 1), cues=cues, joint_scores=joint_scores)
+    return FormResult(
+        score=round(overall, 1),
+        cues=cues,
+        joint_scores=joint_scores,
+        measured_angles=measured_angles,
+    )

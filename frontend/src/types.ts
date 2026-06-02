@@ -35,6 +35,9 @@ export const EXERCISES: readonly Exercise[] = [
 
 export type Keypoint = readonly [number, number]
 
+/** Rep cycle phase from the backend rep counter. */
+export type RepState = "up" | "down" | "hold"
+
 export interface PoseResult {
   readonly keypoints: readonly Keypoint[]
   readonly confidence: readonly number[]
@@ -46,6 +49,12 @@ export interface PoseResult {
   readonly reps?: number
   /** Per-joint 0–100 form scores, keyed by joint angle name (e.g. "left_knee_angle"). */
   readonly joint_scores?: Readonly<Record<string, number>>
+  /** Lowest-scoring joint angle key, or null when no joints were scored. */
+  readonly worst_joint?: string | null
+  /** Current rep cycle phase — drives trails, breathing, and particle bursts. */
+  readonly rep_state?: RepState
+  /** Raw measured angle (degrees) per scored joint — drives the overlay arcs. */
+  readonly measured_angles?: Readonly<Record<string, number>>
 }
 
 export interface PoseError {
