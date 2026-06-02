@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import time
 from datetime import UTC, datetime
@@ -95,6 +96,32 @@ async def ws_inference(websocket: WebSocket) -> None:
     conn_guard_key = f"ws:conn:{session_user_id}" if session_user_id else None
     guard_acquired = False
 
+    # Single-slot latest-frame buffer (last-write-wins). A background receiver
+    # overwrites it as frames arrive; the processor below always works on the
+    # freshest frame and discards any stale ones, so a slow inference pass can
+    # never build a backlog that inflates perceived latency.
+    latest_frame: dict[str, Any] | None = None
+    frame_ready = asyncio.Event()
+    receiver_done = asyncio.Event()
+    dropped_frames = 0
+    recv_task: asyncio.Task[None] | None = None
+
+    async def _receive_frames() -> None:
+        """Continuously read frames into the single slot, dropping stale ones."""
+        nonlocal latest_frame, dropped_frames
+        try:
+            while True:
+                msg: dict[str, Any] = await websocket.receive_json()
+                if latest_frame is not None:
+                    dropped_frames += 1  # overwrote a frame the processor never consumed
+                latest_frame = msg
+                frame_ready.set()
+        except WebSocketDisconnect:
+            pass
+        finally:
+            receiver_done.set()
+            frame_ready.set()  # wake the processor so it can exit
+
     try:
         if conn_guard_key is not None:
             try:
@@ -110,9 +137,20 @@ async def ws_inference(websocket: WebSocket) -> None:
                 await websocket.close(code=1008)  # policy violation
                 return
 
-        while True:
-            data: dict[str, Any] = await websocket.receive_json()
+        recv_task = asyncio.create_task(_receive_frames())
 
+        while True:
+            await frame_ready.wait()
+            frame_ready.clear()
+            # Atomic take (no await between read and clear): newest frame wins.
+            data = latest_frame
+            latest_frame = None
+            if data is None:
+                if receiver_done.is_set():
+                    break  # client disconnected and the slot is drained
+                continue
+
+            frame_proc_t0 = time.perf_counter()
             frame_b64: str = data.get("frame", "")
             exercise: str = data.get("exercise", "squat").lower().strip()
 
@@ -218,10 +256,24 @@ async def ws_inference(websocket: WebSocket) -> None:
 
             await websocket.send_json(response)
 
+            # Per-frame end-to-end latency (decode→inference→score→serialize),
+            # plus the model-only slice and how many stale frames were dropped.
+            logger.info(
+                "ws_frame_processed",
+                latency_ms=round((time.perf_counter() - frame_proc_t0) * 1000.0, 1),
+                model_latency_ms=round(latency_ms, 1),
+                exercise=exercise,
+                dropped_frames=dropped_frames,
+            )
+
     except WebSocketDisconnect:
         logger.info("ws_disconnected", client=websocket.client)
     finally:
         active_ws_connections.dec()
+        if recv_task is not None:
+            recv_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await recv_task
         kp_smoother.reset()
         score_smoother.reset()
         # Release the per-user guard so the user can reconnect immediately.

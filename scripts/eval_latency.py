@@ -63,9 +63,15 @@ def _run_live(model_path: Path) -> dict[str, Any] | None:
         logger.warning("onnx_model_missing", path=str(model_path))
         return None
 
-    session = ort.InferenceSession(
-        str(model_path), providers=["CPUExecutionProvider"]
-    )
+    try:
+        session = ort.InferenceSession(
+            str(model_path), providers=["CPUExecutionProvider"]
+        )
+    except Exception as exc:  # noqa: BLE001 — any load failure → cached fallback
+        # e.g. the ONNX is a Git-LFS pointer stub locally (Protobuf parse error);
+        # fall back to the Colab-cached benchmark rather than crashing the gate.
+        logger.warning("onnx_load_failed", path=str(model_path), error=str(exc))
+        return None
     input_meta = session.get_inputs()[0]
     rng = np.random.default_rng(42)
     dummy = rng.random((1, 3, IMG_SIZE, IMG_SIZE), dtype=np.float32)
