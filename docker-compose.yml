@@ -36,8 +36,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Apply migrations before serving so a fresh Postgres volume has its tables
+    # (otherwise auth/history 500 on first run). Idempotent — no-op once at head.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
+      # /app on the path so the `alembic` console script can import `app.*`
+      # (env.py imports app.db/app.models) — without it, migrations ModuleNotFound.
+      PYTHONPATH: /app
       POSTGRES_URL: postgresql+asyncpg://posecoach:dev_password@postgres:5432/posecoach
       REDIS_URL: redis://redis:6379/0
       GEMINI_API_KEY: ${GEMINI_API_KEY}
@@ -70,9 +75,12 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend/src:/app/src     # Live reload — source mounted
-      - ./frontend/public:/app/public
-      - /app/node_modules           # Named volume prevents host override
+      # Mount the whole frontend dir so Vite sees index.html, vite.config.ts,
+      # tsconfig, and the Tailwind config — not just src/public (otherwise Vite
+      # 404s with "could not auto-determine entry point"). node_modules stays as
+      # an anonymous volume so the image's installed deps aren't shadowed.
+      - ./frontend:/app
+      - /app/node_modules
     restart: unless-stopped
 
   prometheus:
