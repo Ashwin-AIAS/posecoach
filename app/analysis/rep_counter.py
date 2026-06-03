@@ -7,20 +7,20 @@ from app.analysis.form_scorer import joint_range
 # Primary joint(s) whose flexion/extension cycle defines one rep, per exercise.
 # Both sides are averaged for stability; isometric holds (plank) have no reps.
 _REP_JOINTS: dict[str, list[str]] = {
-    "squat":             ["left_knee_angle", "right_knee_angle"],
-    "deadlift":          ["left_hip_angle", "right_hip_angle"],
-    "lunge":             ["left_knee_angle", "right_knee_angle"],
-    "bench":             ["left_elbow_angle", "right_elbow_angle"],
-    "pushup":            ["left_elbow_angle", "right_elbow_angle"],
-    "diamond_pushup":    ["left_elbow_angle", "right_elbow_angle"],
-    "ohp":               ["left_elbow_angle", "right_elbow_angle"],
+    "squat": ["left_knee_angle", "right_knee_angle"],
+    "deadlift": ["left_hip_angle", "right_hip_angle"],
+    "lunge": ["left_knee_angle", "right_knee_angle"],
+    "bench": ["left_elbow_angle", "right_elbow_angle"],
+    "pushup": ["left_elbow_angle", "right_elbow_angle"],
+    "diamond_pushup": ["left_elbow_angle", "right_elbow_angle"],
+    "ohp": ["left_elbow_angle", "right_elbow_angle"],
     "db_shoulder_press": ["left_elbow_angle", "right_elbow_angle"],
-    "curl":              ["left_elbow_angle", "right_elbow_angle"],
-    "hammer_curl":       ["left_elbow_angle", "right_elbow_angle"],
-    "drag_curl":         ["left_elbow_angle", "right_elbow_angle"],
-    "barbell_row":       ["left_elbow_angle", "right_elbow_angle"],
-    "one_arm_row":       ["left_elbow_angle", "right_elbow_angle"],
-    "lateral_raise":     ["left_shoulder_angle", "right_shoulder_angle"],
+    "curl": ["left_elbow_angle", "right_elbow_angle"],
+    "hammer_curl": ["left_elbow_angle", "right_elbow_angle"],
+    "drag_curl": ["left_elbow_angle", "right_elbow_angle"],
+    "barbell_row": ["left_elbow_angle", "right_elbow_angle"],
+    "one_arm_row": ["left_elbow_angle", "right_elbow_angle"],
+    "lateral_raise": ["left_shoulder_angle", "right_shoulder_angle"],
     # plank: isometric — no reps (uses the hold timer instead)
 }
 
@@ -80,6 +80,31 @@ class RepCounter:
     def count(self) -> int:
         """Reps counted so far on this connection."""
         return self._count
+
+    @property
+    def down_thr(self) -> float | None:
+        """Flexed-zone threshold angle, or None for isometric exercises.
+
+        Read-only — exposed for P11 diagnostics (the rep-counter state audit).
+        """
+        return self._down_thr
+
+    @property
+    def up_thr(self) -> float | None:
+        """Extended-zone threshold angle, or None for isometric exercises.
+
+        Read-only — exposed for P11 diagnostics (the rep-counter state audit).
+        """
+        return self._up_thr
+
+    @property
+    def tracked_joints(self) -> list[str]:
+        """Primary rep joints for this exercise (empty for isometric holds).
+
+        Read-only — exposed for P11 diagnostics to count how many tracked
+        joints carry a valid (non-None) angle on a given frame.
+        """
+        return list(self._joints)
 
     @property
     def state(self) -> str:

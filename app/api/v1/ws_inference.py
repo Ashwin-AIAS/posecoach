@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
+from collections import deque
 from datetime import UTC, datetime
 from typing import Any
 
@@ -19,6 +20,7 @@ from app.inference.runner import run_inference
 from app.inference.smoother import KeypointSmoother
 from app.metrics import active_ws_connections, form_score, form_score_events_total
 from app.models import WorkoutSession
+from app.monitoring.metrics import pipeline_stage_latency_seconds
 
 
 def _grade(score: float) -> str:
@@ -28,6 +30,38 @@ def _grade(score: float) -> str:
     if score >= 50.0:
         return "fair"
     return "poor"
+
+
+# P11 instrumentation: how often to flush aggregated per-stage timing + the
+# rep-counter state audit to the logs. Per-frame logging would flood the stream.
+DIAG_LOG_EVERY = 30
+# Rolling window of recent per-stage samples used to compute mean + p95 in the
+# periodic timing log (kept bounded so a long session never grows memory).
+DIAG_WINDOW = 300
+
+
+def _percentile(samples: list[float], pct: float) -> float:
+    """Linear-interpolated percentile (0.0–1.0) of ``samples``; 0.0 if empty."""
+    if not samples:
+        return 0.0
+    ordered = sorted(samples)
+    rank = (len(ordered) - 1) * pct
+    low = int(rank)
+    high = min(low + 1, len(ordered) - 1)
+    return ordered[low] + (ordered[high] - ordered[low]) * (rank - low)
+
+
+def _stage_summary(window: dict[str, deque[float]]) -> dict[str, float]:
+    """Flatten per-stage timing windows into mean_ms / p95_ms log fields."""
+    out: dict[str, float] = {}
+    for stage, samples in window.items():
+        data = list(samples)
+        if not data:
+            continue
+        out[f"{stage}_mean_ms"] = round(sum(data) / len(data), 2)
+        out[f"{stage}_p95_ms"] = round(_percentile(data, 0.95), 2)
+    return out
+
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -74,6 +108,13 @@ async def ws_inference(websocket: WebSocket) -> None:
     score_smoother = ScoreSmoother(alpha=0.6)
     hold_start: float | None = None  # for plank hold tracking
     rep_counter: RepCounter | None = None  # created on first frame; reset on exercise change
+
+    # P11 instrumentation (per connection): rolling per-stage timing windows, a
+    # processed-frame counter that drives the every-30-frames diagnostic flush,
+    # and a one-shot flag that logs the response payload schema exactly once.
+    stage_windows: dict[str, deque[float]] = {}
+    processed_frames = 0
+    schema_logged = False
 
     session_id: str | None = None
     session_user_id: str | None = None
@@ -186,21 +227,31 @@ async def ws_inference(websocket: WebSocket) -> None:
                 await websocket.send_json(_NO_PERSON_RESPONSE)
                 continue
 
-            kp_xyn, kp_conf, latency_ms = result
+            kp_xyn = result.kp_xyn
+            kp_conf = result.kp_conf
+            latency_ms = result.latency_ms
 
             # Smooth keypoints
+            t_ks0 = time.perf_counter()
             kp_smooth = kp_smoother.update(kp_xyn)
+            t_ks1 = time.perf_counter()
 
             # Score form
             form = score_exercise(exercise, kp_smooth, kp_conf)
+            t_scoring = time.perf_counter()
 
             # Rep counting (streaming, deterministic) — reset on exercise change
             if rep_counter is None or rep_counter.exercise != exercise:
                 rep_counter = RepCounter(exercise)
-            reps = rep_counter.update(compute_angles(kp_smooth, kp_conf))
+            # Keep the rep counter's angle view named so the P11 audit can count
+            # how many tracked joints actually carried a valid (non-None) angle.
+            frame_angles = compute_angles(kp_smooth, kp_conf)
+            reps = rep_counter.update(frame_angles)
+            t_rep = time.perf_counter()
 
             # Smooth score
             smoothed_score = score_smoother.update(form.score)
+            t_ss = time.perf_counter()
 
             # Prometheus: per-frame form score (histogram + grade counter)
             form_score.labels(exercise=exercise).observe(smoothed_score)
@@ -254,17 +305,75 @@ async def ws_inference(websocket: WebSocket) -> None:
                         with contextlib.suppress(Exception):
                             await redis.expire(conn_guard_key, WS_CONN_TTL_S)
 
+            t_send0 = time.perf_counter()
             await websocket.send_json(response)
+            t_send1 = time.perf_counter()
+
+            # Log the response payload schema exactly once per connection so we
+            # can verify (in P11) that `reps` is actually in the JSON the client
+            # receives. Key names + booleans only — never keypoint/frame data.
+            if not schema_logged:
+                schema_logged = True
+                logger.info(
+                    "ws_response_schema",
+                    keys=sorted(response.keys()),
+                    has_reps_field="reps" in response,
+                    has_rep_state_field="rep_state" in response,
+                )
+
+            # Record per-stage timing into both the rolling window (for the
+            # periodic mean/p95 log) and the Prometheus stage histogram.
+            stage_ms = {
+                "frame_decode": result.decode_ms,
+                "inference": result.predict_ms,
+                "keypoint_smooth": (t_ks1 - t_ks0) * 1000.0,
+                "scoring": (t_scoring - t_ks1) * 1000.0,
+                "rep_count": (t_rep - t_scoring) * 1000.0,
+                "score_smooth": (t_ss - t_rep) * 1000.0,
+                "serialize_send": (t_send1 - t_send0) * 1000.0,
+                "total_loop": (t_send1 - frame_proc_t0) * 1000.0,
+            }
+            for stage, ms in stage_ms.items():
+                stage_windows.setdefault(stage, deque(maxlen=DIAG_WINDOW)).append(ms)
+                pipeline_stage_latency_seconds.labels(stage=stage, exercise=exercise).observe(ms / 1000.0)
+
+            processed_frames += 1
 
             # Per-frame end-to-end latency (decode→inference→score→serialize),
             # plus the model-only slice and how many stale frames were dropped.
             logger.info(
                 "ws_frame_processed",
-                latency_ms=round((time.perf_counter() - frame_proc_t0) * 1000.0, 1),
+                latency_ms=round(stage_ms["total_loop"], 1),
                 model_latency_ms=round(latency_ms, 1),
                 exercise=exercise,
                 dropped_frames=dropped_frames,
             )
+
+            # Every 30 frames, flush aggregated stage timing + a rep-counter
+            # state audit. The audit's `valid_angle_count` is the key signal for
+            # the "reps stuck at 0" bug: if tracked joints arrive as None (their
+            # keypoints gated out below conf 0.5), no flex→extend cycle can fire.
+            if processed_frames % DIAG_LOG_EVERY == 0:
+                logger.info(
+                    "ws_pipeline_timing",
+                    exercise=exercise,
+                    frames=processed_frames,
+                    **_stage_summary(stage_windows),
+                )
+                valid_angle_count = sum(1 for j in rep_counter.tracked_joints if frame_angles.get(j) is not None)
+                logger.info(
+                    "ws_rep_audit",
+                    exercise=exercise,
+                    state=rep_counter.state,
+                    count=rep_counter.count,
+                    reps_sent=reps,
+                    down_thr=rep_counter.down_thr,
+                    up_thr=rep_counter.up_thr,
+                    is_isometric=rep_counter.down_thr is None,
+                    tracked_joints=len(rep_counter.tracked_joints),
+                    valid_angle_count=valid_angle_count,
+                    rep_counter_id=id(rep_counter),
+                )
 
     except WebSocketDisconnect:
         logger.info("ws_disconnected", client=websocket.client)

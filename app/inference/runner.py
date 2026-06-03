@@ -4,6 +4,7 @@ import asyncio
 import base64
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 
@@ -16,6 +17,23 @@ from app.metrics import inference_latency_seconds
 
 logger = structlog.get_logger(__name__)
 
+
+@dataclass(frozen=True)
+class InferenceOutcome:
+    """First-person keypoints plus a P11 timing breakdown for one frame.
+
+    ``latency_ms`` is the end-to-end decode+predict slice (unchanged from the
+    prior return value). ``decode_ms`` and ``predict_ms`` split that slice so the
+    WS handler can attribute per-stage cost; they are instrumentation only.
+    """
+
+    kp_xyn: npt.NDArray[Any]
+    kp_conf: npt.NDArray[Any]
+    latency_ms: float
+    decode_ms: float
+    predict_ms: float
+
+
 _INFERENCE_SIZE = 640
 _VRAM_CLEAR_EVERY = 100
 _frame_counter = 0
@@ -24,9 +42,7 @@ _frame_counter = 0
 def _decode_frame(frame_b64: str) -> npt.NDArray[np.uint8]:
     """Base64 JPEG → (H, W, 3) uint8 RGB array, resized to 640×640."""
     raw = base64.b64decode(frame_b64)
-    img = Image.open(BytesIO(raw)).convert("RGB").resize(
-        (_INFERENCE_SIZE, _INFERENCE_SIZE), Image.Resampling.BILINEAR
-    )
+    img = Image.open(BytesIO(raw)).convert("RGB").resize((_INFERENCE_SIZE, _INFERENCE_SIZE), Image.Resampling.BILINEAR)
     return np.array(img, dtype=np.uint8)
 
 
@@ -48,6 +64,7 @@ def _predict(model: object, frame: npt.NDArray[np.uint8]) -> object:
     if _frame_counter % _VRAM_CLEAR_EVERY == 0:
         try:
             import torch
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except ImportError:
@@ -60,11 +77,11 @@ async def run_inference(
     model: object,
     executor: ThreadPoolExecutor,
     frame_b64: str,
-) -> tuple[npt.NDArray[Any], npt.NDArray[Any], float] | None:
+) -> InferenceOutcome | None:
     """Decode frame and run YOLO26 inference asynchronously.
 
-    Returns (kp_xyn, kp_conf, latency_ms) for the first detected person,
-    or None if no person is detected.
+    Returns an :class:`InferenceOutcome` for the first detected person, or None
+    if no person is detected.
 
     kp_xyn: shape (17, 2) normalized [0,1] coordinates
     kp_conf: shape (17,) confidence per keypoint
@@ -74,14 +91,16 @@ async def run_inference(
 
     try:
         frame = await loop.run_in_executor(executor, _decode_frame, frame_b64)
-        results = await loop.run_in_executor(
-            executor, lambda: _predict(model, frame)
-        )
+        decode_done = time.perf_counter()
+        results = await loop.run_in_executor(executor, lambda: _predict(model, frame))
     except Exception as exc:
         logger.error("inference_failed", error=str(exc))
         return None
 
-    latency_ms = (time.perf_counter() - t0) * 1000.0
+    predict_done = time.perf_counter()
+    decode_ms = (decode_done - t0) * 1000.0
+    predict_ms = (predict_done - decode_done) * 1000.0
+    latency_ms = (predict_done - t0) * 1000.0
     inference_latency_seconds.observe(latency_ms / 1000.0)
 
     keypoints = results[0].keypoints  # type: ignore[index]
@@ -89,8 +108,19 @@ async def run_inference(
         logger.info("no_person_detected", latency_ms=round(latency_ms, 1))
         return None
 
-    kp_xyn: npt.NDArray[Any] = keypoints.xyn[0].cpu().numpy()   # (17, 2)
+    kp_xyn: npt.NDArray[Any] = keypoints.xyn[0].cpu().numpy()  # (17, 2)
     kp_conf: npt.NDArray[Any] = keypoints.conf[0].cpu().numpy()  # (17,)
 
-    logger.info("inference_complete", latency_ms=round(latency_ms, 1))
-    return kp_xyn, kp_conf, latency_ms
+    logger.info(
+        "inference_complete",
+        latency_ms=round(latency_ms, 1),
+        decode_ms=round(decode_ms, 1),
+        predict_ms=round(predict_ms, 1),
+    )
+    return InferenceOutcome(
+        kp_xyn=kp_xyn,
+        kp_conf=kp_conf,
+        latency_ms=latency_ms,
+        decode_ms=decode_ms,
+        predict_ms=predict_ms,
+    )
