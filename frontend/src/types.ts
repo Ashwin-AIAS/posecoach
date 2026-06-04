@@ -38,6 +38,14 @@ export type Keypoint = readonly [number, number]
 /** Rep cycle phase from the backend rep counter. */
 export type RepState = "up" | "down" | "hold"
 
+/**
+ * Why a frame looks the way it does. Only `ok` carries a meaningful `score`;
+ * `no_person` means nobody was detected and `insufficient_confidence` means a
+ * person is visible but the scored joints couldn't be measured reliably. These
+ * keep a "can't see you" frame distinct from genuinely poor form (P13).
+ */
+export type PoseStatus = "ok" | "no_person" | "insufficient_confidence"
+
 export interface PoseResult {
   readonly keypoints: readonly Keypoint[]
   readonly confidence: readonly number[]
@@ -55,6 +63,8 @@ export interface PoseResult {
   readonly rep_state?: RepState
   /** Raw measured angle (degrees) per scored joint — drives the overlay arcs. */
   readonly measured_angles?: Readonly<Record<string, number>>
+  /** Why this frame looks the way it does. Absent on older servers → treat as "ok". */
+  readonly status?: PoseStatus
 }
 
 export interface PoseError {

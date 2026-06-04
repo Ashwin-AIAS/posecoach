@@ -47,4 +47,38 @@ describe("CameraHud", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show how-to demo" }))
     expect(onShowHowTo).toHaveBeenCalledWith("bench")
   })
+
+  it("shows a status banner (not a coaching cue) when the frame can't be scored", () => {
+    render(
+      <CameraHud
+        result={{
+          ...base,
+          score: null,
+          cues: ["Position yourself in frame"],
+          status: "insufficient_confidence",
+        }}
+        active
+        exercise="squat"
+        onShowHowTo={vi.fn()}
+        worst={{ key: "left_knee_angle", keypointIndex: 13, bodyPart: "left knee", score: 40 }}
+      />,
+    )
+    expect(screen.getByTestId("status-banner").textContent).toContain("Position yourself in frame")
+    // The cue is promoted to the banner, so the lower-third caption is suppressed.
+    expect(screen.queryByText("Drive knees out wider")).toBeNull()
+    // And a "fix this joint" callout must not appear when we can't even see them.
+    expect(screen.queryByTestId("worst-joint-chip")).toBeNull()
+  })
+
+  it("falls back to default banner copy when no cue is supplied", () => {
+    render(
+      <CameraHud
+        result={{ ...base, score: null, cues: [], status: "no_person" }}
+        active
+        exercise="squat"
+        onShowHowTo={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId("status-banner").textContent).toContain("Step into frame")
+  })
 })

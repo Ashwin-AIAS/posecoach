@@ -1,8 +1,14 @@
 import { memo } from "react"
 
-import type { Exercise, PoseResult } from "../types"
+import type { Exercise, PoseResult, PoseStatus } from "../types"
 import type { WorstJoint } from "../lib/joints"
 import { ScoreRing } from "./ScoreRing"
+
+/** Fallback banner copy when the backend can't score a frame and sends no cue. */
+const STATUS_FALLBACK: Record<Exclude<PoseStatus, "ok">, string> = {
+  no_person: "Step into frame",
+  insufficient_confidence: "Hold still — adjusting to you",
+}
 
 interface CameraHudProps {
   readonly result: PoseResult | null
@@ -26,6 +32,12 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
   const holdS = result?.hold_s
   const reps = result?.reps ?? 0
   const isPlank = exercise === "plank"
+  // A missing status (older server) means a normally-scored frame.
+  const status: PoseStatus = result?.status ?? "ok"
+  // When the backend couldn't score the frame, surface why — distinctly from a
+  // coaching cue — so the user knows to reposition rather than read it as form.
+  const blocked = status !== "ok"
+  const statusMessage = blocked ? (topCue ?? STATUS_FALLBACK[status]) : undefined
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
@@ -35,7 +47,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
       </div>
 
       {/* Worst-joint callout — the exact body part to fix (multi-joint scoring) */}
-      {worst !== null && (
+      {!blocked && worst !== null && (
         <div
           className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-score-bad/40 bg-score-bad/15 px-3 py-1 text-sm font-medium text-score-bad backdrop-blur-md"
           data-testid="worst-joint-chip"
@@ -76,8 +88,21 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         </div>
       )}
 
-      {/* Lower-third coaching caption */}
-      {topCue !== undefined && topCue.length > 0 && (
+      {/* Center status banner — shown when the frame couldn't be scored, so the
+          user knows to reposition rather than reading it as a form correction. */}
+      {blocked && statusMessage !== undefined && (
+        <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4">
+          <p
+            data-testid="status-banner"
+            className="animate-caption-in max-w-xs rounded-2xl border border-accent/40 bg-surface-base/70 px-5 py-3 text-center text-base font-medium text-accent shadow-card backdrop-blur-md"
+          >
+            {statusMessage}
+          </p>
+        </div>
+      )}
+
+      {/* Lower-third coaching caption (only on normally-scored frames) */}
+      {!blocked && topCue !== undefined && topCue.length > 0 && (
         <div className="absolute inset-x-0 bottom-6 flex justify-center px-4">
           <p
             key={topCue}
