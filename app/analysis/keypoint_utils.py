@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import numpy as np
@@ -24,18 +25,28 @@ RIGHT_KNEE = 14
 LEFT_ANKLE = 15
 RIGHT_ANKLE = 16
 
-CONF_THRESHOLD = 0.5
+# Per-keypoint confidence gate for angle computation. A joint angle is only
+# computed when all of its constituent keypoints clear this threshold.
+#
+# Provenance: P11 diagnostics found the live "reps stuck at 0 / scores silently
+# broken" bug was a gate mismatch — YOLO predicts at conf=0.10 but this gate was
+# 0.50, so real webcam keypoints (routinely 0.10–0.50) were discarded and every
+# angle became None. 0.25 is the documented interim value from
+# docs/p11_calibration_session.md; replace it via the ANGLE_CONF_THRESHOLD env
+# var with the measured percentile once an in-gym capture session is analysed
+# (data/eval/conf_distribution_summary.json).
+ANGLE_CONF_THRESHOLD = float(os.environ.get("ANGLE_CONF_THRESHOLD", "0.25"))
 
 # (point_A, vertex_B, point_C) — angle is computed at vertex B
 ANGLE_TRIPLETS: dict[str, tuple[int, int, int]] = {
-    "left_knee_angle":     (LEFT_HIP,       LEFT_KNEE,      LEFT_ANKLE),
-    "right_knee_angle":    (RIGHT_HIP,      RIGHT_KNEE,     RIGHT_ANKLE),
-    "left_hip_angle":      (LEFT_SHOULDER,  LEFT_HIP,       LEFT_KNEE),
-    "right_hip_angle":     (RIGHT_SHOULDER, RIGHT_HIP,      RIGHT_KNEE),
-    "left_elbow_angle":    (LEFT_SHOULDER,  LEFT_ELBOW,     LEFT_WRIST),
-    "right_elbow_angle":   (RIGHT_SHOULDER, RIGHT_ELBOW,    RIGHT_WRIST),
-    "left_shoulder_angle": (LEFT_HIP,       LEFT_SHOULDER,  LEFT_ELBOW),
-    "right_shoulder_angle":(RIGHT_HIP,      RIGHT_SHOULDER, RIGHT_ELBOW),
+    "left_knee_angle": (LEFT_HIP, LEFT_KNEE, LEFT_ANKLE),
+    "right_knee_angle": (RIGHT_HIP, RIGHT_KNEE, RIGHT_ANKLE),
+    "left_hip_angle": (LEFT_SHOULDER, LEFT_HIP, LEFT_KNEE),
+    "right_hip_angle": (RIGHT_SHOULDER, RIGHT_HIP, RIGHT_KNEE),
+    "left_elbow_angle": (LEFT_SHOULDER, LEFT_ELBOW, LEFT_WRIST),
+    "right_elbow_angle": (RIGHT_SHOULDER, RIGHT_ELBOW, RIGHT_WRIST),
+    "left_shoulder_angle": (LEFT_HIP, LEFT_SHOULDER, LEFT_ELBOW),
+    "right_shoulder_angle": (RIGHT_HIP, RIGHT_SHOULDER, RIGHT_ELBOW),
 }
 
 
@@ -57,7 +68,7 @@ def compute_angle(a: npt.NDArray[Any], b: npt.NDArray[Any], c: npt.NDArray[Any])
 def compute_angles(
     kp: npt.NDArray[Any],
     kp_conf: npt.NDArray[Any],
-    conf_threshold: float = CONF_THRESHOLD,
+    conf_threshold: float = ANGLE_CONF_THRESHOLD,
 ) -> dict[str, float | None]:
     """Compute all named joint angles from a (17, 2) keypoint array.
 
@@ -66,11 +77,7 @@ def compute_angles(
     """
     angles: dict[str, float | None] = {}
     for name, (idx_a, idx_b, idx_c) in ANGLE_TRIPLETS.items():
-        if (
-            kp_conf[idx_a] < conf_threshold
-            or kp_conf[idx_b] < conf_threshold
-            or kp_conf[idx_c] < conf_threshold
-        ):
+        if kp_conf[idx_a] < conf_threshold or kp_conf[idx_b] < conf_threshold or kp_conf[idx_c] < conf_threshold:
             angles[name] = None
             continue
         angles[name] = compute_angle(kp[idx_a], kp[idx_b], kp[idx_c])
