@@ -24,6 +24,8 @@ import numpy.typing as npt
 import pytest
 
 from app.analysis.form_scorer import (
+    STATUS_INSUFFICIENT_CONFIDENCE,
+    STATUS_OK,
     FormResult,
     joint_range,
     score_exercise,
@@ -201,9 +203,7 @@ def test_bad_form_produces_cue(exercise: str) -> None:
 @pytest.mark.parametrize("exercise", DYNAMIC_EXERCISES)
 def test_dynamic_exercise_counts_reps(exercise: str) -> None:
     counter = RepCounter(exercise)
-    assert counter.down_thr is not None and counter.up_thr is not None, (
-        f"{exercise}: no rep thresholds derived"
-    )
+    assert counter.down_thr is not None and counter.up_thr is not None, f"{exercise}: no rep thresholds derived"
 
     rep_param = _REP_PARAM[exercise]
     params = _base_params(exercise)
@@ -234,18 +234,20 @@ def test_plank_reports_zero_reps() -> None:
 # Stage 4 — reproduce the suspected LIVE failure deterministically             #
 # --------------------------------------------------------------------------- #
 def test_low_confidence_reproduces_live_failure() -> None:
-    """Sub-threshold confidence ⇒ all angles None ⇒ score defaults, reps stay 0.
+    """Sub-threshold confidence ⇒ all angles None ⇒ insufficient_confidence, reps stay 0.
 
     This is the mechanism behind the in-gym symptoms: webcam keypoints can land
-    below the 0.5 confidence gate even though the model ran fine, so every joint
-    angle becomes None. Scoring then hits its silent-default path and the rep
-    counter never sees an angle to cross a threshold.
+    below the angle-confidence gate even though the model ran fine, so every joint
+    angle becomes None. Scoring then reports ``insufficient_confidence`` (no longer
+    a silent 0.0) and the rep counter never sees an angle to cross a threshold.
+    Confidence 0.2 sits below the lowered ANGLE_CONF_THRESHOLD (0.25 default), so
+    this remains a genuine "can't measure you" frame.
     """
     kp, _ = _good_frame("squat")
-    low_conf = np.full(17, 0.2, dtype=np.float64)  # below CONF_THRESHOLD (0.5)
+    low_conf = np.full(17, 0.2, dtype=np.float64)  # below ANGLE_CONF_THRESHOLD (0.25)
 
     form = score_exercise("squat", kp, low_conf)
-    assert form.score == 0.0, "expected silent-default score under low confidence"
+    assert form.status == STATUS_INSUFFICIENT_CONFIDENCE, "expected insufficient_confidence status"
     assert not form.joint_scores, "expected no joint scores under low confidence"
 
     counter = RepCounter("squat")
@@ -253,3 +255,37 @@ def test_low_confidence_reproduces_live_failure() -> None:
     for _ in range(_FRAMES):
         final = counter.update(compute_angles(kp, low_conf))
     assert final == 0, "expected zero reps when every tracked angle is None"
+
+
+def test_mid_confidence_advances_reps_and_scores() -> None:
+    """Webcam-band confidence (above the gate) must score and count reps.
+
+    The P12/P13 regression guard for the conf-gate fix. Keypoints in the
+    0.25–0.50 band — exactly where real webcam joints land — were discarded by the
+    old 0.5 gate, collapsing scores to the silent default and freezing the rep
+    counter. With the lowered, env-tunable ANGLE_CONF_THRESHOLD they are kept, so
+    the same oscillation that fails at 0.2 now scores (status ok) and counts reps.
+    """
+    exercise = "squat"
+    mid_conf = np.full(17, 0.35, dtype=np.float64)  # in the 0.25–0.50 webcam band
+
+    counter = RepCounter(exercise)
+    assert counter.down_thr is not None and counter.up_thr is not None
+    rep_param = _REP_PARAM[exercise]
+    params = _base_params(exercise)
+    top = counter.up_thr + 3.0
+    bottom = counter.down_thr - 3.0
+
+    final = 0
+    scored_ok = False
+    for i in range(_FRAMES):
+        params[rep_param] = top if i % 2 == 0 else bottom
+        kp = _pose(**params)  # type: ignore[arg-type]
+        form = score_exercise(exercise, kp, mid_conf)
+        if form.status == STATUS_OK:
+            scored_ok = True
+            assert form.joint_scores, "mid-confidence frame produced no joint scores"
+        final = counter.update(compute_angles(kp, mid_conf))
+
+    assert scored_ok, "mid-confidence frames never scored — angle gate still too high"
+    assert final > 0, "reps stuck at 0 for mid-confidence input — P12 regression"

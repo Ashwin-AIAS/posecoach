@@ -1,10 +1,17 @@
 """Every supported exercise must return a valid FormResult from score_exercise."""
+
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from app.analysis.form_scorer import SUPPORTED_EXERCISES, FormResult, score_exercise
+from app.analysis.form_scorer import (
+    STATUS_INSUFFICIENT_CONFIDENCE,
+    STATUS_UNKNOWN_EXERCISE,
+    SUPPORTED_EXERCISES,
+    FormResult,
+    score_exercise,
+)
 
 
 def _perfect_kp() -> tuple[np.ndarray, np.ndarray]:
@@ -48,14 +55,14 @@ def test_cues_are_short(exercise: str) -> None:
 def test_low_confidence_keypoints_gives_position_cue(exercise: str) -> None:
     kp, kp_conf = _low_conf_kp()
     result = score_exercise(exercise, kp, kp_conf)
-    assert result.score == 0.0
+    assert result.status == STATUS_INSUFFICIENT_CONFIDENCE
     assert len(result.cues) > 0
 
 
 def test_unknown_exercise_returns_zero_score() -> None:
     kp, kp_conf = _perfect_kp()
     result = score_exercise("burpees", kp, kp_conf)
-    assert result.score == 0.0
+    assert result.status == STATUS_UNKNOWN_EXERCISE
     assert any("Unknown" in c or "unknown" in c for c in result.cues)
 
 
