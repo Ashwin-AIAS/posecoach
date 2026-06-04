@@ -10,7 +10,13 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.analysis.form_scorer import SUPPORTED_EXERCISES, score_exercise, worst_joint
+from app.analysis.form_scorer import (
+    STATUS_INSUFFICIENT_CONFIDENCE,
+    STATUS_OK,
+    SUPPORTED_EXERCISES,
+    score_exercise,
+    worst_joint,
+)
 from app.analysis.keypoint_utils import compute_angles
 from app.analysis.rep_counter import RepCounter
 from app.analysis.score_smoother import ScoreSmoother
@@ -72,6 +78,8 @@ _NO_PERSON_RESPONSE: dict[str, Any] = {
     "score": None,
     "cues": ["Step into frame"],
     "latency_ms": 0.0,
+    # Explicit "no person detected" — distinct from a real low score (P13).
+    "status": "no_person",
 }
 
 # How often to persist a keypoint snapshot to the session JSON column
@@ -224,7 +232,13 @@ async def ws_inference(websocket: WebSocket) -> None:
             if result is None:
                 if exercise == "plank":
                     hold_start = None
-                await websocket.send_json(_NO_PERSON_RESPONSE)
+                # Keep the running rep count on screen during a brief dropout so a
+                # flicker of no-detection doesn't blank the counter (P12).
+                no_person = dict(_NO_PERSON_RESPONSE)
+                if rep_counter is not None:
+                    no_person["reps"] = rep_counter.count
+                    no_person["rep_state"] = rep_counter.state
+                await websocket.send_json(no_person)
                 continue
 
             kp_xyn = result.kp_xyn
@@ -248,6 +262,25 @@ async def ws_inference(websocket: WebSocket) -> None:
             frame_angles = compute_angles(kp_smooth, kp_conf)
             reps = rep_counter.update(frame_angles)
             t_rep = time.perf_counter()
+
+            # A person is visible but no tracked joint cleared the confidence gate
+            # (P13). Report this explicitly with a null score instead of feeding a
+            # fake 0.0 into the smoother / metrics / session average — which would
+            # read as terrible form. The rep count is preserved so the UI holds.
+            if form.status == STATUS_INSUFFICIENT_CONFIDENCE:
+                await websocket.send_json(
+                    {
+                        "keypoints": kp_smooth.tolist(),
+                        "confidence": kp_conf.tolist(),
+                        "score": None,
+                        "cues": form.cues,
+                        "latency_ms": round(latency_ms, 1),
+                        "reps": reps,
+                        "rep_state": rep_counter.state,
+                        "status": STATUS_INSUFFICIENT_CONFIDENCE,
+                    }
+                )
+                continue
 
             # Smooth score
             smoothed_score = score_smoother.update(form.score)
@@ -282,6 +315,9 @@ async def ws_inference(websocket: WebSocket) -> None:
                 # Raw measured angles (degrees) per scored joint — drives the arcs.
                 "measured_angles": {k: round(v, 1) for k, v in form.measured_angles.items()},
                 "reps": reps,
+                # Explicit "scored normally" marker (P13) — the client distinguishes
+                # this from no_person / insufficient_confidence frames.
+                "status": STATUS_OK,
             }
             if hold_s is not None:
                 response["hold_s"] = hold_s
