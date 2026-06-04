@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
@@ -16,8 +16,11 @@ import { useAuth } from "./hooks/useAuth"
 import { useCamera } from "./hooks/useCamera"
 import { useCueVoice, isSpeechSupported } from "./hooks/useCueVoice"
 import { usePoseStream } from "./hooks/usePoseStream"
+import { useSessionRecorder } from "./hooks/useSessionRecorder"
 import { useSessionStats } from "./hooks/useSessionStats"
 import type { SessionStats } from "./hooks/useSessionStats"
+import type { HudScene } from "./lib/hudRenderer"
+import { renderHud } from "./lib/hudRenderer"
 import { worstJoint } from "./lib/joints"
 import type { Exercise } from "./types"
 
@@ -70,6 +73,37 @@ export default function App(): JSX.Element {
     [pose.result],
   )
 
+  // --- Session recording (on-device only) ---------------------------------
+  // Handle to the live pose-overlay canvas, plus the latest HUD inputs, both
+  // read by the recorder's per-frame compositor (never trigger a re-render).
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const hudSceneRef = useRef<HudScene>({ result: null, exercise, worst: null, scale: 1 })
+  hudSceneRef.current = { result: pose.result, exercise, worst, scale: 1 }
+
+  const drawHud = useCallback(
+    (ctx: CanvasRenderingContext2D, w: number, h: number): void => {
+      // Map on-screen px → recording px so chips land where the user saw them.
+      const displayH = camera.videoRef.current?.clientHeight ?? 0
+      const scale = displayH > 0 ? h / displayH : h / 480
+      renderHud(ctx, w, h, { ...hudSceneRef.current, scale })
+    },
+    [camera.videoRef],
+  )
+
+  const recorder = useSessionRecorder({
+    videoRef: camera.videoRef,
+    overlayCanvas: () => overlayCanvasRef.current,
+    drawHud,
+    mirrored: camera.facingMode === "user",
+    exercise,
+  })
+
+  // Never leave a dangling recorder when the camera releases (tab hidden / stop).
+  const recorderStop = recorder.stop
+  useEffect(() => {
+    if (!camera.ready) recorderStop()
+  }, [camera.ready, recorderStop])
+
   const detected = pose.result !== null && pose.result.score !== null
   const showHint = camera.ready && !detected && summary === null
 
@@ -79,8 +113,16 @@ export default function App(): JSX.Element {
   }, [exercise, stats])
 
   const finishSet = (): void => {
+    recorder.stop() // never leave a recording running past the end of a set
     setSummary(stats.snapshot())
     camera.stop()
+  }
+
+  const mmss = (ms: number): string => {
+    const total = Math.floor(ms / 1000)
+    const mm = Math.floor(total / 60)
+    const ss = total % 60
+    return `${mm}:${String(ss).padStart(2, "0")}`
   }
 
   const closeSummary = (): void => {
@@ -136,15 +178,43 @@ export default function App(): JSX.Element {
 
       <div className="relative z-20 flex items-center justify-between gap-3 border-b border-surface-hairline bg-surface-base/60 px-4 py-2">
         <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
-        <button
-          type="button"
-          onClick={finishSet}
-          disabled={!camera.ready}
-          className="shrink-0 rounded-full border border-surface-hairline bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 transition hover:border-accent/50 hover:text-white disabled:opacity-40"
-          data-testid="finish-set-btn"
-        >
-          Finish set
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {recorder.supported && (
+            <button
+              type="button"
+              onClick={() => (recorder.recording ? recorder.stop() : recorder.start())}
+              disabled={!camera.ready}
+              aria-pressed={recorder.recording}
+              aria-label={recorder.recording ? "Stop recording" : "Record session"}
+              title="Record this set (saved on your device only)"
+              className={
+                "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition disabled:opacity-40 " +
+                (recorder.recording
+                  ? "border-score-bad/60 bg-score-bad/15 text-score-bad"
+                  : "border-surface-hairline bg-surface-raised text-gray-200 hover:border-accent/50 hover:text-white")
+              }
+              data-testid="record-btn"
+            >
+              <span
+                className={
+                  "h-2 w-2 rounded-full bg-score-bad " +
+                  (recorder.recording ? "animate-pulse-dot" : "")
+                }
+                aria-hidden="true"
+              />
+              {recorder.recording ? "Stop" : "Record"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={finishSet}
+            disabled={!camera.ready}
+            className="rounded-full border border-surface-hairline bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 transition hover:border-accent/50 hover:text-white disabled:opacity-40"
+            data-testid="finish-set-btn"
+          >
+            Finish set
+          </button>
+        </div>
       </div>
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
@@ -166,6 +236,9 @@ export default function App(): JSX.Element {
             result={pose.result}
             mirrored={camera.facingMode === "user"}
             worst={worst}
+            onCanvasReady={(c) => {
+              overlayCanvasRef.current = c
+            }}
           />
           <CameraHud
             result={pose.result}
@@ -174,6 +247,19 @@ export default function App(): JSX.Element {
             onShowHowTo={setHowTo}
             worst={worst}
           />
+          {/* Live REC indicator — chrome only, deliberately NOT drawn into the
+              capture (it lives in the DOM, not in drawHud). */}
+          {recorder.recording && (
+            <div
+              className="pointer-events-none absolute left-3 top-16 z-20 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 backdrop-blur-sm"
+              data-testid="rec-indicator"
+            >
+              <span className="h-2 w-2 animate-pulse-dot rounded-full bg-score-bad" aria-hidden="true" />
+              <span className="hud-numerals text-[11px] font-semibold tracking-wide text-score-bad">
+                REC {mmss(recorder.elapsedMs)}
+              </span>
+            </div>
+          )}
           {showHint && <EmptyStageHint exercise={exercise} onShowHowTo={setHowTo} />}
         </div>
 

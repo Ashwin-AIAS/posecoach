@@ -24,6 +24,8 @@ interface PoseOverlayProps {
   readonly mirrored: boolean
   /** Lowest-scoring joint (kept for API compatibility; spotlight uses result.worst_joint). */
   readonly worst?: WorstJoint | null
+  /** Hands the live overlay canvas to the session recorder's compositor (§3.3). */
+  readonly onCanvasReady?: (canvas: HTMLCanvasElement | null) => void
 }
 
 function median(values: readonly number[]): number {
@@ -33,11 +35,17 @@ function median(values: readonly number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
 }
 
-function PoseOverlayInner({ result, mirrored }: PoseOverlayProps): JSX.Element {
+function PoseOverlayInner({ result, mirrored, onCanvasReady }: PoseOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const trail = usePoseTrail()
   const velocity = usePoseVelocity()
   const particles = useParticles()
+
+  // Expose the overlay canvas to the recorder compositor (and clear on unmount).
+  useEffect(() => {
+    onCanvasReady?.(canvasRef.current)
+    return () => onCanvasReady?.(null)
+  }, [onCanvasReady])
 
   // Latest props mirrored into refs so the rAF loop never re-subscribes.
   const resultRef = useRef<PoseResult | null>(result)
