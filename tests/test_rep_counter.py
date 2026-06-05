@@ -72,15 +72,19 @@ def test_reset_clears_count() -> None:
 
 @pytest.mark.parametrize("exercise", ["curl", "bench", "deadlift", "lateral_raise", "one_arm_row"])
 def test_other_exercises_count_with_their_joints(exercise: str) -> None:
-    from app.analysis.rep_counter import _REP_JOINTS
+    from app.analysis.form_scorer import joint_range
+    from app.analysis.rep_counter import REP_SIGNAL
 
-    joints = _REP_JOINTS[exercise]
+    joints = list(REP_SIGNAL[exercise].primary)
     counter = RepCounter(exercise)
-    # Use each joint's blended range to build a wave guaranteed to cross thresholds.
-    assert counter._down_thr is not None and counter._up_thr is not None
-    bottom = counter._down_thr - 5.0
-    top = counter._up_thr + 5.0
-    seq = [top]
+    # Drive each primary joint across ITS OWN [p5, p95] range (per-joint machines)
+    # so unilateral lifts like one_arm_row, where the two sides differ wildly,
+    # still complete a full cycle on the working side.
+    per_joint = {j: r for j in joints if (r := joint_range(exercise, j)) is not None}
+    assert per_joint, f"{exercise} should have at least one ranged primary joint"
+    last = 0
     for _ in range(3):
-        seq += [bottom, top]
-    assert _feed(counter, joints, seq) == 3
+        last = counter.update({j: hi for j, (_lo, hi) in per_joint.items()})  # extended
+        last = counter.update({j: lo for j, (lo, _hi) in per_joint.items()})  # flexed
+    last = counter.update({j: hi for j, (_lo, hi) in per_joint.items()})  # back to extended
+    assert last == 3

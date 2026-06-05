@@ -1,124 +1,216 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from app.analysis.form_scorer import joint_range
 
-# Primary joint(s) whose flexion/extension cycle defines one rep, per exercise.
-# Both sides are averaged for stability; isometric holds (plank) have no reps.
-_REP_JOINTS: dict[str, list[str]] = {
-    "squat": ["left_knee_angle", "right_knee_angle"],
-    "deadlift": ["left_hip_angle", "right_hip_angle"],
-    "lunge": ["left_knee_angle", "right_knee_angle"],
-    "bench": ["left_elbow_angle", "right_elbow_angle"],
-    "pushup": ["left_elbow_angle", "right_elbow_angle"],
-    "diamond_pushup": ["left_elbow_angle", "right_elbow_angle"],
-    "ohp": ["left_elbow_angle", "right_elbow_angle"],
-    "db_shoulder_press": ["left_elbow_angle", "right_elbow_angle"],
-    "curl": ["left_elbow_angle", "right_elbow_angle"],
-    "hammer_curl": ["left_elbow_angle", "right_elbow_angle"],
-    "drag_curl": ["left_elbow_angle", "right_elbow_angle"],
-    "barbell_row": ["left_elbow_angle", "right_elbow_angle"],
-    "one_arm_row": ["left_elbow_angle", "right_elbow_angle"],
-    "lateral_raise": ["left_shoulder_angle", "right_shoulder_angle"],
-    # plank: isometric — no reps (uses the hold timer instead)
+
+@dataclass(frozen=True)
+class RepSignal:
+    """The joint-angle signal that defines one rep of an exercise.
+
+    ``primary`` joints drive the count: each runs its own hysteresis state
+    machine and the rep count is the *max* across them. Taking the max (not the
+    average) is what makes unilateral lifts work — on a one-arm row the
+    bench-supporting arm is static (~30° ROM) while the working arm sweeps the
+    full range, so averaging would halve the signal, but the max simply follows
+    whichever limb is actually doing the rep. For bilateral lifts both sides
+    cycle together and the max equals either side.
+
+    ``secondary`` joints are biomechanical context (e.g. knee flexion on a
+    deadlift, shoulder/torso on a row). They do not drive the count; they are
+    surfaced for the P13 exercise-verification gate.
+    """
+
+    primary: tuple[str, ...]
+    secondary: tuple[str, ...] = ()
+
+
+# Per-exercise rep signal. The driving joint is chosen for the movement, not a
+# one-size-fits-all knee angle: hinges count off the hip, presses/curls/rows off
+# the elbow, raises off the shoulder. Plank is omitted — it is isometric and
+# uses the hold timer, never the rep machine.
+REP_SIGNAL: dict[str, RepSignal] = {
+    # Lower body — knee flexion drives, hip hinge is context
+    "squat": RepSignal(
+        ("left_knee_angle", "right_knee_angle"),
+        ("left_hip_angle", "right_hip_angle"),
+    ),
+    "lunge": RepSignal(
+        ("left_knee_angle", "right_knee_angle"),
+        ("left_hip_angle", "right_hip_angle"),
+    ),
+    # Hinge — hip angle drives, knee flexion is context (deadlift vs RDL, P13)
+    "deadlift": RepSignal(
+        ("left_hip_angle", "right_hip_angle"),
+        ("left_knee_angle", "right_knee_angle"),
+    ),
+    # Elbow-driven presses & curls
+    "bench": RepSignal(
+        ("left_elbow_angle", "right_elbow_angle"),
+        ("left_shoulder_angle", "right_shoulder_angle"),
+    ),
+    "pushup": RepSignal(
+        ("left_elbow_angle", "right_elbow_angle"),
+        ("left_shoulder_angle", "right_shoulder_angle"),
+    ),
+    "diamond_pushup": RepSignal(
+        ("left_elbow_angle", "right_elbow_angle"),
+        ("left_shoulder_angle", "right_shoulder_angle"),
+    ),
+    "ohp": RepSignal(
+        ("left_elbow_angle", "right_elbow_angle"),
+        ("left_shoulder_angle", "right_shoulder_angle"),
+    ),
+    "db_shoulder_press": RepSignal(
+        ("left_elbow_angle", "right_elbow_angle"),
+        ("left_shoulder_angle", "right_shoulder_angle"),
+    ),
+    "curl": RepSignal(("left_elbow_angle", "right_elbow_angle")),
+    "hammer_curl": RepSignal(("left_elbow_angle", "right_elbow_angle")),
+    "drag_curl": RepSignal(("left_elbow_angle", "right_elbow_angle")),
+    # Rows — elbow flexion drives, shoulder/torso are context
+    "barbell_row": RepSignal(
+        ("left_elbow_angle", "right_elbow_angle"),
+        ("left_shoulder_angle", "right_shoulder_angle", "left_hip_angle", "right_hip_angle"),
+    ),
+    "one_arm_row": RepSignal(
+        ("left_elbow_angle", "right_elbow_angle"),
+        ("left_shoulder_angle", "right_shoulder_angle", "left_hip_angle", "right_hip_angle"),
+    ),
+    # Raise — shoulder abduction drives
+    "lateral_raise": RepSignal(("left_shoulder_angle", "right_shoulder_angle")),
+    # plank: isometric — no rep signal (uses the hold timer instead)
 }
 
 # Fraction of the [p5, p95] range used as the hysteresis dead-band on each side.
-# A rep requires entering the flexed zone (≤ down) then returning to extended (≥ up).
+# A rep requires entering the flexed zone (<= down) then returning to extended
+# (>= up); the band stops noise near a single threshold from double-counting.
 _HYSTERESIS = 0.30
+
+
+class _JointRepMachine:
+    """Hysteresis rep state machine for a single joint angle.
+
+    Two thresholds derived from the joint's Fit3D ``[p5, p95]`` range with a
+    dead-band between them. A rep increments on a full extend -> flex -> extend
+    cycle. Streaming and deterministic.
+    """
+
+    def __init__(self, lo: float, hi: float) -> None:
+        span = hi - lo
+        self._down = lo + _HYSTERESIS * span
+        self._up = hi - _HYSTERESIS * span
+        self._count = 0
+        self._state = "up"  # assume the lifter starts extended
+
+    def update(self, angle: float) -> None:
+        """Feed one frame's (already side-specific) joint angle."""
+        if self._state == "up" and angle <= self._down:
+            self._state = "down"
+        elif self._state == "down" and angle >= self._up:
+            self._state = "up"
+            self._count += 1
+
+    @property
+    def count(self) -> int:
+        return self._count
+
+    @property
+    def state(self) -> str:
+        return self._state
+
+    @property
+    def down_thr(self) -> float:
+        return self._down
+
+    @property
+    def up_thr(self) -> float:
+        return self._up
 
 
 class RepCounter:
     """Deterministic streaming rep counter for the live inference loop.
 
-    Tracks the average angle of an exercise's primary joint(s) and counts a rep
-    on each full flex→extend cycle using two hysteresis thresholds derived from
-    the joint's Fit3D ``[p5, p95]`` range. Streaming (one frame at a time) and
-    deterministic: the same angle sequence always yields the same count.
+    Runs one :class:`_JointRepMachine` per primary joint of the exercise's
+    :data:`REP_SIGNAL` and reports the maximum count across them, so bilateral
+    and unilateral lifts both count correctly. Streaming (one frame at a time)
+    and deterministic: the same angle sequence always yields the same count.
 
-    Isometric exercises (plank) have no rep joints and always report zero.
+    Isometric exercises (plank) have no rep signal and always report zero.
     """
 
     def __init__(self, exercise: str) -> None:
         self.exercise = exercise
-        self._joints = _REP_JOINTS.get(exercise, [])
-        self._down_thr, self._up_thr = self._thresholds()
-        self._count = 0
-        self._state = "up"  # assume the lifter starts in the extended position
-
-    def _thresholds(self) -> tuple[float | None, float | None]:
-        """Compute (down, up) angle thresholds from the joints' averaged range."""
-        ranges = [r for j in self._joints if (r := joint_range(self.exercise, j)) is not None]
-        if not ranges:
-            return None, None
-        lo = sum(r[0] for r in ranges) / len(ranges)
-        hi = sum(r[1] for r in ranges) / len(ranges)
-        span = hi - lo
-        return lo + _HYSTERESIS * span, hi - _HYSTERESIS * span
+        signal = REP_SIGNAL.get(exercise)
+        self._primary: list[str] = list(signal.primary) if signal is not None else []
+        # One machine per primary joint that has a usable Fit3D range.
+        self._machines: dict[str, _JointRepMachine] = {}
+        for joint in self._primary:
+            bounds = joint_range(exercise, joint)
+            if bounds is not None:
+                lo, hi = bounds
+                self._machines[joint] = _JointRepMachine(lo, hi)
 
     def update(self, angles: Mapping[str, float | None]) -> int:
         """Feed one frame's joint angles; return the running rep count.
 
-        Frames where every tracked joint is occluded (None) hold the current
-        state and count, so a brief dropout never miscounts.
+        Each tracked joint advances its own machine only when its angle is
+        present this frame, so a brief single-joint dropout never miscounts.
         """
-        if self._down_thr is None or self._up_thr is None:
-            return self._count
-        vals = [a for j in self._joints if (a := angles.get(j)) is not None]
-        if not vals:
-            return self._count
-        angle = sum(vals) / len(vals)
-        if self._state == "up" and angle <= self._down_thr:
-            self._state = "down"
-        elif self._state == "down" and angle >= self._up_thr:
-            self._state = "up"
-            self._count += 1
-        return self._count
+        for joint, machine in self._machines.items():
+            angle = angles.get(joint)
+            if angle is not None:
+                machine.update(angle)
+        return self.count
 
     @property
     def count(self) -> int:
-        """Reps counted so far on this connection."""
-        return self._count
+        """Reps counted so far — the max across primary-joint machines."""
+        if not self._machines:
+            return 0
+        return max(m.count for m in self._machines.values())
 
     @property
     def down_thr(self) -> float | None:
-        """Flexed-zone threshold angle, or None for isometric exercises.
+        """Mean flexed-zone threshold, or None for isometric exercises.
 
-        Read-only — exposed for P11 diagnostics (the rep-counter state audit).
+        Exposed for the WS diagnostics audit (``is_isometric`` derives from it).
         """
-        return self._down_thr
+        if not self._machines:
+            return None
+        return sum(m.down_thr for m in self._machines.values()) / len(self._machines)
 
     @property
     def up_thr(self) -> float | None:
-        """Extended-zone threshold angle, or None for isometric exercises.
-
-        Read-only — exposed for P11 diagnostics (the rep-counter state audit).
-        """
-        return self._up_thr
+        """Mean extended-zone threshold, or None for isometric exercises."""
+        if not self._machines:
+            return None
+        return sum(m.up_thr for m in self._machines.values()) / len(self._machines)
 
     @property
     def tracked_joints(self) -> list[str]:
-        """Primary rep joints for this exercise (empty for isometric holds).
-
-        Read-only — exposed for P11 diagnostics to count how many tracked
-        joints carry a valid (non-None) angle on a given frame.
-        """
-        return list(self._joints)
+        """Primary rep joints with a usable range (empty for isometric holds)."""
+        return list(self._machines.keys())
 
     @property
     def state(self) -> str:
         """Coarse phase of the rep cycle, for the live overlay.
 
-        Returns ``"hold"`` for isometric exercises (no tracked rep joints, e.g.
-        plank), otherwise the internal flex/extend phase: ``"up"`` while extended
-        and ``"down"`` while flexed.
+        ``"hold"`` for isometric exercises; otherwise ``"down"`` if any tracked
+        joint is currently flexed, else ``"up"``.
         """
-        if self._down_thr is None or self._up_thr is None:
+        if not self._machines:
             return "hold"
-        return self._state
+        if any(m.state == "down" for m in self._machines.values()):
+            return "down"
+        return "up"
 
     def reset(self) -> None:
         """Reset count and state (call on disconnect or exercise change)."""
-        self._count = 0
-        self._state = "up"
+        for joint in list(self._machines.keys()):
+            bounds = joint_range(self.exercise, joint)
+            if bounds is not None:
+                lo, hi = bounds
+                self._machines[joint] = _JointRepMachine(lo, hi)
