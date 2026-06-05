@@ -19,6 +19,8 @@ geometry at sub-threshold confidence to reproduce the suspected *live* failure
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -209,10 +211,14 @@ def test_dynamic_exercise_counts_reps(exercise: str) -> None:
     params = _base_params(exercise)
     top = counter.up_thr + 3.0
     bottom = counter.down_thr - 3.0
+    span = top - bottom
 
+    # Gradual cosine oscillation (period 20 frames), like a real lifter — not a
+    # 1-frame-per-phase toggle, which the EMA machine correctly treats as noise.
     final = 0
     for i in range(_FRAMES):
-        params[rep_param] = top if i % 2 == 0 else bottom
+        frac = 0.5 - 0.5 * math.cos(2.0 * math.pi * (i % 20) / 20.0)
+        params[rep_param] = top - span * frac
         kp = _pose(**params)  # type: ignore[arg-type]
         final = counter.update(compute_angles(kp, _full_conf()))
 
@@ -275,11 +281,13 @@ def test_mid_confidence_advances_reps_and_scores() -> None:
     params = _base_params(exercise)
     top = counter.up_thr + 3.0
     bottom = counter.down_thr - 3.0
+    span = top - bottom
 
     final = 0
     scored_ok = False
     for i in range(_FRAMES):
-        params[rep_param] = top if i % 2 == 0 else bottom
+        frac = 0.5 - 0.5 * math.cos(2.0 * math.pi * (i % 20) / 20.0)
+        params[rep_param] = top - span * frac
         kp = _pose(**params)  # type: ignore[arg-type]
         form = score_exercise(exercise, kp, mid_conf)
         if form.status == STATUS_OK:

@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from app.analysis.form_scorer import joint_range
+from app.analysis.score_smoother import ScoreSmoother
 
 
 @dataclass(frozen=True)
@@ -88,30 +89,61 @@ REP_SIGNAL: dict[str, RepSignal] = {
 # A rep requires entering the flexed zone (<= down) then returning to extended
 # (>= up); the band stops noise near a single threshold from double-counting.
 _HYSTERESIS = 0.30
+# EMA smoothing of the raw angle before the state machine (project convention).
+_EMA_ALPHA = 0.6
+# A rep's smoothed travel (top - trough) must reach this fraction of the joint's
+# range. A genuine threshold-crossing rep already travels >= 0.40 of the range
+# (the gap between the two dead-bands), so this sits just below that floor: it
+# only rejects fast, EMA-flattened twitches whose smoothed travel collapsed.
+_MIN_AMPLITUDE = 0.30
+# Cadence guard: two rep completions closer than this many frames are a bounce,
+# not two reps (at 15 fps live this is ~0.27s — faster than any real rep).
+_MIN_REP_FRAMES = 4
 
 
 class _JointRepMachine:
     """Hysteresis rep state machine for a single joint angle.
 
     Two thresholds derived from the joint's Fit3D ``[p5, p95]`` range with a
-    dead-band between them. A rep increments on a full extend -> flex -> extend
-    cycle. Streaming and deterministic.
+    dead-band between them. The raw angle is EMA-smoothed first; a rep increments
+    on a full extend -> flex -> extend cycle only if it cleared a minimum
+    amplitude and the cadence guard. Streaming and deterministic.
     """
 
     def __init__(self, lo: float, hi: float) -> None:
         span = hi - lo
         self._down = lo + _HYSTERESIS * span
         self._up = hi - _HYSTERESIS * span
+        self._min_amp = _MIN_AMPLITUDE * span
+        self._smoother = ScoreSmoother(_EMA_ALPHA)
         self._count = 0
         self._state = "up"  # assume the lifter starts extended
+        self._top: float | None = None  # peak smoothed angle in the up phase
+        self._trough = hi  # deepest smoothed angle in the down phase
+        self._frames_since_rep = _MIN_REP_FRAMES  # let the first rep count promptly
 
     def update(self, angle: float) -> None:
         """Feed one frame's (already side-specific) joint angle."""
-        if self._state == "up" and angle <= self._down:
-            self._state = "down"
-        elif self._state == "down" and angle >= self._up:
-            self._state = "up"
-            self._count += 1
+        a = self._smoother.update(angle)
+        self._frames_since_rep += 1
+        if self._top is None:
+            self._top = a
+        if self._state == "up":
+            if a > self._top:
+                self._top = a
+            if a <= self._down:
+                self._state = "down"
+                self._trough = a
+        else:  # down
+            if a < self._trough:
+                self._trough = a
+            if a >= self._up:
+                amplitude = self._top - self._trough
+                if amplitude >= self._min_amp and self._frames_since_rep >= _MIN_REP_FRAMES:
+                    self._count += 1
+                    self._frames_since_rep = 0
+                self._state = "up"
+                self._top = a
 
     @property
     def count(self) -> int:
