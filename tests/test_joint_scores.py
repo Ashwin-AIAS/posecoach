@@ -74,15 +74,22 @@ def _squat_pose(knee_deg: float, hip_deg: float) -> tuple[np.ndarray, np.ndarray
 
 
 def _expected_score(joint: str, angle: float) -> float:
-    """Reference value via the documented in-range/deviation penalty formula."""
+    """Reference value via the P13 graded mover curve (squat joints are movers).
+
+    Full credit across the full healthy ROM [p5, p95]; linear taper to 0 over a
+    margin of half the range outside it. Independently re-derived here (not
+    importing the scorer internals) so it still validates the implementation.
+    """
     bounds = joint_range("squat", joint)
     assert bounds is not None
     lo, hi = bounds
+    span = max(hi - lo, 10.0)
+    margin = max(0.5 * span, 12.0)
     if lo <= angle <= hi:
         return 100.0
-    deviation = max(lo - angle, angle - hi)
-    width = max(hi - lo, 10.0)
-    return max(0.0, 100.0 - (deviation / width) * 100.0)
+    if angle < lo:
+        return max(0.0, 100.0 * (angle - (lo - margin)) / margin)
+    return max(0.0, 100.0 * ((hi + margin) - angle) / margin)
 
 
 # (label, knee_deg, hip_deg): a good rep (both in range), a borderline rep

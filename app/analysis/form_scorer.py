@@ -242,14 +242,78 @@ def joint_percentiles(exercise: str, joint: str) -> dict[str, float] | None:
     return dict(joint_data) if joint_data is not None else None
 
 
-def _score_joint(angle: float, lo: float, hi: float) -> float:
-    """Score a single joint angle against its [p5, p95] range (0–100)."""
-    if lo <= angle <= hi:
+# Posture-critical joints that should stay STABLE through the rep (not sweep a
+# range). These are scored against a tight full-credit core band ([p25, p75]) so
+# a flared elbow / sagging hip / rounded back measurably drops the score. Every
+# other scored joint is a *mover* whose full healthy ROM ([p5, p95]) earns full
+# credit, so good depth is never punished. Roles only — magnitudes come from
+# angle_ranges.json (the percentiles), never inlined here.
+_POSTURE_JOINTS: dict[str, frozenset[str]] = {
+    "bench": frozenset({"left_shoulder_angle", "right_shoulder_angle"}),
+    "ohp": frozenset({"left_shoulder_angle", "right_shoulder_angle"}),
+    "pushup": frozenset({"left_shoulder_angle", "right_shoulder_angle"}),
+    "diamond_pushup": frozenset({"left_shoulder_angle", "right_shoulder_angle"}),
+    "db_shoulder_press": frozenset({"left_shoulder_angle", "right_shoulder_angle"}),
+    "barbell_row": frozenset({"left_hip_angle", "right_hip_angle"}),
+    "one_arm_row": frozenset({"left_hip_angle", "right_hip_angle"}),
+    "plank": frozenset({"left_hip_angle", "right_hip_angle", "hip_trunk_angle"}),
+}
+
+# Credit a joint earns at the edge of its full ROM (p5/p95) when it is a posture
+# joint held out near the extreme — clearly poor, but not zero.
+_POSTURE_EDGE_CREDIT = 40.0
+
+
+def _percentile_anchors(exercise: str, joint: str) -> list[tuple[float, float]] | None:
+    """Build the (angle -> credit) anchor points for a joint's graded curve.
+
+    Mover joints get full credit across [p5, p95] and taper to 0 outside.
+    Posture joints get full credit only across [p25, p75], taper to
+    ``_POSTURE_EDGE_CREDIT`` at p5/p95, then to 0 beyond — so holding a posture
+    joint anywhere but its tight band costs points.
+    """
+    pct = joint_percentiles(exercise, joint)
+    if pct is None:
+        return None
+    p5, p95 = pct["p5"], pct["p95"]
+    span = max(p95 - p5, 10.0)
+    # Fill quartiles if a source (e.g. plank) only carries p5/p95.
+    p25 = pct.get("p25", p5 + 0.25 * span)
+    p75 = pct.get("p75", p5 + 0.75 * span)
+    posture = joint in _POSTURE_JOINTS.get(exercise, frozenset())
+    if posture:
+        margin = max(0.5 * (p75 - p25), 8.0)
+        return [
+            (p5 - margin, 0.0),
+            (p5, _POSTURE_EDGE_CREDIT),
+            (p25, 100.0),
+            (p75, 100.0),
+            (p95, _POSTURE_EDGE_CREDIT),
+            (p95 + margin, 0.0),
+        ]
+    margin = max(0.5 * span, 12.0)
+    return [(p5 - margin, 0.0), (p5, 100.0), (p95, 100.0), (p95 + margin, 0.0)]
+
+
+def _piecewise(angle: float, anchors: list[tuple[float, float]]) -> float:
+    """Clamped piecewise-linear interpolation of credit over sorted anchors."""
+    if angle <= anchors[0][0]:
+        return anchors[0][1]
+    if angle >= anchors[-1][0]:
+        return anchors[-1][1]
+    for (x0, c0), (x1, c1) in zip(anchors, anchors[1:], strict=False):
+        if x0 <= angle <= x1:
+            t = (angle - x0) / (x1 - x0) if x1 > x0 else 0.0
+            return c0 + (c1 - c0) * t
+    return anchors[-1][1]
+
+
+def _score_joint(exercise: str, joint: str, angle: float) -> float:
+    """Score a single joint angle with a graded, role-aware curve (0–100)."""
+    anchors = _percentile_anchors(exercise, joint)
+    if anchors is None:
         return 100.0
-    deviation = max(lo - angle, angle - hi)
-    range_width = max(hi - lo, 10.0)  # guard against degenerate ranges
-    penalty = (deviation / range_width) * 100.0
-    return max(0.0, 100.0 - penalty)
+    return max(0.0, min(100.0, _piecewise(angle, anchors)))
 
 
 def score_exercise(
@@ -290,12 +354,13 @@ def score_exercise(
         if bounds is None:
             continue
         lo, hi = bounds
-        js = _score_joint(angle, lo, hi)
+        js = _score_joint(exercise, joint, angle)
         joint_scores[joint] = js
         measured_angles[joint] = round(angle, 1)
 
         if js < 100.0:
-            direction = "low" if angle < lo else "high"
+            # Cue direction: below the healthy band is "low", above it is "high".
+            direction = "low" if angle < (lo + hi) / 2.0 else "high"
             cue = _CUES.get(exercise, {}).get(joint, {}).get(direction)
             if cue:
                 cue_candidates.append((100.0 - js, cue))
