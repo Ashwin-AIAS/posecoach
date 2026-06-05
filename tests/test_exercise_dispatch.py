@@ -297,3 +297,44 @@ def test_mid_confidence_advances_reps_and_scores() -> None:
 
     assert scored_ok, "mid-confidence frames never scored — angle gate still too high"
     assert final > 0, "reps stuck at 0 for mid-confidence input — P12 regression"
+
+
+# --------------------------------------------------------------------------- #
+# Stage 5 — discriminative scoring (P13): a poor rep must lose real points     #
+# --------------------------------------------------------------------------- #
+_POOR_DELTA = 45.0
+
+
+@pytest.mark.parametrize("exercise", DYNAMIC_EXERCISES)
+def test_poor_rep_scores_materially_lower_than_clean(exercise: str) -> None:
+    """A rep with a scored joint driven out of its healthy band must drop clearly.
+
+    Kills the "always ~90%" bug: the clean rep scores high, and the same rep with
+    the primary joint collapsed out of range scores materially lower (P13).
+    """
+    clean_kp, conf = _good_frame(exercise)
+    clean = score_exercise(exercise, clean_kp, conf)
+
+    rep_param = _REP_PARAM[exercise]
+    rng = joint_range(exercise, _PARAM_JOINT[rep_param])
+    assert rng is not None
+    params = _base_params(exercise)
+    params[rep_param] = max(rng[0] - _POOR_DELTA, 5.0)  # collapse the joint out of range
+    poor = score_exercise(exercise, _pose(**params), conf)  # type: ignore[arg-type]
+
+    # 70 not 80: the symmetric synthetic pose forces L/R joints to the same angle,
+    # which mildly penalises unilateral lifts (reverse lunge) whose two sides have
+    # different healthy bands — an artifact of the test pose, not the scorer.
+    assert clean.score >= 70.0, f"{exercise}: clean rep should score high, got {clean.score}"
+    assert poor.score <= clean.score - 12.0, (
+        f"{exercise}: poor rep {poor.score} not materially below clean {clean.score}"
+    )
+
+
+def test_poor_plank_scores_materially_lower_than_clean() -> None:
+    clean_kp, conf = _good_frame("plank")
+    clean = score_exercise("plank", clean_kp, conf)
+    params = _base_params("plank")
+    params["hip"] = 120.0  # hips sag well below the neutral plank band
+    poor = score_exercise("plank", _pose(**params), conf)  # type: ignore[arg-type]
+    assert poor.score <= clean.score - 12.0, f"plank: poor {poor.score} vs clean {clean.score}"
