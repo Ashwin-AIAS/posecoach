@@ -180,3 +180,24 @@ def test_chat_rate_limit_is_ten_per_minute() -> None:
     from app.rate_limit import CHAT_RATE_LIMIT
 
     assert CHAT_RATE_LIMIT == "10/minute"
+
+
+async def test_off_topic_without_web_yields_no_misleading_citation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Off-topic chunks (distance beyond the irrelevant bound) + no web key must
+    # NOT be cited — answer from general knowledge with mode "none".
+    from app.api.v1 import chat as chat_module
+
+    far = _kb_chunk(0.88)
+    monkeypatch.setattr(chat_module.rag, "retrieve_scored", lambda q, top_k=3: [far])
+
+    async def _no_web(query: str, k: int = 4) -> list[object]:
+        return []
+
+    monkeypatch.setattr(chat_module.web_search, "search", _no_web)
+
+    context, citations, mode = await chat_module._gather_context("capital of France")
+    assert mode == "none"
+    assert context == []
+    assert citations == []

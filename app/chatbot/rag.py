@@ -28,6 +28,9 @@ DEFAULT_TOP_K = 3
 # ingested KB: in-domain questions top out around 0.53, off-topic ones sit above
 # 0.84, so 0.60 cleanly separates "answer from the KB" from "fall back to web".
 RETRIEVAL_DISTANCE_THRESHOLD = 0.60
+# Beyond this, the chunks are off-topic (e.g. "capital of France" ~0.88): when no
+# web fallback is available, citing them would mislead, so we use no context.
+RETRIEVAL_IRRELEVANT_DISTANCE = 0.75
 
 
 @dataclass(frozen=True)
@@ -133,3 +136,12 @@ def retrieve_scored(query: str, top_k: int = DEFAULT_TOP_K) -> list[RetrievedChu
 def is_confident(chunks: list[RetrievedChunk]) -> bool:
     """True if the best retrieved chunk is within the trust distance threshold."""
     return bool(chunks) and min(c.distance for c in chunks) <= RETRIEVAL_DISTANCE_THRESHOLD
+
+
+def is_usable(chunks: list[RetrievedChunk]) -> bool:
+    """True if chunks are at least marginally on-topic (web-fallback last resort).
+
+    Used only when a live web search is unavailable: marginal chunks are better
+    than nothing, but clearly off-topic ones would produce misleading citations.
+    """
+    return bool(chunks) and min(c.distance for c in chunks) <= RETRIEVAL_IRRELEVANT_DISTANCE

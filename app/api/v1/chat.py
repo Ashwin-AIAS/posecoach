@@ -69,7 +69,9 @@ async def _gather_context(query: str) -> tuple[list[str], list[str], str]:
         context = [f"{r.title}\n{r.snippet}".strip() for r in web]
         return context, [_cite_web(r) for r in web], "web"
 
-    if scored:  # weak but better than nothing
+    # No web fallback available: use weak KB chunks only if marginally on-topic,
+    # else answer from general knowledge (no misleading citations).
+    if rag.is_usable(scored):
         return [c.text for c in scored], [_cite_chunk(c) for c in scored], "rag"
     return [], [], "none"
 
