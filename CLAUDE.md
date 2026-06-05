@@ -7,7 +7,9 @@ Execute prompts **strictly in order** (P01 → P10). Each depends on the previou
 
 ## Current Progress
 See `CLAUDE.local.md` for personal progress checkboxes.
-**P01 and P02 are complete. P03 (WebSocket + Inference) is next.**
+**P01–P10 complete. Post-gym-test improvements P11–P14 complete** (reference video
+as an on-demand section, rep-counter overhaul, exercise-verification + stricter
+scoring, RAG expansion + web fallback). See `IMPROVEMENT_PLAN_P11-P14.md`.
 
 ## Tech Stack
 - **Backend:** FastAPI + PostgreSQL + Redis + Alembic (Python 3.11)
