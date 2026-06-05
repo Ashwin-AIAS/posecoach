@@ -175,6 +175,9 @@ _CUES: dict[str, dict[str, dict[str, str]]] = {
 STATUS_OK = "ok"
 STATUS_INSUFFICIENT_CONFIDENCE = "insufficient_confidence"
 STATUS_UNKNOWN_EXERCISE = "unknown_exercise"
+# The observed movement does not match the chosen exercise (P13). The score is
+# suppressed (null) so a wrong-exercise rep is never read as good form.
+STATUS_MISMATCH = "mismatch"
 
 
 @dataclass
@@ -220,6 +223,23 @@ def _get_range(exercise: str, joint: str) -> tuple[float, float] | None:
 def joint_range(exercise: str, joint: str) -> tuple[float, float] | None:
     """Public accessor for a joint's (p5, p95) range — used by the rep counter."""
     return _get_range(exercise, joint)
+
+
+def joint_percentiles(exercise: str, joint: str) -> dict[str, float] | None:
+    """Return the full Fit3D percentile dict (p5..p95) for a joint, or None.
+
+    Used by the exercise verifier to reason about the *working* posture band
+    (p25/p50/p75), not just the p5/p95 extremes. Plank (hardcoded alignment
+    ranges) only carries p5/p95.
+    """
+    if exercise == "plank":
+        r = _PLANK_RANGES.get(joint)
+        return dict(r) if r is not None else None
+    data_key = _EXERCISE_DATA_KEY.get(exercise)
+    if data_key is None:
+        return None
+    joint_data = _FIT3D.get(data_key, {}).get(joint)
+    return dict(joint_data) if joint_data is not None else None
 
 
 def _score_joint(angle: float, lo: float, hi: float) -> float:
