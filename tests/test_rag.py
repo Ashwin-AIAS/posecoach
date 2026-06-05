@@ -1,8 +1,24 @@
 """RAG chunking + retrieval tests (ChromaDB + sentence-transformers are stubbed)."""
 from __future__ import annotations
 
-from app.chatbot.ingest import chunk_id, chunk_markdown
+from app.chatbot.ingest import chunk_id, chunk_markdown, parse_frontmatter
 from app.chatbot.prompts import build_context_block, build_user_prompt
+
+
+def test_parse_frontmatter_extracts_citation_metadata() -> None:
+    meta, body = parse_frontmatter(
+        "---\ntitle: Creatine\nurl: https://example.org/c\ndomain: supplements\n---\n# Body\n\ntext"
+    )
+    assert meta == {"title": "Creatine", "url": "https://example.org/c", "domain": "supplements"}
+    assert body.startswith("# Body")
+    assert "---" not in body
+
+
+def test_parse_frontmatter_absent_returns_body_unchanged() -> None:
+    text = "# Squat\n\nNo frontmatter here."
+    meta, body = parse_frontmatter(text)
+    assert meta == {}
+    assert body == text
 
 
 def test_chunk_markdown_splits_on_h2() -> None:

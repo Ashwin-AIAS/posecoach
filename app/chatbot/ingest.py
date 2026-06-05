@@ -26,6 +26,25 @@ logger = structlog.get_logger(__name__)
 DEFAULT_SOURCE = Path("data/knowledge_base")
 MIN_CHUNK_CHARS = 200
 SECTION_SPLIT = re.compile(r"^##\s+", flags=re.MULTILINE)
+# Optional leading "---\n key: value ... \n---" block carrying citation metadata.
+FRONTMATTER = re.compile(r"^---\s*\n(.*?)\n---\s*\n", flags=re.DOTALL)
+
+
+def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    """Split an optional YAML-ish frontmatter block from the markdown body.
+
+    Returns ``(metadata, body)``. Only simple ``key: value`` lines are parsed —
+    enough to carry a citation's title, url, and domain tag.
+    """
+    match = FRONTMATTER.match(text)
+    if match is None:
+        return {}, text
+    meta: dict[str, str] = {}
+    for line in match.group(1).splitlines():
+        if ":" in line:
+            key, value = line.split(":", 1)
+            meta[key.strip()] = value.strip()
+    return meta, text[match.end() :]
 
 
 def chunk_markdown(text: str) -> list[str]:
@@ -93,14 +112,22 @@ def ingest(source_dir: Path, reset: bool = False) -> int:
     for md_file in sorted(source_dir.glob("*.md")):
         if md_file.name.lower() == "readme.md":
             continue
-        text = md_file.read_text(encoding="utf-8")
-        chunks = chunk_markdown(text)
-        logger.info("chunked_file", file=md_file.name, chunks=len(chunks))
+        raw = md_file.read_text(encoding="utf-8")
+        meta, body = parse_frontmatter(raw)
+        # Citation metadata: title/url/domain from frontmatter, with sane defaults
+        # so the older exercise files (no frontmatter) still cite by filename.
+        title = meta.get("title", md_file.stem.replace("_", " ").title())
+        url = meta.get("url", "")
+        domain = meta.get("domain", "technique")
+        chunks = chunk_markdown(body)
+        logger.info("chunked_file", file=md_file.name, chunks=len(chunks), domain=domain)
         for chunk in chunks:
             cid = chunk_id(md_file.name, chunk)
             ids.append(cid)
             documents.append(chunk)
-            metadatas.append({"source": md_file.name})
+            metadatas.append(
+                {"source": md_file.name, "title": title, "url": url, "domain": domain}
+            )
 
     if not documents:
         logger.warning("nothing_to_ingest", source=str(source_dir))
