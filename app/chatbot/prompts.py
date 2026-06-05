@@ -22,6 +22,57 @@ FALLBACK_MESSAGE = (
     "focus on controlled movement and proper breathing."
 )
 
+# Appended to injury / supplement answers — educational framing, not a refusal.
+SAFETY_NOTE = (
+    "\n\nNote: this is general educational information, not medical advice — for "
+    "diagnosis, treatment, or specific supplement dosing, please see a qualified "
+    "professional."
+)
+
+# Terms that mark a query as injury- or supplement-related, where a brief
+# not-medical-advice note belongs. Kept conservative; a false positive only adds
+# a harmless disclaimer.
+_SAFETY_KEYWORDS = frozenset(
+    {
+        # injury / rehab
+        "injury",
+        "injured",
+        "pain",
+        "hurt",
+        "rehab",
+        "physio",
+        "sprain",
+        "strain",
+        "tear",
+        "torn",
+        "tendon",
+        "tendonitis",
+        "tendinitis",
+        "dislocat",
+        "fracture",
+        "swollen",
+        # supplements / dosing
+        "supplement",
+        "creatine",
+        "protein powder",
+        "pre-workout",
+        "pre workout",
+        "preworkout",
+        "dosage",
+        "dose",
+        "fat burner",
+        "testosterone",
+        "steroid",
+        "sarm",
+    }
+)
+
+
+def is_safety_sensitive(query: str) -> bool:
+    """True if the query is injury- or supplement-related (needs the safety note)."""
+    lowered = query.lower()
+    return any(keyword in lowered for keyword in _SAFETY_KEYWORDS)
+
 
 def build_context_block(chunks: list[str]) -> str:
     """Format retrieved RAG chunks into a context block for the LLM."""

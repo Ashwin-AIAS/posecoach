@@ -20,7 +20,13 @@ from pydantic import BaseModel, Field
 
 from app.chatbot import gemini_client, qwen_client, rag, web_search
 from app.chatbot import router as chat_router
-from app.chatbot.prompts import FALLBACK_MESSAGE, build_sources_footer, build_user_prompt
+from app.chatbot.prompts import (
+    FALLBACK_MESSAGE,
+    SAFETY_NOTE,
+    build_sources_footer,
+    build_user_prompt,
+    is_safety_sensitive,
+)
 from app.metrics import chat_requests_total
 from app.rate_limit import CHAT_RATE_LIMIT, limiter
 
@@ -102,6 +108,9 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
         footer = build_sources_footer(citations)
         if footer:
             yield _sse_event(footer)
+        # Injury / supplement questions get a brief educational-safety note.
+        if is_safety_sensitive(payload.query):
+            yield _sse_event(SAFETY_NOTE)
     except Exception as exc:  # noqa: BLE001 — never crash the SSE stream
         logger.error("chat_stream_failed", provider=provider, error=str(exc))
         if not emitted_any:
