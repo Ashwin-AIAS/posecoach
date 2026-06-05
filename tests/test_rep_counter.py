@@ -123,6 +123,18 @@ def test_plank_never_counts() -> None:
     assert _feed(counter, ["left_hip_angle", "right_hip_angle"], _rep_wave(4)) == 0
 
 
+def test_plank_is_isometric_hold_unaffected_by_rep_machine() -> None:
+    # Plank has no REP_SIGNAL entry -> no machines -> hold timer, never reps.
+    counter = RepCounter("plank")
+    assert counter.down_thr is None and counter.up_thr is None
+    assert counter.tracked_joints == []
+    assert counter.state == "hold"
+    # Even a full hip oscillation must not accumulate a single rep.
+    _feed(counter, ["left_hip_angle", "right_hip_angle"], _rep_wave(6))
+    assert counter.count == 0
+    assert counter.state == "hold"
+
+
 def test_reset_clears_count() -> None:
     counter = RepCounter("squat")
     _feed(counter, _SQUAT_JOINTS, _rep_wave(3))
