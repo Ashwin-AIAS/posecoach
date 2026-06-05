@@ -40,11 +40,12 @@ export type RepState = "up" | "down" | "hold"
 
 /**
  * Why a frame looks the way it does. Only `ok` carries a meaningful `score`;
- * `no_person` means nobody was detected and `insufficient_confidence` means a
- * person is visible but the scored joints couldn't be measured reliably. These
- * keep a "can't see you" frame distinct from genuinely poor form (P13).
+ * `no_person` means nobody was detected, `insufficient_confidence` means a
+ * person is visible but the scored joints couldn't be measured reliably, and
+ * `mismatch` means the movement doesn't match the chosen exercise (P13) so the
+ * score is deliberately withheld rather than reported as good form.
  */
-export type PoseStatus = "ok" | "no_person" | "insufficient_confidence"
+export type PoseStatus = "ok" | "no_person" | "insufficient_confidence" | "mismatch"
 
 export interface PoseResult {
   readonly keypoints: readonly Keypoint[]
@@ -65,6 +66,8 @@ export interface PoseResult {
   readonly measured_angles?: Readonly<Record<string, number>>
   /** Why this frame looks the way it does. Absent on older servers → treat as "ok". */
   readonly status?: PoseStatus
+  /** On a `mismatch`, the exercise the movement was checked against (for the banner). */
+  readonly expected_exercise?: Exercise
 }
 
 export interface PoseError {

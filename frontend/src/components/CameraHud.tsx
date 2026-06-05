@@ -2,12 +2,14 @@ import { memo } from "react"
 
 import type { Exercise, PoseResult, PoseStatus } from "../types"
 import type { WorstJoint } from "../lib/joints"
+import { exerciseLabel } from "../lib/exercises"
 import { ScoreRing } from "./ScoreRing"
 
 /** Fallback banner copy when the backend can't score a frame and sends no cue. */
 const STATUS_FALLBACK: Record<Exclude<PoseStatus, "ok">, string> = {
   no_person: "Step into frame",
   insufficient_confidence: "Hold still — adjusting to you",
+  mismatch: "Doesn't match the exercise",
 }
 
 interface CameraHudProps {
@@ -37,7 +39,10 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
   // When the backend couldn't score the frame, surface why — distinctly from a
   // coaching cue — so the user knows to reposition rather than read it as form.
   const blocked = status !== "ok"
+  const isMismatch = status === "mismatch"
   const statusMessage = blocked ? (topCue ?? STATUS_FALLBACK[status]) : undefined
+  // What the movement was checked against — names the exercise in the banner.
+  const expected = result?.expected_exercise ?? exercise
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
@@ -88,9 +93,28 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         </div>
       )}
 
+      {/* Wrong-exercise banner (P13) — distinct amber warning so the user knows
+          the movement doesn't match the chosen exercise and the score is withheld
+          on purpose (not a low score, not a "can't see you"). */}
+      {isMismatch && (
+        <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4">
+          <div
+            data-testid="mismatch-banner"
+            className="animate-caption-in max-w-sm rounded-2xl border border-score-mid/60 bg-surface-base/80 px-5 py-3 text-center shadow-card backdrop-blur-md"
+          >
+            <p className="text-base font-semibold text-score-mid">
+              ⚠ Doesn't look like {exerciseLabel(expected)}
+            </p>
+            {statusMessage !== undefined && (
+              <p className="mt-1 text-sm text-gray-200">{statusMessage}</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Center status banner — shown when the frame couldn't be scored, so the
           user knows to reposition rather than reading it as a form correction. */}
-      {blocked && statusMessage !== undefined && (
+      {blocked && !isMismatch && statusMessage !== undefined && (
         <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4">
           <p
             data-testid="status-banner"

@@ -30,6 +30,7 @@ const BAD_TINT = "rgba(255, 77, 77, 0.15)"
 const STATUS_FALLBACK: Record<Exclude<PoseStatus, "ok">, string> = {
   no_person: "Step into frame",
   insufficient_confidence: "Hold still — adjusting to you",
+  mismatch: "Doesn't match the exercise",
 }
 
 const FONT = "Inter, system-ui, sans-serif"

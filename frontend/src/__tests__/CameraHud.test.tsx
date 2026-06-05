@@ -75,6 +75,29 @@ describe("CameraHud", () => {
     expect(screen.queryByTestId("worst-joint-chip")).toBeNull()
   })
 
+  it("shows a distinct wrong-exercise banner on a mismatch status (P13)", () => {
+    render(
+      <CameraHud
+        result={{
+          ...base,
+          score: null,
+          cues: ["Looks like RDL — pick RDL"],
+          status: "mismatch",
+          expected_exercise: "deadlift",
+        }}
+        active
+        exercise="deadlift"
+        onShowHowTo={vi.fn()}
+      />,
+    )
+    const banner = screen.getByTestId("mismatch-banner")
+    expect(banner.textContent).toContain("Deadlift")
+    expect(banner.textContent).toContain("Looks like RDL")
+    // It must NOT reuse the generic reposition banner, and must withhold the score.
+    expect(screen.queryByTestId("status-banner")).toBeNull()
+    expect(screen.queryByText("Drive knees out wider")).toBeNull()
+  })
+
   it("falls back to default banner copy when no cue is supplied", () => {
     render(
       <CameraHud

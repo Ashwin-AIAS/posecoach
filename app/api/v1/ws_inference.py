@@ -10,8 +10,10 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.analysis.exercise_verifier import MIN_VERDICT_CONFIDENCE, ExerciseVerifier
 from app.analysis.form_scorer import (
     STATUS_INSUFFICIENT_CONFIDENCE,
+    STATUS_MISMATCH,
     STATUS_OK,
     SUPPORTED_EXERCISES,
     score_exercise,
@@ -116,6 +118,7 @@ async def ws_inference(websocket: WebSocket) -> None:
     score_smoother = ScoreSmoother(alpha=0.6)
     hold_start: float | None = None  # for plank hold tracking
     rep_counter: RepCounter | None = None  # created on first frame; reset on exercise change
+    verifier: ExerciseVerifier | None = None  # exercise-match gate (P13); per connection
 
     # P11 instrumentation (per connection): rolling per-stage timing windows, a
     # processed-frame counter that drives the every-30-frames diagnostic flush,
@@ -263,6 +266,12 @@ async def ws_inference(websocket: WebSocket) -> None:
             reps = rep_counter.update(frame_angles)
             t_rep = time.perf_counter()
 
+            # Exercise-verification gate (P13): does the observed movement match the
+            # chosen exercise? Window-based, so it warms up over a few seconds.
+            if verifier is None or verifier.exercise != exercise:
+                verifier = ExerciseVerifier(exercise)
+            verdict = verifier.update(frame_angles)
+
             # A person is visible but no tracked joint cleared the confidence gate
             # (P13). Report this explicitly with a null score instead of feeding a
             # fake 0.0 into the smoother / metrics / session average — which would
@@ -278,6 +287,29 @@ async def ws_inference(websocket: WebSocket) -> None:
                         "reps": reps,
                         "rep_state": rep_counter.state,
                         "status": STATUS_INSUFFICIENT_CONFIDENCE,
+                    }
+                )
+                continue
+
+            # Wrong-exercise gate (P13): the movement clearly does not match the
+            # chosen exercise (e.g. RDL while "deadlift" is selected, or a machine
+            # row while "row" is selected). Suppress the score so a mismatched rep
+            # is never read as good form — surface a plain-English hint instead.
+            if not verdict.verified and verdict.confidence >= MIN_VERDICT_CONFIDENCE:
+                score_smoother.reset()  # don't carry a stale score across the gap
+                await websocket.send_json(
+                    {
+                        "keypoints": kp_smooth.tolist(),
+                        "confidence": kp_conf.tolist(),
+                        "score": None,
+                        "cues": [verdict.detected_hint] if verdict.detected_hint else [],
+                        "latency_ms": round(latency_ms, 1),
+                        "reps": reps,
+                        "rep_state": rep_counter.state,
+                        "status": STATUS_MISMATCH,
+                        # The exercise the movement was checked against — drives the
+                        # "doesn't look like {exercise}" banner on the client.
+                        "expected_exercise": exercise,
                     }
                 )
                 continue
