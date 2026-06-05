@@ -41,6 +41,11 @@ describe("CameraHud", () => {
     expect(screen.getByText("Drive knees out wider")).toBeInTheDocument()
   })
 
+  it("never renders a reference-video iframe over the live tracking stage (P11)", () => {
+    render(<CameraHud result={{ ...base, reps: 3 }} active exercise="squat" onShowHowTo={vi.fn()} />)
+    expect(document.querySelector("iframe")).toBeNull()
+  })
+
   it("opens the how-to for the active exercise from the info button", () => {
     const onShowHowTo = vi.fn()
     render(<CameraHud result={base} active exercise="bench" onShowHowTo={onShowHowTo} />)
