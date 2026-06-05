@@ -100,3 +100,83 @@ async def test_chat_stream_validates_empty_query(patched_app: object) -> None:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.post("/api/v1/chat/stream", json={"query": ""})
     assert resp.status_code == 422
+
+
+# --------------------------------------------------------------------------- #
+# P14 — confidence-gated RAG vs web fallback, citations, safety framing        #
+# --------------------------------------------------------------------------- #
+def _kb_chunk(distance: float) -> object:
+    from app.chatbot.rag import RetrievedChunk
+
+    return RetrievedChunk(
+        text="Creatine monohydrate: 3-5 g per day.",
+        source="supplements.md",
+        title="Evidence-Based Supplements",
+        url="https://examine.com/c",
+        distance=distance,
+    )
+
+
+async def _fake_web_search(query: str, k: int = 4) -> list[object]:
+    from app.chatbot.web_search import WebResult
+
+    return [WebResult(title="ACSM Position Stand", url="https://acsm.org/x", snippet="Guidance.")]
+
+
+async def test_confident_kb_query_answers_from_rag_with_citation(
+    patched_app: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.api.v1 import chat as chat_module
+
+    # A confident KB hit (distance well under the 0.60 threshold) → RAG path.
+    monkeypatch.setattr(chat_module.rag, "retrieve_scored", lambda q, top_k=3: [_kb_chunk(0.25)])
+    # Web search must NOT be consulted when RAG is confident.
+    monkeypatch.setattr(chat_module.web_search, "search", _fake_web_search)
+
+    transport = ASGITransport(app=patched_app)  # type: ignore[arg-type]
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/chat/stream", json={"query": "Tell me about training"})
+    assert resp.status_code == 200
+    joined = "".join(e["token"] for e in _parse_sse(resp.content) if not e["done"])  # type: ignore[misc]
+    assert "Evidence-Based Supplements" in joined
+    assert "examine.com/c" in joined
+    assert "acsm.org" not in joined  # web fallback was not used
+
+
+async def test_out_of_kb_query_falls_back_to_web_with_citation(
+    patched_app: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.api.v1 import chat as chat_module
+
+    # No confident KB match → live web fallback, cited by URL.
+    monkeypatch.setattr(chat_module.rag, "retrieve_scored", lambda q, top_k=3: [])
+    monkeypatch.setattr(chat_module.web_search, "search", _fake_web_search)
+
+    transport = ASGITransport(app=patched_app)  # type: ignore[arg-type]
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/chat/stream", json={"query": "latest marathon world record"})
+    assert resp.status_code == 200
+    joined = "".join(e["token"] for e in _parse_sse(resp.content) if not e["done"])  # type: ignore[misc]
+    assert "ACSM Position Stand" in joined
+    assert "https://acsm.org/x" in joined
+
+
+async def test_injury_query_appends_safety_note(
+    patched_app: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.api.v1 import chat as chat_module
+
+    monkeypatch.setattr(chat_module.rag, "retrieve_scored", lambda q, top_k=3: [])
+
+    transport = ASGITransport(app=patched_app)  # type: ignore[arg-type]
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/chat/stream", json={"query": "my knee hurts after squats"})
+    assert resp.status_code == 200
+    joined = "".join(e["token"] for e in _parse_sse(resp.content) if not e["done"])  # type: ignore[misc]
+    assert "not medical advice" in joined.lower()
+
+
+def test_chat_rate_limit_is_ten_per_minute() -> None:
+    from app.rate_limit import CHAT_RATE_LIMIT
+
+    assert CHAT_RATE_LIMIT == "10/minute"
