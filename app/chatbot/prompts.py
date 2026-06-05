@@ -41,3 +41,19 @@ def build_user_prompt(query: str, chunks: list[str], exercise: str | None = None
         parts.append(f"The user is currently performing: {exercise}.")
     parts.append(f"User question: {query}")
     return "\n\n".join(parts)
+
+
+def build_sources_footer(citations: list[str]) -> str:
+    """Format a de-duplicated, user-visible 'Sources' footer, or '' if none.
+
+    Appended to the streamed answer so every RAG / web-fallback reply carries its
+    citations regardless of whether the model echoes them.
+    """
+    seen: list[str] = []
+    for c in citations:
+        c = c.strip()
+        if c and c not in seen:
+            seen.append(c)
+    if not seen:
+        return ""
+    return "\n\nSources:\n" + "\n".join(f"- {c}" for c in seen)
