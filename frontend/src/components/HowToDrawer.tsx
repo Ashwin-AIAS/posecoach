@@ -1,29 +1,23 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 
 import type { Exercise } from "../types"
 import { EXERCISE_META } from "../lib/exercises"
 
 interface HowToDrawerProps {
-  /** Exercise to show the demo for, or null when the drawer is closed. */
+  /** Exercise to show the tips for, or null when the drawer is closed. */
   readonly exercise: Exercise | null
   readonly onClose: () => void
 }
 
 /**
- * Modal "how-to" learning surface: a curated demo video, coaching tips, and
- * target muscles. Uses a lite-embed facade — the YouTube thumbnail renders
- * first and the privacy-friendly youtube-nocookie iframe is injected only when
- * the user clicks play, so no third-party cookies load until they opt in and
- * the camera frame loop is never throttled by a background iframe.
+ * Modal "how-to" learning surface: static coaching tips and target muscles for
+ * the chosen exercise. The reference video deliberately does NOT live here —
+ * this surface is reachable from the live tracking chrome (CameraHud / empty
+ * stage), so embedding a clip would pop a video over the workout. The curated
+ * demo lives in the standalone, collapsed-by-default ReferenceVideoPanel in the
+ * sidebar instead (see P11). This drawer stays text-only and instant.
  */
 export function HowToDrawer({ exercise, onClose }: HowToDrawerProps): JSX.Element | null {
-  const [playing, setPlaying] = useState(false)
-
-  // Reset the facade whenever the target exercise changes.
-  useEffect(() => {
-    setPlaying(false)
-  }, [exercise])
-
   useEffect(() => {
     if (exercise === null) return
     const onKey = (e: KeyboardEvent): void => {
@@ -35,8 +29,6 @@ export function HowToDrawer({ exercise, onClose }: HowToDrawerProps): JSX.Elemen
 
   if (exercise === null) return null
   const meta = EXERCISE_META[exercise]
-  const thumb = `https://i.ytimg.com/vi/${meta.youtubeId}/hqdefault.jpg`
-  const embed = `https://www.youtube-nocookie.com/embed/${meta.youtubeId}`
 
   return (
     <div
@@ -69,40 +61,7 @@ export function HowToDrawer({ exercise, onClose }: HowToDrawerProps): JSX.Elemen
         </div>
 
         <div className="overflow-y-auto p-5">
-          <div className="relative aspect-video overflow-hidden rounded-xl bg-black">
-            {playing ? (
-              <iframe
-                className="h-full w-full"
-                src={embed}
-                title={`${meta.label} demo`}
-                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setPlaying(true)}
-                className="group relative block h-full w-full"
-                aria-label={`Play ${meta.label} demo video`}
-                data-testid="howto-play"
-              >
-                <img
-                  src={thumb}
-                  alt={`${meta.label} demonstration thumbnail`}
-                  className="h-full w-full object-cover opacity-90 transition group-hover:opacity-100"
-                  loading="lazy"
-                />
-                <span className="absolute inset-0 grid place-content-center">
-                  <span className="grid h-14 w-14 place-content-center rounded-full bg-surface-base/70 text-2xl text-white shadow-glow backdrop-blur-sm transition group-hover:scale-105">
-                    ▶
-                  </span>
-                </span>
-              </button>
-            )}
-          </div>
-
-          <div className="mt-4">
+          <div>
             <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Form tips</h3>
             <ul className="mt-2 space-y-1.5">
               {meta.formTips.map((tip) => (

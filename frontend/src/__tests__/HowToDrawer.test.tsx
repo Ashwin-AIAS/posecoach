@@ -10,21 +10,10 @@ describe("HowToDrawer", () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it("shows the thumbnail facade first, not an iframe (privacy + perf)", () => {
+  it("never renders a reference-video iframe (video lives in ReferenceVideoPanel, P11)", () => {
     render(<HowToDrawer exercise="squat" onClose={vi.fn()} />)
-    expect(screen.getByTestId("howto-play")).toBeInTheDocument()
     expect(document.querySelector("iframe")).toBeNull()
-  })
-
-  it("injects a youtube-nocookie iframe only after clicking play, with no autoplay", () => {
-    render(<HowToDrawer exercise="bench" onClose={vi.fn()} />)
-    fireEvent.click(screen.getByTestId("howto-play"))
-    const iframe = document.querySelector("iframe")
-    expect(iframe).not.toBeNull()
-    const src = iframe?.getAttribute("src") ?? ""
-    expect(src).toContain("youtube-nocookie.com/embed/")
-    expect(src).toContain(EXERCISE_META.bench.youtubeId)
-    expect(src).not.toContain("autoplay")
+    expect(screen.queryByTestId("howto-play")).toBeNull()
   })
 
   it("shows the exercise's form tips and primary muscles as a learning surface", () => {

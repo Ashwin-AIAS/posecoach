@@ -9,7 +9,7 @@ describe("EmptyStageHint", () => {
     const onShowHowTo = vi.fn()
     render(<EmptyStageHint exercise="bench" onShowHowTo={onShowHowTo} />)
     expect(screen.getByText(EXERCISE_META.bench.label)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: /watch how-to/i }))
+    fireEvent.click(screen.getByRole("button", { name: /view form tips/i }))
     expect(onShowHowTo).toHaveBeenCalledWith("bench")
   })
 })

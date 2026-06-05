@@ -10,6 +10,7 @@ import { HistoryPanel } from "./components/HistoryPanel"
 import { HowToDrawer } from "./components/HowToDrawer"
 import { InstallBanner } from "./components/InstallBanner"
 import { PoseOverlay } from "./components/PoseOverlay"
+import { ReferenceVideoPanel } from "./components/ReferenceVideoPanel"
 import { SessionSummary } from "./components/SessionSummary"
 import { UserMenu } from "./components/UserMenu"
 import { useAuth } from "./hooks/useAuth"
@@ -269,6 +270,7 @@ export default function App(): JSX.Element {
             connectionState={pose.connectionState}
             error={pose.error}
           />
+          <ReferenceVideoPanel exercise={exercise} />
           <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
         </aside>
       </main>

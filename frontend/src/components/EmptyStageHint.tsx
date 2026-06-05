@@ -28,7 +28,7 @@ export function EmptyStageHint({ exercise, onShowHowTo }: EmptyStageHintProps): 
           onClick={() => onShowHowTo(exercise)}
           className="mt-4 rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-surface-base transition hover:brightness-110"
         >
-          Watch how-to
+          View form tips
         </button>
       </div>
     </div>
