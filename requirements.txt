@@ -41,7 +41,7 @@ sentry-sdk[fastapi]==2.14.0      # Optional — set SENTRY_DSN to enable
 
 # ── Utilities ──────────────────────────────────────────────
 python-dotenv==1.0.1             # Load .env in dev
-httpx==0.27.2                    # Async HTTP client (also used in tests)
+httpx==0.28.1                    # Async HTTP client; >=0.28.1 required by google-genai 2.8.0
 pydantic[email]==2.9.2           # Request/response validation
 anyio==4.8.0                     # >=4.8.0 required by google-genai 2.8.0
 
@@ -50,7 +50,7 @@ pytest==8.3.3
 pytest-asyncio==0.24.0
 pytest-cov==5.0.0
 pytest-timeout==2.3.1
-httpx==0.27.2                    # AsyncClient for FastAPI testing
+httpx==0.28.1                    # AsyncClient for FastAPI testing (kept in sync with above)
 
 # ── Linting & Type Checking ────────────────────────────────
 ruff==0.6.9
