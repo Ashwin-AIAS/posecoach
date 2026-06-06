@@ -124,7 +124,7 @@ def _llm_available() -> bool:
     if not os.environ.get("GEMINI_API_KEY"):
         return False
     try:
-        import google.generativeai  # noqa: F401
+        import google.genai  # noqa: F401
     except ImportError:
         return False
     return True
@@ -194,7 +194,7 @@ def main() -> int:
 
     if answer_accuracy is None:
         gate_passed: bool | None = None
-        gate_reason = "no_llm_available — set GEMINI_API_KEY and install google-generativeai"
+        gate_reason = "no_llm_available — set GEMINI_API_KEY and install google-genai"
         exit_code = 2
     else:
         gate_passed = answer_accuracy >= ACCURACY_GATE

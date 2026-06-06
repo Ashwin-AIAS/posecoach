@@ -29,7 +29,7 @@ opencv-python-headless==4.10.0.84
 numpy==1.26.4
 
 # ── AI / RAG ───────────────────────────────────────────────
-google-generativeai==0.8.3       # Gemini 2.0 Flash
+google-genai==2.8.0              # Gemini 3.5 Flash (unified Google Gen AI SDK; old google-generativeai retired)
 chromadb==0.5.20                 # Vector store
 sentence-transformers==3.1.1     # all-MiniLM-L6-v2 embeddings
 

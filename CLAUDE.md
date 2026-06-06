@@ -15,7 +15,7 @@ scoring, RAG expansion + web fallback). See `IMPROVEMENT_PLAN_P11-P14.md`.
 - **Backend:** FastAPI + PostgreSQL + Redis + Alembic (Python 3.11)
 - **CV Model:** YOLO26-Pose (`yolo26n-pose.pt` dev / `yolo26x-pose.pt` prod) via Ultralytics
 - **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS (PWA)
-- **AI Coaching:** Gemini 2.0 Flash + ChromaDB (RAG) + SSE streaming
+- **AI Coaching:** Gemini 3.5 Flash + ChromaDB (RAG) + SSE streaming
 - **Secondary LLM:** Qwen 3.6 via OpenRouter API (P05 visual queries + P10 VLM judge)
 - **Auth:** JWT (HS256) in httpOnly cookies — NEVER localStorage
 - **Testing:** Pytest + Vitest + Playwright
@@ -92,8 +92,8 @@ logger.info("inference_complete", latency_ms=23.4, exercise="squat")
 - `visibilitychange` listener: stop camera on hidden, restart on visible
 
 ### RAG Chatbot (P05)
-- **Smart routing:** visual queries (with frame snapshot) → Qwen 3.6 via OpenRouter; text-only → Gemini 2.0 Flash (cheaper)
-- Gemini 2.0 Flash ONLY — not gemini-pro (deprecated), not gemini-1.5-pro (paid)
+- **Smart routing:** visual queries (with frame snapshot) → Qwen 3.6 via OpenRouter; text-only → Gemini 3.5 Flash (cheaper)
+- Uses the unified `google-genai` SDK (NOT the retired `google-generativeai`). Model name is env-configurable via `GEMINI_MODEL` (default `gemini-3.5-flash`). gemini-2.0-flash was retired 2026-06-01 — never use it.
 - SSE streaming for chat — NOT WebSocket
 - Rate limit: 10 req/min on `/chat/stream` (Gemini free tier is 15/min)
 - Fallback if LLM fails: `build_smart_fallback()` in `prompts.py` — serves retrieved KB context or exercise-specific tips; generic message is last resort only
@@ -165,8 +165,8 @@ posecoach/
 
 ## Environment Variables
 All from `.env` — never hardcode. See `.env.example` for the full list:
-`POSTGRES_URL, REDIS_URL, GEMINI_API_KEY, OPENROUTER_API_KEY, JWT_SECRET,
-MODEL_PATH, CHROMA_PATH, ALLOWED_ORIGINS, ENVIRONMENT`
+`POSTGRES_URL, REDIS_URL, GEMINI_API_KEY, GEMINI_MODEL, OPENROUTER_API_KEY,
+JWT_SECRET, MODEL_PATH, CHROMA_PATH, ALLOWED_ORIGINS, ENVIRONMENT`
 
 ## Common Gotchas
 - **`end2end=False` in any YOLO call → auto-BLOCK** — silently switches head, breaks keypoint parsing

@@ -40,12 +40,16 @@ _st_mock.SentenceTransformer.return_value = _st_instance
 if "sentence_transformers" not in sys.modules:
     sys.modules["sentence_transformers"] = _st_mock
 
+# Unified Google Gen AI SDK (`from google import genai` / `from google.genai import types`).
 _genai_mock = MagicMock()
+_genai_types_mock = MagicMock()
 if "google" not in sys.modules:
     sys.modules["google"] = MagicMock()
-if "google.generativeai" not in sys.modules:
-    sys.modules["google.generativeai"] = _genai_mock
-    sys.modules["google"].generativeai = _genai_mock
+if "google.genai" not in sys.modules:
+    sys.modules["google.genai"] = _genai_mock
+    sys.modules["google.genai.types"] = _genai_types_mock
+    sys.modules["google"].genai = _genai_mock
+    _genai_mock.types = _genai_types_mock
 
 _redis_mock = MagicMock()
 _redis_mock.ping = AsyncMock(return_value=True)
