@@ -261,7 +261,7 @@ export default function App(): JSX.Element {
               </span>
             </div>
           )}
-          {showHint && <EmptyStageHint exercise={exercise} onShowHowTo={setHowTo} />}
+          {showHint && <EmptyStageHint exercise={exercise} />}
         </div>
 
         <aside className="flex flex-col gap-4 overflow-y-auto">
