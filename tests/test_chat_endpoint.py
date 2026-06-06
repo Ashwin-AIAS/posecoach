@@ -201,3 +201,38 @@ async def test_off_topic_without_web_yields_no_misleading_citation(
     assert mode == "none"
     assert context == []
     assert citations == []
+
+
+# --------------------------------------------------------------------------- #
+# Smart fallback — build_smart_fallback() produces context-aware messages       #
+# --------------------------------------------------------------------------- #
+def test_smart_fallback_uses_kb_chunks() -> None:
+    from app.chatbot.prompts import build_smart_fallback
+
+    chunks = ["Lower-back tightness after deadlifts usually traces back to losing neutral spine."]
+    result = build_smart_fallback("lower back pain", chunks, None)
+    assert "Lower-back tightness" in result
+    assert "coaching knowledge base" in result
+
+
+def test_smart_fallback_uses_exercise_tip() -> None:
+    from app.chatbot.prompts import build_smart_fallback
+
+    result = build_smart_fallback("how deep should I go", [], exercise="squat")
+    assert "squat" in result.lower()
+    assert "brace" in result.lower()
+
+
+def test_smart_fallback_matches_query_exercise() -> None:
+    from app.chatbot.prompts import build_smart_fallback
+
+    result = build_smart_fallback("my deadlift lower back hurts", [], None)
+    assert "deadlift" in result.lower()
+    assert "bar close" in result.lower()
+
+
+def test_smart_fallback_generic_last_resort() -> None:
+    from app.chatbot.prompts import FALLBACK_MESSAGE, build_smart_fallback
+
+    result = build_smart_fallback("random unrelated question", [], None)
+    assert result == FALLBACK_MESSAGE

@@ -23,6 +23,7 @@ from app.chatbot import router as chat_router
 from app.chatbot.prompts import (
     FALLBACK_MESSAGE,
     SAFETY_NOTE,
+    build_smart_fallback,
     build_sources_footer,
     build_user_prompt,
     is_safety_sensitive,
@@ -116,7 +117,10 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
     except Exception as exc:  # noqa: BLE001 — never crash the SSE stream
         logger.error("chat_stream_failed", provider=provider, error=str(exc))
         if not emitted_any:
-            yield _sse_event(FALLBACK_MESSAGE)
+            smart_fb = build_smart_fallback(
+                payload.query, context_chunks, exercise=payload.exercise
+            )
+            yield _sse_event(smart_fb)
     finally:
         yield _sse_event("", done=True)
 

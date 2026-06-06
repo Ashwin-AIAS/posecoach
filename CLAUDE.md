@@ -96,7 +96,7 @@ logger.info("inference_complete", latency_ms=23.4, exercise="squat")
 - Gemini 2.0 Flash ONLY — not gemini-pro (deprecated), not gemini-1.5-pro (paid)
 - SSE streaming for chat — NOT WebSocket
 - Rate limit: 10 req/min on `/chat/stream` (Gemini free tier is 15/min)
-- Fallback message if LLM fails: "I am having trouble connecting right now. Here is a tip: focus on controlled movement and proper breathing."
+- Fallback if LLM fails: `build_smart_fallback()` in `prompts.py` — serves retrieved KB context or exercise-specific tips; generic message is last resort only
 - ChromaDB `persist_directory` from `CHROMA_PATH` env var
 
 ### Database & Schema

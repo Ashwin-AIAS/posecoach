@@ -2,12 +2,26 @@
 from __future__ import annotations
 
 SYSTEM_PROMPT = (
-    "You are PoseCoach, an evidence-based strength training coach. "
-    "Answer the user in plain English, using short sentences. "
-    "Cite the retrieved context when relevant. If the context does not cover the question, "
-    "say so explicitly and give general best-practice guidance. "
-    "Never invent angle ranges or specific numbers that are not in the context. "
-    "Keep responses under 200 words unless the user asks for detail."
+    "You are PoseCoach, an experienced and certified strength-and-conditioning coach "
+    "with deep expertise in exercise biomechanics, program design, and injury prevention. "
+    "Your tone is confident, supportive, and direct — like a trusted coach who genuinely "
+    "wants their athlete to improve. You speak in clear, actionable language.\n\n"
+    "Guidelines:\n"
+    "- Open with a direct answer to the question, then explain the reasoning.\n"
+    "- Use the retrieved reference material as your primary source; cite it naturally "
+    "(e.g. 'according to the evidence…' or 'research shows…').\n"
+    "- When the reference material does not cover the question, say so briefly and give "
+    "your best evidence-based guidance from general strength-training principles.\n"
+    "- Never fabricate specific angle ranges, percentages, or numbers that are not in "
+    "the provided context.\n"
+    "- Be concise (under 200 words) unless the user explicitly asks for a detailed "
+    "explanation.\n"
+    "- For technique questions, describe what the user should FEEL and what a correct "
+    "rep LOOKS like — cues a real coach would give on the gym floor.\n"
+    "- If the user asks about injuries, pain, or supplements, still answer helpfully "
+    "from an educational standpoint but note it is not medical advice.\n"
+    "- Format lists and key points clearly; use bullet points when comparing options.\n"
+    "- End actionable answers with one concrete next-step the user can try immediately."
 )
 
 VISUAL_SYSTEM_PROMPT = (
@@ -17,10 +31,103 @@ VISUAL_SYSTEM_PROMPT = (
     "If the image quality is too low to judge, say so."
 )
 
+# Generic last-resort fallback — used only when no RAG context was retrieved AND
+# the LLM is unreachable. Prefer build_smart_fallback() whenever context exists.
 FALLBACK_MESSAGE = (
-    "I am having trouble connecting right now. Here is a tip: "
-    "focus on controlled movement and proper breathing."
+    "I'm temporarily unable to reach my full knowledge base, but here's what I can "
+    "tell you as a coach: focus on bracing your core before every rep, control the "
+    "eccentric (lowering) phase for 2–3 seconds, and never grind through a rep where "
+    "your form is breaking down. If you have a specific exercise question, try again "
+    "in a moment and I'll give you a detailed breakdown."
 )
+
+# Exercise-specific fallback tips so even an offline coach sounds knowledgeable.
+_EXERCISE_TIPS: dict[str, str] = {
+    "squat": (
+        "For squats: push your knees out in line with your toes, brace your core hard "
+        "before you descend, and aim to break parallel while keeping your chest up. "
+        "If your lower back rounds at the bottom, work on ankle and hip mobility first."
+    ),
+    "deadlift": (
+        "For deadlifts: set your back flat by pulling your chest up before you pull, "
+        "keep the bar close to your shins, and drive through your whole foot. The bar "
+        "should travel in a straight vertical line — if it drifts forward, you'll feel "
+        "it in your lower back."
+    ),
+    "bench": (
+        "For bench press: retract your shoulder blades and plant them into the bench, "
+        "keep your feet flat on the floor, and lower the bar to your lower chest with "
+        "your elbows at roughly 45° — not flared out to 90°."
+    ),
+    "ohp": (
+        "For overhead press: brace your core as if someone is about to punch you in the "
+        "stomach, press the bar in a slight arc around your face then lock out directly "
+        "overhead, and squeeze your glutes to prevent your lower back from arching."
+    ),
+    "curl": (
+        "For curls: keep your elbows pinned to your sides, control the lowering phase "
+        "for at least 2 seconds, and avoid swinging your torso. If you need momentum to "
+        "lift the weight, it's too heavy."
+    ),
+    "lunge": (
+        "For lunges: take a step long enough that both knees form roughly 90° at the "
+        "bottom, keep your torso upright, and push back up through your front heel. "
+        "If your knee caves inward, try a lighter weight or bodyweight first."
+    ),
+    "plank": (
+        "For planks: squeeze your glutes, brace your abs, and keep a straight line from "
+        "ears to ankles. Don't let your hips sag or pike up — both reduce core activation."
+    ),
+}
+
+
+def build_smart_fallback(
+    query: str,
+    chunks: list[str],
+    exercise: str | None = None,
+) -> str:
+    """Build a useful fallback when the LLM is unreachable.
+
+    Priority order:
+    1. If we retrieved relevant KB chunks, summarise the most relevant one.
+    2. If we know the current exercise, give exercise-specific coaching.
+    3. Generic professional fallback.
+    """
+    # 1) Use retrieved context — the KB was already searched successfully.
+    if chunks:
+        best = chunks[0].strip()
+        # Take the first ~500 chars to keep it concise.
+        if len(best) > 500:
+            best = best[:500].rsplit(" ", 1)[0] + "…"
+        return (
+            f"Here's what I found in my coaching knowledge base:\n\n{best}\n\n"
+            "I'm having a brief connection issue for a more tailored answer — "
+            "try asking again in a moment for a full breakdown."
+        )
+
+    # 2) Exercise-specific tip.
+    if exercise:
+        ex_lower = exercise.lower()
+        for key, tip in _EXERCISE_TIPS.items():
+            if key in ex_lower:
+                return (
+                    f"{tip}\n\n"
+                    "I'm having a brief connection issue right now — try again "
+                    "shortly and I'll give you a more detailed answer."
+                )
+
+    # 3) Try to match the query itself to an exercise.
+    q_lower = query.lower()
+    for key, tip in _EXERCISE_TIPS.items():
+        if key in q_lower:
+            return (
+                f"{tip}\n\n"
+                "I'm having a brief connection issue right now — try again "
+                "shortly and I'll give you a more detailed answer."
+            )
+
+    # 4) Last resort.
+    return FALLBACK_MESSAGE
 
 # Appended to injury / supplement answers — educational framing, not a refusal.
 SAFETY_NOTE = (
