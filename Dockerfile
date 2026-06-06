@@ -34,9 +34,10 @@ COPY models/ ./models/
 COPY data/knowledge_base/ ./data/knowledge_base/
 RUN mkdir -p data/chroma
 
-# Build the RAG vector index so the chatbot has retrieval context in production.
-# Runs once at image-build time; the resulting Chroma DB is baked into the image.
-RUN python -m app.chatbot.ingest --reset
+# NOTE: RAG ingest is NOT run at build time. It runs lazily at app startup
+# (see lifespan -> _ensure_rag_index in app/main.py). The embedding model is
+# downloaded at runtime regardless (query-time embedding), so baking the index
+# at build added a fragile network dependency for no real benefit.
 
 # Non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

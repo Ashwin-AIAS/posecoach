@@ -1,3 +1,4 @@
+import asyncio
 import os
 import secrets
 from collections.abc import AsyncGenerator
@@ -41,6 +42,36 @@ async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSON
     return JSONResponse(status_code=500, content={"error": "internal server error", "code": 500})
 
 
+async def _ensure_rag_index(application: FastAPI) -> None:
+    """Populate the RAG vector index at startup if it is empty.
+
+    Moved out of the Docker build (was a fragile network dependency at build
+    time). Runs in the executor so it never blocks the event loop, and is
+    scheduled as a background task so startup/health checks are not delayed.
+    ``retrieve()`` returns no chunks while the index is empty, so the chatbot
+    degrades gracefully to the web/general-knowledge fallback until it is ready.
+    """
+    log = structlog.get_logger(__name__)
+    loop = asyncio.get_running_loop()
+
+    def _build() -> int:
+        from app.chatbot.ingest import DEFAULT_SOURCE, ingest
+        from app.chatbot.rag import _get_collection
+
+        if _get_collection().count() > 0:
+            return -1  # already populated
+        return ingest(DEFAULT_SOURCE, reset=False)
+
+    try:
+        count = await loop.run_in_executor(application.state.executor, _build)
+        if count < 0:
+            log.info("rag_index_present")
+        else:
+            log.info("rag_index_built", chunks=count)
+    except Exception as exc:  # noqa: BLE001 — never crash startup over the KB
+        log.error("rag_index_build_failed", error=repr(exc))
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
@@ -73,10 +104,16 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     application.state.redis = await create_redis_client()
     log.info("redis_connected")
 
+    # Build the RAG index in the background (non-blocking) if it is empty.
+    application.state.rag_task = asyncio.create_task(_ensure_rag_index(application))
+
     log.info("startup_complete")
     yield
 
     # --- SHUTDOWN ---
+    rag_task = getattr(application.state, "rag_task", None)
+    if rag_task is not None and not rag_task.done():
+        rag_task.cancel()
     application.state.executor.shutdown(wait=True)
     await db.engine.dispose()
     await application.state.redis.aclose()
