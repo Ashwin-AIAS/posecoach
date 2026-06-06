@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoseCoach Architecture Guide</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+
+    --color-background-primary: #ffffff;
+    --color-background-secondary: #f5f5f5;
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #555;
+    --color-text-tertiary: #888;
+    --color-border-tertiary: rgba(0,0,0,0.1);
+    --color-border-secondary: rgba(0,0,0,0.18);
+    --color-border-primary: rgba(0,0,0,0.28);
+
+    --color-background-info: #e8f0fe;
+    --color-text-info: #1a56a8;
+    --color-background-success: #e6f4ea;
+    --color-text-success: #1a6e35;
+    --color-background-warning: #fef9e7;
+    --color-text-warning: #92610a;
+    --color-background-danger: #fdecea;
+    --color-text-danger: #9c1c1c;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-background-primary: #1e1e1e;
+      --color-background-secondary: #2a2a2a;
+      --color-text-primary: #e8e8e8;
+      --color-text-secondary: #aaa;
+      --color-text-tertiary: #666;
+      --color-border-tertiary: rgba(255,255,255,0.08);
+      --color-border-secondary: rgba(255,255,255,0.15);
+      --color-border-primary: rgba(255,255,255,0.25);
+
+      --color-background-info: #1a2f5e;
+      --color-text-info: #93bbf7;
+      --color-background-success: #1a3a25;
+      --color-text-success: #6fcf97;
+      --color-background-warning: #3a2c0a;
+      --color-text-warning: #f6c94e;
+      --color-background-danger: #3a1515;
+      --color-text-danger: #f28b82;
+    }
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+    background: var(--color-background-primary);
+    border-radius: var(--border-radius-lg);
+    border: 0.5px solid var(--color-border-tertiary);
+    padding: 2rem;
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin-bottom: 1.5rem;
+  }
+
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .tab {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
+    border: 0.5px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+    color: var(--color-text-secondary);
+    transition: all .15s;
+    user-select: none;
+  }
+  .tab:hover { background: var(--color-background-primary); color: var(--color-text-primary); }
+  .tab.active {
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-primary);
+    font-weight: 500;
+  }
+
+  .layer { display: none; }
+  .layer.active { display: block; }
+
+  .card {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; cursor: pointer;
+    border-bottom: 0.5px solid transparent;
+    transition: background .1s;
+  }
+  .card-header:hover { background: var(--color-background-secondary); }
+  .card-header.open { border-bottom-color: var(--color-border-tertiary); }
+
+  .badge {
+    font-size: 11px; font-weight: 500; padding: 2px 8px;
+    border-radius: 10px; white-space: nowrap;
+  }
+  .b-blue  { background: var(--color-background-info);    color: var(--color-text-info); }
+  .b-green { background: var(--color-background-success);  color: var(--color-text-success); }
+  .b-amber { background: var(--color-background-warning);  color: var(--color-text-warning); }
+  .b-red   { background: var(--color-background-danger);   color: var(--color-text-danger); }
+  .b-gray  { background: var(--color-background-secondary); color: var(--color-text-secondary); border: 0.5px solid var(--color-border-secondary); }
+
+  .card-title { font-size: 14px; font-weight: 500; flex: 1; }
+  .chevron { font-size: 11px; color: var(--color-text-tertiary); transition: transform .2s; }
+  .chevron.open { transform: rotate(90deg); }
+
+  .card-body { padding: 12px 14px; display: none; }
+  .card-body.open { display: block; }
+
+  .file-list { list-style: none; }
+  .file-item {
+    display: grid; grid-template-columns: 200px 1fr;
+    gap: 8px; padding: 7px 0;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    font-size: 13px;
+  }
+  .file-item:last-child { border-bottom: none; }
+  .file-name { font-family: var(--font-mono); font-size: 12px; color: var(--color-text-info); font-weight: 500; word-break: break-all; }
+  .file-desc { color: var(--color-text-secondary); line-height: 1.5; }
+
+  .flow-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .flow-box {
+    padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    border: 0.5px solid var(--color-border-secondary);
+  }
+  .arrow-r { color: var(--color-text-tertiary); font-size: 14px; }
+
+  .section-label {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--color-text-tertiary); margin: 14px 0 6px;
+  }
+
+  .tip {
+    background: var(--color-background-secondary);
+    border-left: 2px solid var(--color-text-info);
+    border-radius: 0 6px 6px 0;
+    padding: 8px 12px; font-size: 13px; color: var(--color-text-secondary);
+    margin-top: 10px; line-height: 1.55;
+  }
+
+  .intro-text {
+    font-size: 13px; color: var(--color-text-secondary);
+    margin-bottom: 14px; line-height: 1.6;
+  }
+
+  .plain-list {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    padding: 0 14px;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--color-background-secondary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--color-text-info);
+  }
+
+  @media (max-width: 600px) {
+    .file-item { grid-template-columns: 1fr; }
+    .container { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>PoseCoach — Architecture Guide</h1>
+  <p class="subtitle">Interactive reference: every folder, every file, every connection explained</p>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" onclick="setTab('overview')">Overview</div>
+    <div class="tab" onclick="setTab('backend')">Backend (FastAPI)</div>
+    <div class="tab" onclick="setTab('frontend')">Frontend (React)</div>
+    <div class="tab" onclick="setTab('infra')">Infrastructure</div>
+    <div class="tab" onclick="setTab('tests')">Tests</div>
+    <div class="tab" onclick="setTab('flow')">Data flow</div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="layer active" id="layer-overview">
+    <p class="intro-text">PoseCoach has <strong>5 distinct layers</strong>. Each lives in its own folder. Click any tab to drill into it.</p>
+
+    <div class="section-label">Top-level project structure</div>
+    <ul class="file-list plain-list">
+      <li class="file-item"><span class="file-name">app/</span><span class="file-desc">All Python backend code — FastAPI, YOLO inference, RAG chatbot, auth, database models</span></li>
+      <li class="file-item"><span class="file-name">src/</span><span class="file-desc">All React frontend code — camera, skeleton overlay, UI components, WebSocket hook</span></li>
+      <li class="file-item"><span class="file-name">tests/</span><span class="file-desc">Pytest tests for backend — angle logic, WebSocket behaviour, auth flows, history API</span></li>
+      <li class="file-item"><span class="file-name">e2e/</span><span class="file-desc">Playwright end-to-end tests — simulates a real user in a browser (camera → form score)</span></li>
+      <li class="file-item"><span class="file-name">nginx/</span><span class="file-desc">NGINX config — HTTPS termination, WebSocket proxy, rate limiting</span></li>
+      <li class="file-item"><span class="file-name">deploy/</span><span class="file-desc">Production Docker Compose — separate from dev, adds workers, SSL, watchtower</span></li>
+      <li class="file-item"><span class="file-name">alembic/</span><span class="file-desc">Database migration scripts — creates and updates your PostgreSQL schema safely</span></li>
+      <li class="file-item"><span class="file-name">scripts/</span><span class="file-desc">Utility scripts — test YOLO locally, evaluate model mAP accuracy, ingest RAG documents</span></li>
+      <li class="file-item"><span class="file-name">docker-compose.yml</span><span class="file-desc">Dev environment — starts FastAPI + PostgreSQL + Redis with a single command</span></li>
+      <li class="file-item"><span class="file-name">.env.example</span><span class="file-desc">Template for your secrets — copy to .env and fill in your keys (never commit .env)</span></li>
+    </ul>
+    <div class="tip">💡 The <code>app/</code> and <code>src/</code> split is the most important boundary. Everything in <code>app/</code> runs on the server; everything in <code>src/</code> runs in the user's browser.</div>
+  </div>
+
+  <!-- BACKEND -->
+  <div class="layer" id="layer-backend">
+    <div class="section-label">app/ — Python backend</div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-blue">Entry point</span>
+        <span class="card-title">app/main.py + core files</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">app/main.py</span><span class="file-desc">The FastAPI app itself. Registers all routers, loads YOLO model on startup, configures CORS and security headers, exposes /health and /health/deep endpoints</span></li>
+          <li class="file-item"><span class="file-name">app/db.py</span><span class="file-desc">Database connection — async SQLAlchemy engine connected to PostgreSQL. All DB sessions come from here</span></li>
+          <li class="file-item"><span class="file-name">app/models.py</span><span class="file-desc">SQLAlchemy table definitions — Users and WorkoutSessions. This is your database schema in Python</span></li>
+          <li class="file-item"><span class="file-name">app/cache.py</span><span class="file-desc">Redis helper — get/set/delete wrappers. Used for WebSocket session state when running multiple workers</span></li>
+          <li class="file-item"><span class="file-name">app/metrics.py</span><span class="file-desc">Prometheus counters and histograms — tracks frames received, dropped, inference time, form score distribution</span></li>
+          <li class="file-item"><span class="file-name">app/logging_config.py</span><span class="file-desc">Structured JSON logging setup. In production every log line is JSON; in dev it's coloured console output</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-amber">Core feature</span>
+        <span class="card-title">app/inference/ — YOLO pose pipeline</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">websocket.py</span><span class="file-desc">The /ws/analyze WebSocket endpoint. Receives JPEG frames from the phone, puts them in a queue, returns keypoints + form score. Drops frames when the queue is full so the server never gets overwhelmed</span></li>
+          <li class="file-item"><span class="file-name">predictor.py</span><span class="file-desc">Runs YOLO26-Pose on a single frame. Returns 17 body keypoints. Handles "no person detected" and "multiple people" edge cases. Runs in a thread so it doesn't block the async event loop</span></li>
+          <li class="file-item"><span class="file-name">smoother.py</span><span class="file-desc">Smooths keypoint positions across 5 frames using a rolling average — stops the skeleton from jittering on screen even when YOLO detection fluctuates slightly</span></li>
+        </ul>
+        <div class="tip">These 3 files are your real-time pipeline: frame in → YOLO → smooth → score → back to phone. If you're debugging latency, start here.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-amber">Core feature</span>
+        <span class="card-title">app/analysis/ — form scoring logic</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">angle_calculator.py</span><span class="file-desc">Maths — takes 3 keypoint coordinates (e.g. hip, knee, ankle) and returns the angle in degrees. This is the foundation of all form scoring</span></li>
+          <li class="file-item"><span class="file-name">form_scorer.py</span><span class="file-desc">One scoring function per exercise (squat, deadlift, curl, bench, OHP, lunge, plank). Each compares your joint angles against ideal ranges and returns a 0–100 score + coaching cues like "knees caving inward"</span></li>
+          <li class="file-item"><span class="file-name">rep_counter.py</span><span class="file-desc">Tracks the up/down phase of a movement by watching one primary angle over time. Counts a rep when the angle completes a full cycle (e.g. knee angle goes down then back up for a squat)</span></li>
+        </ul>
+        <div class="tip">If form scores feel wrong, the bug is almost always in angle_calculator.py or the ANGLE_RANGES dict at the top of form_scorer.py — those are your tuning knobs.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-green">AI chatbot</span>
+        <span class="card-title">app/chatbot/ — RAG coaching chatbot</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">router.py</span><span class="file-desc">The /chat/stream endpoint. Receives the user's question + their current session data (exercise, reps, form score). Streams the response back token-by-token using Server-Sent Events</span></li>
+          <li class="file-item"><span class="file-name">rag.py</span><span class="file-desc">Retrieval step — searches ChromaDB for the 5 most relevant chunks from your exercise knowledge base that are relevant to the user's question</span></li>
+          <li class="file-item"><span class="file-name">llm.py</span><span class="file-desc">Gemini API integration — builds the prompt (context + session data + question), calls gemini-2.0-flash, streams tokens back. If Gemini is down, returns a hardcoded fallback message instead of an error</span></li>
+          <li class="file-item"><span class="file-name">ingest.py</span><span class="file-desc">One-time setup script — reads the 8 knowledge text files, splits them into chunks, embeds them, and stores them in ChromaDB. Run this once before the chatbot can answer anything</span></li>
+          <li class="file-item"><span class="file-name">knowledge/</span><span class="file-desc">8 plain text files (squat_technique.txt etc.) — this is the only source of truth the chatbot can use. It cannot answer anything not in these files</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-gray">Auth & history</span>
+        <span class="card-title">app/auth/ + app/history/</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">auth/router.py</span><span class="file-desc">/auth/register and /auth/login endpoints. Login returns a JWT stored in an httpOnly cookie (not localStorage — safer against XSS attacks)</span></li>
+          <li class="file-item"><span class="file-name">auth/middleware.py</span><span class="file-desc">get_current_user — a reusable FastAPI dependency. Any endpoint that needs authentication just imports this. Returns the user or raises a 401</span></li>
+          <li class="file-item"><span class="file-name">history/router.py</span><span class="file-desc">POST /history saves a workout session; GET /history retrieves past sessions; GET /history/stats calculates your average form score trend per exercise over time</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-gray">Middleware</span>
+        <span class="card-title">app/middleware/</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">security_headers.py</span><span class="file-desc">Adds security headers to every response — tells browsers not to render the app in an iframe, not to sniff content types, etc.</span></li>
+          <li class="file-item"><span class="file-name">request_id.py</span><span class="file-desc">Generates a unique ID for every request and attaches it to logs. When something breaks, you can search logs by request ID to find the full trace</span></li>
+          <li class="file-item"><span class="file-name">timing.py</span><span class="file-desc">Logs a warning if any request takes more than 500ms. Helps you spot performance regressions before users notice</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRONTEND -->
+  <div class="layer" id="layer-frontend">
+    <div class="section-label">src/ — React frontend (runs in the browser)</div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-blue">Hooks</span>
+        <span class="card-title">src/hooks/ — the brains of the app</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">useCamera.ts</span><span class="file-desc">Accesses the phone camera (rear-facing by default). Handles permission errors with specific messages. Stops the camera when the phone screen locks and restarts it when the user comes back</span></li>
+          <li class="file-item"><span class="file-name">useWebSocket.ts</span><span class="file-desc">Connects to the backend WebSocket. Captures frames from the camera and sends them. Reduces quality automatically when connection is slow. Reconnects automatically with exponential backoff if disconnected</span></li>
+        </ul>
+        <div class="tip">If something is wrong with the camera or the real-time connection, the bug is in one of these two hooks — they're the data entry point for the whole app.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-blue">Components</span>
+        <span class="card-title">src/components/ — what the user sees</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">SkeletonOverlay.tsx</span><span class="file-desc">Draws the green/orange/red skeleton lines on top of the camera feed using a canvas element. Colour reflects form score. Shows nothing if no person is detected</span></li>
+          <li class="file-item"><span class="file-name">FormHUD.tsx</span><span class="file-desc">The heads-up display — score gauge (top right), rep counter (top left), coaching cues sliding in from the bottom, connection status badge (Live / Reconnecting / Offline)</span></li>
+          <li class="file-item"><span class="file-name">ChatDrawer.tsx</span><span class="file-desc">The AI coaching chatbot drawer. Uses Server-Sent Events to stream tokens as they arrive. Shows "GymVision Coach is typing..." while waiting. Sends session context automatically with every question</span></li>
+          <li class="file-item"><span class="file-name">ExerciseSelector.tsx</span><span class="file-desc">The chip bar for selecting which exercise you're doing (Squat, Deadlift, etc.). This tells the backend which scoring function to use</span></li>
+          <li class="file-item"><span class="file-name">HistoryDrawer.tsx</span><span class="file-desc">Shows past workout sessions and a line chart of your form score trend per exercise over time (built with Recharts)</span></li>
+          <li class="file-item"><span class="file-name">PermissionScreen.tsx</span><span class="file-desc">Shown when camera access fails — gives specific instructions for each error type (NotAllowedError = you denied permission, NotFoundError = no camera found, NotReadableError = camera in use by another app)</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-gray">Context & config</span>
+        <span class="card-title">src/context/ + config files</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">context/AuthContext.tsx</span><span class="file-desc">Stores login state globally. JWT is kept in memory (not localStorage) to reduce XSS risk. All components that need to know "is the user logged in" read from here</span></li>
+          <li class="file-item"><span class="file-name">serviceWorker.ts</span><span class="file-desc">PWA service worker — caches static assets so the app loads even with poor signal. Network-first for API calls so you always get live data when online</span></li>
+          <li class="file-item"><span class="file-name">vite.config.ts</span><span class="file-desc">Build config — sets up the PWA plugin, TypeScript paths, and dev proxy (forwards /api requests to FastAPI during local development)</span></li>
+          <li class="file-item"><span class="file-name">public/manifest.json</span><span class="file-desc">Makes the app installable on Android/iOS home screens — defines the app name, icon, orientation (portrait), and theme colour</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFRA -->
+  <div class="layer" id="layer-infra">
+    <div class="section-label">Infrastructure files</div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-amber">Docker</span>
+        <span class="card-title">docker-compose.yml (dev)</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">fastapi service</span><span class="file-desc">Your Python backend running on port 8000. Hot-reloads when you change code</span></li>
+          <li class="file-item"><span class="file-name">postgres:15</span><span class="file-desc">Your database. Data is stored in a named volume so it survives docker-compose restarts</span></li>
+          <li class="file-item"><span class="file-name">redis:7-alpine</span><span class="file-desc">Fast in-memory cache. Stores WebSocket session data so multiple FastAPI workers can share state</span></li>
+        </ul>
+        <div class="tip"><code>docker-compose up</code> starts all three. That's all you need in development — you don't need to install Postgres or Redis locally.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-amber">Docker</span>
+        <span class="card-title">deploy/docker-compose.prod.yml</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">fastapi (2 workers)</span><span class="file-desc">Runs with Gunicorn + 2 Uvicorn workers so it can handle concurrent WebSocket connections</span></li>
+          <li class="file-item"><span class="file-name">nginx service</span><span class="file-desc">Sits in front of FastAPI. Handles HTTPS, redirects HTTP to HTTPS, proxies WebSocket connections, rate-limits 30 req/min per IP</span></li>
+          <li class="file-item"><span class="file-name">watchtower</span><span class="file-desc">Automatically pulls and restarts containers when you push a new Docker image — automated zero-downtime deploys</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-gray">Database</span>
+        <span class="card-title">alembic/ — database migrations</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">alembic/env.py</span><span class="file-desc">Connects Alembic to your async SQLAlchemy engine. Don't touch this unless you're changing the DB connection</span></li>
+          <li class="file-item"><span class="file-name">versions/0001_initial_tables.py</span><span class="file-desc">Creates the Users and WorkoutSessions tables. Run with: <code>alembic upgrade head</code></span></li>
+          <li class="file-item"><span class="file-name">versions/0002_add_workout_sessions.py</span><span class="file-desc">Adds the workout history table with index on (user_id, exercise, created_at) for fast filtering</span></li>
+        </ul>
+        <div class="tip">Always run <code>alembic upgrade head</code> before starting the server after pulling new code. The CI/CD pipeline does this automatically before every deploy.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-gray">CI/CD</span>
+        <span class="card-title">.github/workflows/</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">ci.yml</span><span class="file-desc">Runs on every pull request — pytest, vitest, docker build. Blocks the PR merge if any step fails</span></li>
+          <li class="file-item"><span class="file-name">deploy.yml</span><span class="file-desc">Runs on push to main — runs all tests first, then runs Alembic migrations, then deploys frontend to Vercel and backend to Render, then checks /health/deep to confirm the deploy succeeded</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-gray">Scripts</span>
+        <span class="card-title">scripts/</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">test_yolo.py</span><span class="file-desc">Loads YOLO26, runs it on a webcam frame, prints the 17 keypoints as JSON. Use this to confirm the model is working before touching any other code</span></li>
+          <li class="file-item"><span class="file-name">eval_yolo.py</span><span class="file-desc">Runs the model on 50 test frames and calculates mAP@0.5 accuracy. Exits with code 1 if accuracy drops below 0.80 — acts as a quality gate when upgrading YOLO versions</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- TESTS -->
+  <div class="layer" id="layer-tests">
+    <div class="section-label">Test files and what they check</div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-blue">Pytest (backend)</span>
+        <span class="card-title">tests/</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">conftest.py</span><span class="file-desc">Shared test fixtures — creates an in-memory SQLite database (not your real Postgres), a mock YOLO model that returns fake keypoints, and a sample JPEG image for testing</span></li>
+          <li class="file-item"><span class="file-name">test_angle_calculator.py</span><span class="file-desc">Checks angle maths — a correct squat angle gives score ≥ 85, a bad angle triggers the right cue, and edge cases (3 collinear points) don't crash the calculator</span></li>
+          <li class="file-item"><span class="file-name">test_websocket.py</span><span class="file-desc">Checks WebSocket behaviour — valid frame returns all expected fields, blank image returns no_person_detected, sending 10 frames very fast causes at least one frame_dropped</span></li>
+          <li class="file-item"><span class="file-name">test_auth.py</span><span class="file-desc">Checks auth — register then login works, duplicate email is rejected, invalid JWT returns 401, the 11th login attempt in 1 minute returns 429</span></li>
+          <li class="file-item"><span class="file-name">test_history.py</span><span class="file-desc">Checks history — save a session then retrieve it, check that stats trend calculation is correct after 3 sessions</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-green">Vitest (frontend)</span>
+        <span class="card-title">src/__tests__/</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">useCamera.test.ts</span><span class="file-desc">Checks the camera hook — mocks the browser camera API, tests that switching camera toggles facing mode, tests that locking the screen stops the stream and unlocking restarts it</span></li>
+          <li class="file-item"><span class="file-name">useWebSocket.test.ts</span><span class="file-desc">Checks the WebSocket hook — mocks the WebSocket connection, verifies that a high round-trip time triggers quality reduction, verifies exponential backoff timing on reconnect</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggle(this)">
+        <span class="badge b-amber">Playwright (E2E)</span>
+        <span class="card-title">e2e/</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="card-body">
+        <ul class="file-list">
+          <li class="file-item"><span class="file-name">camera_flow.spec.ts</span><span class="file-desc">Opens the app in a real browser, grants camera permission, checks the skeleton overlay canvas is present, selects Deadlift and checks the chip is highlighted</span></li>
+          <li class="file-item"><span class="file-name">chat_flow.spec.ts</span><span class="file-desc">Types a question in the chat drawer, checks that tokens stream in one by one (not all at once), checks that the "typing" indicator appears and then disappears</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA FLOW -->
+  <div class="layer" id="layer-flow">
+
+    <div class="section-label">Real-time pose analysis — frame journey</div>
+    <div class="flow-row">
+      <span class="flow-box b-blue">Phone camera</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-blue">useCamera.ts</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-blue">useWebSocket.ts</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-gray">WebSocket (JPEG frame)</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-box b-gray">websocket.py</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-amber">predictor.py (YOLO26)</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-amber">smoother.py</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-amber">form_scorer.py</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-box b-amber">rep_counter.py</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-gray">JSON response</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-blue">SkeletonOverlay.tsx</span>
+      <span class="arrow-r">+</span>
+      <span class="flow-box b-blue">FormHUD.tsx</span>
+    </div>
+    <div class="tip" style="margin-top:8px">Each frame completes this full round trip in under 80ms on CPU. The phone sends up to 15 frames per second.</div>
+
+    <div class="section-label" style="margin-top:18px">RAG chatbot — question journey</div>
+    <div class="flow-row">
+      <span class="flow-box b-blue">User types question</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-blue">ChatDrawer.tsx</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-gray">GET /chat/stream (SSE)</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-box b-green">rag.py → ChromaDB</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-green">top 5 chunks</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-green">llm.py → Gemini</span>
+      <span class="arrow-r">→</span>
+      <span class="flow-box b-gray">SSE tokens stream</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-box b-blue">ChatDrawer.tsx renders tokens</span>
+    </div>
+
+    <div class="section-label" style="margin-top:18px">What each env var controls</div>
+    <ul class="file-list plain-list">
+      <li class="file-item"><span class="file-name">POSTGRES_URL</span><span class="file-desc">Where your database lives — used by db.py for all SQL queries and by Alembic for migrations</span></li>
+      <li class="file-item"><span class="file-name">REDIS_URL</span><span class="file-desc">Where Redis lives — used by cache.py for WebSocket session state</span></li>
+      <li class="file-item"><span class="file-name">GEMINI_API_KEY</span><span class="file-desc">Your Google AI Studio key — used only by llm.py. Get it free at aistudio.google.com</span></li>
+      <li class="file-item"><span class="file-name">JWT_SECRET</span><span class="file-desc">Secret used to sign login tokens — must be a long random string, never shared</span></li>
+      <li class="file-item"><span class="file-name">MODEL_PATH</span><span class="file-desc">Path to yolo26n-pose.pt — if this is wrong, the server fails fast with a clear error on startup</span></li>
+      <li class="file-item"><span class="file-name">ALLOWED_ORIGINS</span><span class="file-desc">Comma-separated list of frontend URLs that can talk to the backend — prevents other websites from calling your API</span></li>
+      <li class="file-item"><span class="file-name">CHROMA_PATH</span><span class="file-desc">Where ChromaDB stores the embedded exercise knowledge — defaults to ./data/chromadb</span></li>
+      <li class="file-item"><span class="file-name">SENTRY_DSN</span><span class="file-desc">Your Sentry error tracking URL — if missing, error tracking is silently disabled (no crash)</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+function setTab(id) {
+  const ids = ['overview','backend','frontend','infra','tests','flow'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ids[i] === id));
+  document.querySelectorAll('.layer').forEach(l => l.classList.toggle('active', l.id === 'layer-' + id));
+}
+function toggle(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  const open = body.classList.toggle('open');
+  header.classList.toggle('open', open);
+  chevron.classList.toggle('open', open);
+}
+</script>
+</body>
+</html>
