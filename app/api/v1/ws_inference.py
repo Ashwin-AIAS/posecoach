@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import time
 from collections import deque
 from datetime import UTC, datetime
@@ -91,6 +92,24 @@ SNAPSHOT_INTERVAL_S = 5.0
 # a TTL so a crashed process self-heals; it is refreshed while frames keep flowing.
 WS_CONN_TTL_S = 120
 
+# Reject oversized frames before they reach the base64 decoder / inference
+# executor. The frontend's capture profiles (320x240-256x192 JPEG) base64-encode
+# to ~15-40 KB; 256 KB is generous headroom for any legitimate frame while
+# stopping a single multi-MB payload from stalling the shared worker.
+MAX_FRAME_BYTES = 256 * 1024
+
+# Connection ceilings (process-local DoS guards). The per-user Redis guard above
+# dedups one authenticated user's tabs; these cap raw socket pressure regardless
+# of auth. Process-local accounting is sufficient for the single-worker deploy and
+# avoids the leak-on-crash hazard of a TTL-less distributed counter — documented
+# as a per-process ceiling. Both are env-overridable.
+MAX_WS_CONNECTIONS = int(os.environ.get("MAX_WS_CONNECTIONS", "64"))
+MAX_ANON_CONNS_PER_IP = int(os.environ.get("MAX_ANON_CONNS_PER_IP", "3"))
+
+# Live per-process connection accounting for the ceilings above.
+_active_ws_count = 0
+_anon_ip_counts: dict[str, int] = {}
+
 
 @router.websocket("/ws/inference")
 async def ws_inference(websocket: WebSocket) -> None:
@@ -106,8 +125,17 @@ async def ws_inference(websocket: WebSocket) -> None:
 
     JPEG frames are NEVER written to disk; only keypoint coords + scores are saved.
     """
+    global _active_ws_count
+
     await websocket.accept()
     active_ws_connections.inc()
+
+    # Connection accounting for the ceilings below — `admitted`/`anon_ip_counted`
+    # gate the matching decrements in the finally block so the counters stay
+    # balanced no matter which path exits.
+    client_ip = websocket.client.host if websocket.client else "unknown"
+    admitted = False
+    anon_ip_counted = False
 
     app = websocket.app
     model = app.state.model
@@ -175,6 +203,27 @@ async def ws_inference(websocket: WebSocket) -> None:
             frame_ready.set()  # wake the processor so it can exit
 
     try:
+        # Connection ceilings — reject before any per-frame work. The finally
+        # below always runs (it owns active_ws_connections.dec()); the
+        # admitted/anon_ip_counted flags keep the process counters balanced.
+        if _active_ws_count >= MAX_WS_CONNECTIONS:
+            logger.warning("ws_global_cap_reached", limit=MAX_WS_CONNECTIONS, ip=client_ip)
+            await websocket.send_json({"error": "server at capacity", "code": "capacity"})
+            await websocket.close(code=1013)  # 1013 = try again later
+            return
+        if session_user_id is None and _anon_ip_counts.get(client_ip, 0) >= MAX_ANON_CONNS_PER_IP:
+            logger.info("ws_anon_ip_cap_reached", limit=MAX_ANON_CONNS_PER_IP, ip=client_ip)
+            await websocket.send_json(
+                {"error": "too many anonymous connections", "code": "anon_limit"}
+            )
+            await websocket.close(code=1008)  # 1008 = policy violation
+            return
+        _active_ws_count += 1
+        admitted = True
+        if session_user_id is None:
+            _anon_ip_counts[client_ip] = _anon_ip_counts.get(client_ip, 0) + 1
+            anon_ip_counted = True
+
         if conn_guard_key is not None:
             try:
                 guard_acquired = bool(await redis.set(conn_guard_key, "1", nx=True, ex=WS_CONN_TTL_S))
@@ -208,6 +257,11 @@ async def ws_inference(websocket: WebSocket) -> None:
 
             if not frame_b64:
                 await websocket.send_json({"error": "missing frame"})
+                continue
+
+            if len(frame_b64) > MAX_FRAME_BYTES:
+                logger.warning("ws_frame_too_large", frame_chars=len(frame_b64), limit=MAX_FRAME_BYTES)
+                await websocket.send_json({"error": "frame too large", "max_bytes": MAX_FRAME_BYTES})
                 continue
 
             if exercise not in SUPPORTED_EXERCISES:
@@ -447,6 +501,14 @@ async def ws_inference(websocket: WebSocket) -> None:
         logger.info("ws_disconnected", client=websocket.client)
     finally:
         active_ws_connections.dec()
+        if admitted:
+            _active_ws_count -= 1
+        if anon_ip_counted:
+            remaining = _anon_ip_counts.get(client_ip, 1) - 1
+            if remaining <= 0:
+                _anon_ip_counts.pop(client_ip, None)
+            else:
+                _anon_ip_counts[client_ip] = remaining
         if recv_task is not None:
             recv_task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):

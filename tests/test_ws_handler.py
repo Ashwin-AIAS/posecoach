@@ -148,3 +148,58 @@ def test_ws_all_exercises_accepted(exercise: str) -> None:
             ws.send_json({"frame": _make_frame_b64(), "exercise": exercise})
             data = ws.receive_json()
             assert "error" not in data or "unsupported" not in data.get("error", "")
+
+
+def test_ws_oversized_frame_rejected() -> None:
+    """A frame over MAX_FRAME_BYTES is rejected before decode, socket stays open."""
+    from app.api.v1.ws_inference import MAX_FRAME_BYTES
+
+    with TestClient(app) as client:
+        _override_app_state()
+        with client.websocket_connect("/ws/inference") as ws:
+            ws.send_json({"frame": "A" * (MAX_FRAME_BYTES + 1), "exercise": "squat"})
+            data = ws.receive_json()
+            assert data.get("error") == "frame too large"
+            assert data.get("max_bytes") == MAX_FRAME_BYTES
+
+
+def test_ws_frame_at_size_limit_not_rejected() -> None:
+    """A frame exactly at the cap clears the size gate (no 'frame too large')."""
+    from app.api.v1.ws_inference import MAX_FRAME_BYTES
+
+    with TestClient(app) as client:
+        _override_app_state()
+        with client.websocket_connect("/ws/inference") as ws:
+            # Exactly at the limit: passes the > check, then fails decode → no_person.
+            ws.send_json({"frame": "A" * MAX_FRAME_BYTES, "exercise": "squat"})
+            data = ws.receive_json()
+            assert data.get("error") != "frame too large"
+
+
+def test_ws_anon_connection_cap_rejects_excess(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A 2nd anonymous socket from the same IP is rejected once the cap is hit."""
+    monkeypatch.setattr("app.api.v1.ws_inference.MAX_ANON_CONNS_PER_IP", 1)
+
+    with TestClient(app) as client:
+        _override_app_state()
+        with client.websocket_connect("/ws/inference") as ws1:
+            ws1.send_json({"frame": _make_frame_b64(), "exercise": "squat"})
+            assert "score" in ws1.receive_json()  # first socket admitted
+            with client.websocket_connect("/ws/inference") as ws2:
+                msg = ws2.receive_json()
+                assert msg.get("code") == "anon_limit"
+
+
+def test_ws_global_connection_cap_rejects_excess(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A socket beyond the global ceiling is rejected with a capacity message."""
+    monkeypatch.setattr("app.api.v1.ws_inference.MAX_WS_CONNECTIONS", 1)
+    monkeypatch.setattr("app.api.v1.ws_inference.MAX_ANON_CONNS_PER_IP", 100)
+
+    with TestClient(app) as client:
+        _override_app_state()
+        with client.websocket_connect("/ws/inference") as ws1:
+            ws1.send_json({"frame": _make_frame_b64(), "exercise": "squat"})
+            assert "score" in ws1.receive_json()  # first socket fills the ceiling
+            with client.websocket_connect("/ws/inference") as ws2:
+                msg = ws2.receive_json()
+                assert msg.get("code") == "capacity"
