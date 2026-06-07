@@ -8,17 +8,32 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 
-async def _fake_gemini_stream(prompt: str, executor: object) -> AsyncIterator[str]:
+async def _fake_gemini_stream(
+    prompt: str,
+    executor: object,
+    history: object = None,
+    system_prompt_override: object = None,
+) -> AsyncIterator[str]:
     for token in ("Hello ", "from ", "Gemini."):
         yield token
 
 
-async def _fake_qwen_stream(prompt: str, frame_b64: str | None = None) -> AsyncIterator[str]:
+async def _fake_qwen_stream(
+    prompt: str,
+    frame_b64: str | None = None,
+    history: object = None,
+    system_prompt_override: object = None,
+) -> AsyncIterator[str]:
     for token in ("Hello ", "from ", "Qwen."):
         yield token
 
 
-async def _failing_gemini_stream(prompt: str, executor: object) -> AsyncIterator[str]:
+async def _failing_gemini_stream(
+    prompt: str,
+    executor: object,
+    history: object = None,
+    system_prompt_override: object = None,
+) -> AsyncIterator[str]:
     raise RuntimeError("gemini down")
     yield  # unreachable — keeps the function an async generator
 
@@ -29,8 +44,14 @@ def _parse_sse(body: bytes) -> list[dict[str, object]]:
         line = raw.strip()
         if not line.startswith("data:"):
             continue
-        events.append(json.loads(line[5:].strip()))
+        parsed = json.loads(line[5:].strip())
+        events.append(parsed)
     return events
+
+
+def _token_events(body: bytes) -> list[dict[str, object]]:
+    """Filter SSE events to only token-type events (those with 'token' key)."""
+    return [e for e in _parse_sse(body) if "token" in e]
 
 
 @pytest.fixture
@@ -59,7 +80,7 @@ async def test_chat_stream_text_query_uses_gemini(patched_app: object) -> None:
         )
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/event-stream")
-    events = _parse_sse(resp.content)
+    events = _token_events(resp.content)
     tokens = [e["token"] for e in events if not e["done"]]
     assert "".join(tokens) == "Hello from Gemini."
     assert events[-1]["done"] is True
@@ -73,7 +94,7 @@ async def test_chat_stream_with_frame_uses_qwen(patched_app: object) -> None:
             json={"query": "Check my form", "frame": "fake_base64_jpeg"},
         )
     assert resp.status_code == 200
-    events = _parse_sse(resp.content)
+    events = _token_events(resp.content)
     tokens = [e["token"] for e in events if not e["done"]]
     assert "".join(tokens) == "Hello from Qwen."
 
@@ -90,7 +111,7 @@ async def test_chat_stream_llm_failure_emits_fallback(
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.post("/api/v1/chat/stream", json={"query": "anything"})
     assert resp.status_code == 200
-    events = _parse_sse(resp.content)
+    events = _token_events(resp.content)
     tokens = [e["token"] for e in events if not e["done"] and e["token"]]
     assert FALLBACK_MESSAGE in "".join(tokens)
 
@@ -137,7 +158,7 @@ async def test_confident_kb_query_answers_from_rag_with_citation(
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.post("/api/v1/chat/stream", json={"query": "Tell me about training"})
     assert resp.status_code == 200
-    joined = "".join(e["token"] for e in _parse_sse(resp.content) if not e["done"])  # type: ignore[misc]
+    joined = "".join(e["token"] for e in _token_events(resp.content) if not e["done"])  # type: ignore[misc]
     assert "Evidence-Based Supplements" in joined
     assert "examine.com/c" in joined
     assert "acsm.org" not in joined  # web fallback was not used
@@ -156,7 +177,7 @@ async def test_out_of_kb_query_falls_back_to_web_with_citation(
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.post("/api/v1/chat/stream", json={"query": "latest marathon world record"})
     assert resp.status_code == 200
-    joined = "".join(e["token"] for e in _parse_sse(resp.content) if not e["done"])  # type: ignore[misc]
+    joined = "".join(e["token"] for e in _token_events(resp.content) if not e["done"])  # type: ignore[misc]
     assert "ACSM Position Stand" in joined
     assert "https://acsm.org/x" in joined
 
@@ -172,7 +193,7 @@ async def test_injury_query_appends_safety_note(
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.post("/api/v1/chat/stream", json={"query": "my knee hurts after squats"})
     assert resp.status_code == 200
-    joined = "".join(e["token"] for e in _parse_sse(resp.content) if not e["done"])  # type: ignore[misc]
+    joined = "".join(e["token"] for e in _token_events(resp.content) if not e["done"])  # type: ignore[misc]
     assert "not medical advice" in joined.lower()
 
 

@@ -23,9 +23,30 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 REQUEST_TIMEOUT = httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=10.0)
 
 
-def _build_messages(prompt: str, frame_b64: str | None) -> list[dict[str, Any]]:
+def _build_messages(
+    prompt: str,
+    frame_b64: str | None,
+    history: list[dict[str, str]] | None = None,
+    system_prompt_override: str | None = None,
+) -> list[dict[str, Any]]:
     """Build OpenAI-style messages, attaching the frame as an image_url if present."""
-    system = VISUAL_SYSTEM_PROMPT if frame_b64 else SYSTEM_PROMPT
+    if system_prompt_override:
+        system = system_prompt_override
+    elif frame_b64:
+        system = VISUAL_SYSTEM_PROMPT
+    else:
+        system = SYSTEM_PROMPT
+
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
+
+    # Insert multi-turn history between system and current user message
+    if history:
+        for turn in history:
+            messages.append({
+                "role": turn["role"],
+                "content": [{"type": "text", "text": turn["content"]}],
+            })
+
     if frame_b64:
         user_content: list[dict[str, Any]] = [
             {"type": "text", "text": prompt},
@@ -33,13 +54,17 @@ def _build_messages(prompt: str, frame_b64: str | None) -> list[dict[str, Any]]:
         ]
     else:
         user_content = [{"type": "text", "text": prompt}]
-    return [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user_content},
-    ]
+
+    messages.append({"role": "user", "content": user_content})
+    return messages
 
 
-async def stream_chat(prompt: str, frame_b64: str | None = None) -> AsyncIterator[str]:
+async def stream_chat(
+    prompt: str,
+    frame_b64: str | None = None,
+    history: list[dict[str, str]] | None = None,
+    system_prompt_override: str | None = None,
+) -> AsyncIterator[str]:
     """Stream text tokens from Qwen via OpenRouter."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
@@ -47,7 +72,7 @@ async def stream_chat(prompt: str, frame_b64: str | None = None) -> AsyncIterato
 
     body = {
         "model": MODEL_NAME,
-        "messages": _build_messages(prompt, frame_b64),
+        "messages": _build_messages(prompt, frame_b64, history, system_prompt_override),
         "stream": True,
         "max_tokens": 600,
     }

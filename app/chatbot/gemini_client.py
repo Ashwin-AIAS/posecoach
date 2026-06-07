@@ -39,13 +39,32 @@ class _GeminiStreamer:
         self._client = client
         self._model = model_name
 
-    def generate_content(self, prompt: str, stream: bool = True) -> Any:
+    def generate_content(
+        self,
+        prompt: str,
+        stream: bool = True,
+        history: list[dict[str, str]] | None = None,
+        system_prompt: str | None = None,
+    ) -> Any:
         from google.genai import types
+
+        sys_instruction = system_prompt or SYSTEM_PROMPT
+
+        # Build multi-turn contents if history is provided
+        if history:
+            contents: list[dict[str, Any]] = []
+            for turn in history:
+                role = "user" if turn["role"] == "user" else "model"
+                contents.append({"role": role, "parts": [{"text": turn["content"]}]})
+            # Current prompt as the final user turn
+            contents.append({"role": "user", "parts": [{"text": prompt}]})
+        else:
+            contents = prompt  # type: ignore[assignment]
 
         return self._client.models.generate_content_stream(
             model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
+            contents=contents,
+            config=types.GenerateContentConfig(system_instruction=sys_instruction),
         )
 
 
@@ -67,6 +86,8 @@ def _build_model() -> _GeminiStreamer:
 async def stream_chat(
     prompt: str,
     executor: Executor,
+    history: list[dict[str, str]] | None = None,
+    system_prompt_override: str | None = None,
 ) -> AsyncIterator[str]:
     """Stream text tokens from Gemini via the executor."""
     loop = asyncio.get_running_loop()
@@ -76,7 +97,12 @@ async def stream_chat(
     def _produce() -> None:
         try:
             model = _build_model()
-            response = model.generate_content(prompt, stream=True)
+            response = model.generate_content(
+                prompt,
+                stream=True,
+                history=history,
+                system_prompt=system_prompt_override,
+            )
             for chunk in response:
                 text = getattr(chunk, "text", None)
                 if text:
