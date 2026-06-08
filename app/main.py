@@ -81,7 +81,9 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     log.info("startup_begin")
 
     # Load the pose model once — stored in app.state for all requests.
-    model_path = os.environ["MODEL_PATH"]
+    # .strip() guards against a stray leading/trailing space in the env var; the
+    # onnxruntime loader would otherwise treat it as part of the path (NO_SUCHFILE).
+    model_path = os.environ["MODEL_PATH"].strip()
 
     if model_path.endswith(".onnx"):
         # Direct ONNX Runtime path with its own keypoint decode — bypasses the
