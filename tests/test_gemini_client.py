@@ -25,7 +25,13 @@ class _FakeModel:
     def __init__(self, texts: list[str]) -> None:
         self._texts = texts
 
-    def generate_content(self, prompt: str, stream: bool = False) -> Any:
+    def generate_content(
+        self,
+        prompt: str,
+        stream: bool = False,
+        history: list[dict[str, str]] | None = None,
+        system_prompt: str | None = None,
+    ) -> Any:
         return iter(_FakeChunk(t) for t in self._texts)
 
 
@@ -60,7 +66,13 @@ async def test_stream_chat_propagates_midstream_failure(
     """An error after some tokens still propagates once the stream drains."""
 
     class _BrokenModel:
-        def generate_content(self, prompt: str, stream: bool = False) -> Any:
+        def generate_content(
+            self,
+            prompt: str,
+            stream: bool = False,
+            history: list[dict[str, str]] | None = None,
+            system_prompt: str | None = None,
+        ) -> Any:
             yield _FakeChunk("partial ")
             raise RuntimeError("stream broke")
 
