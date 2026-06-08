@@ -4,6 +4,7 @@ import { useParticles } from "../hooks/useParticles"
 import { usePoseTrail } from "../hooks/usePoseTrail"
 import { usePoseVelocity } from "../hooks/usePoseVelocity"
 import { JOINT_INFO } from "../lib/joints"
+import { createPoseInterpolator } from "../lib/poseInterpolator"
 import type { OverlayState, ScreenPoint } from "../lib/poseRenderer"
 import { drawArcs, drawBones, drawJoints, drawParticles, drawTrail } from "../lib/poseRenderer"
 import { KEYPOINT_COUNT, KP } from "../lib/skeleton"
@@ -84,6 +85,9 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady }: PoseOverlayProps)
     let prevRepState: RepState | null = null
     const torsoWidths: number[] = []
     let curTorso = 0
+    // Reconstructs a smooth render-rate pose from the slower server frame stream
+    // so the skeleton glides along the body's path instead of snapping (P-perf).
+    const interp = createPoseInterpolator()
 
     const loop = (): void => {
       raf = requestAnimationFrame(loop)
@@ -108,12 +112,22 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady }: PoseOverlayProps)
       const res = resultRef.current
       const mir = mirroredRef.current
       if (res === null || res.keypoints.length !== KEYPOINT_COUNT) {
+        interp.reset() // don't interpolate across a person-absent gap
         drawParticles(ctx, liveParticles)
         return
       }
 
       const conf = res.confidence
-      const pts: ScreenPoint[] = res.keypoints.map(([x, y]) => ({
+
+      // Feed each freshly-arrived server frame to the interpolator, then sample
+      // the pose for `now`: this turns the ~6–15 Hz server stream into motion
+      // drawn at the rAF rate, so the skeleton glides instead of snapping.
+      const isNew = res !== processed
+      if (isNew) interp.push(res.keypoints, conf, now)
+      const sampled = interp.sample(now)
+      const renderKp = sampled ? sampled.keypoints : res.keypoints
+
+      const pts: ScreenPoint[] = renderKp.map(([x, y]) => ({
         x: (mir ? 1 - x : x) * W,
         y: y * H,
       }))
@@ -121,7 +135,6 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady }: PoseOverlayProps)
       // Process side effects only when a genuinely new frame arrives (identity
       // changes per WS message), so trails/velocity/particles don't double-fire
       // while the loop re-renders a frozen frame after a disconnect.
-      const isNew = res !== processed
       if (isNew) {
         processed = res
         velocity.update(pts, now)
