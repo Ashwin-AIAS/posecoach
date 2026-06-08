@@ -3,8 +3,8 @@
  *
  * Composites the three independent on-screen layers — camera `<video>`, the pose
  * overlay `<canvas>`, and a native re-draw of the HUD — into one hidden canvas,
- * then records that canvas with `MediaRecorder`. The clip is saved locally only
- * (share sheet on mobile, `<a download>` otherwise); nothing is uploaded and no
+ * then records that canvas with `MediaRecorder`. The clip is held in memory so
+ * the user can preview it in-app before sharing; nothing is uploaded and no
  * server endpoint is involved (spec §5).
  */
 
@@ -12,18 +12,28 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { Exercise } from "../types"
 
-/** Codec preference, first supported wins. webm for desktop, mp4/h264 for iOS. */
+/**
+ * Codec preference — mp4 first for iOS Safari (records mp4 natively),
+ * webm fallback for desktop Chrome/Firefox.
+ */
 const MIME_CANDIDATES = [
+  "video/mp4;codecs=h264",
+  "video/mp4",
   "video/webm;codecs=vp9",
   "video/webm;codecs=vp8",
   "video/webm",
-  "video/mp4;codecs=h264",
-  "video/mp4",
 ] as const
 
 const DEFAULT_FPS = 30
 /** Throttle the live REC-timer state updates so we don't re-render per frame. */
 const ELAPSED_INTERVAL_MS = 250
+
+/** Recorded session ready for in-app playback + share. */
+export interface RecordedSession {
+  readonly blob: Blob
+  readonly fileName: string
+  readonly mimeType: string
+}
 
 export interface UseSessionRecorderOptions {
   readonly videoRef: React.RefObject<HTMLVideoElement>
@@ -47,6 +57,10 @@ export interface UseSessionRecorderResult {
   readonly start: () => void
   readonly stop: () => void
   readonly error: string | null
+  /** The last completed recording, ready for in-app playback. null if none. */
+  readonly lastRecording: RecordedSession | null
+  /** Dismiss the last recording (frees memory). */
+  readonly clearRecording: () => void
 }
 
 /** First codec the platform can actually record, or "" if none. */
@@ -79,7 +93,7 @@ type ShareCapableNavigator = Navigator & {
   share?: (data: FileShareData) => Promise<void>
 }
 
-function downloadFile(file: File): void {
+export function downloadFile(file: File): void {
   const url = URL.createObjectURL(file)
   const a = document.createElement("a")
   a.href = url
@@ -91,30 +105,46 @@ function downloadFile(file: File): void {
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-async function saveFile(file: File): Promise<void> {
+export async function shareFile(file: File): Promise<void> {
   const nav = navigator as ShareCapableNavigator
   if (nav.canShare?.({ files: [file] }) && nav.share !== undefined) {
     try {
-      await nav.share({ files: [file], title: "PoseCoach session" })
+      await nav.share({ files: [file], title: "My PoseCoach session" })
       return
-    } catch {
-      // User dismissed the sheet, or share failed — fall through to download.
+    } catch (e: unknown) {
+      // AbortError = user dismissed share sheet — not a real error.
+      if (e instanceof Error && e.name === "AbortError") return
+      // Other errors — fall through to download.
     }
   }
   downloadFile(file)
 }
 
+/** True if the browser can share files natively (mobile share sheet). */
+export function canShareFiles(): boolean {
+  const nav = navigator as ShareCapableNavigator
+  if (typeof nav.canShare !== "function" || typeof nav.share !== "function") return false
+  try {
+    const testFile = new File([""], "test.mp4", { type: "video/mp4" })
+    return nav.canShare({ files: [testFile] })
+  } catch {
+    return false
+  }
+}
+
 /**
  * Owns the recording lifecycle and the compositor draw loop. `start()` builds a
  * hidden canvas at the video's intrinsic resolution, composites each frame, and
- * records it; `stop()` flushes the chunks to a local file. Cleans up the rAF
- * loop and recorder on unmount.
+ * records it; `stop()` flushes the chunks to an in-memory blob exposed via
+ * `lastRecording` for in-app preview. The user can then share or download.
+ * Cleans up the rAF loop and recorder on unmount.
  */
 export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessionRecorderResult {
   const [supported] = useState(computeSupported)
   const [recording, setRecording] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [lastRecording, setLastRecording] = useState<RecordedSession | null>(null)
 
   // Latest options mirrored into a ref so the rAF loop never re-subscribes.
   const optsRef = useRef(options)
@@ -129,6 +159,10 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
   const startedAtRef = useRef(0)
   const lastDrawRef = useRef(0)
   const lastElapsedRef = useRef(0)
+
+  const clearRecording = useCallback(() => {
+    setLastRecording(null)
+  }, [])
 
   const drawFrame = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number): void => {
     const { videoRef, overlayCanvas, drawHud, mirrored } = optsRef.current
@@ -176,7 +210,7 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     renderOnce()
   }, [renderOnce])
 
-  const finalize = useCallback(async (): Promise<void> => {
+  const finalize = useCallback((): void => {
     const chunks = chunksRef.current
     chunksRef.current = []
     if (chunks.length === 0) return
@@ -184,8 +218,7 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     const blob = new Blob(chunks, { type: mime })
     const ext = extensionForMime(mime)
     const name = `posecoach-${optsRef.current.exercise}-${Date.now()}.${ext}`
-    const file = new File([blob], name, { type: mime })
-    await saveFile(file)
+    setLastRecording({ blob, fileName: name, mimeType: mime })
   }, [])
 
   const start = useCallback((): void => {
@@ -222,7 +255,7 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
       if (event.data.size > 0) chunksRef.current.push(event.data)
     }
     recorder.onstop = (): void => {
-      void finalize()
+      finalize()
     }
     recorderRef.current = recorder
 
@@ -234,6 +267,8 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     setError(null)
     setElapsedMs(0)
     setRecording(true)
+    // Clear any previous recording when starting a new one
+    setLastRecording(null)
 
     recorder.start(1000) // periodic chunks so a long clip survives a tab kill
     renderOnce() // paint the first frame immediately, then drive the loop
@@ -250,9 +285,9 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     }
     const recorder = recorderRef.current
     if (recorder !== null && recorder.state !== "inactive") {
-      recorder.stop() // fires onstop → finalize() → local save
+      recorder.stop() // fires onstop → finalize() → sets lastRecording
     } else {
-      void finalize()
+      finalize()
     }
   }, [finalize])
 
@@ -266,5 +301,8 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     }
   }, [])
 
-  return { supported, recording, elapsedMs, start, stop, error }
+  return {
+    supported, recording, elapsedMs, start, stop, error,
+    lastRecording, clearRecording,
+  }
 }

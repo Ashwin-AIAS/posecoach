@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react"
+import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -8,12 +8,20 @@ import {
 } from "../useSessionRecorder"
 import type { UseSessionRecorderOptions } from "../useSessionRecorder"
 
-const SUPPORTED_MIME = "video/webm;codecs=vp9"
+/**
+ * The mp4 candidates are now first in MIME_CANDIDATES. We tell the mock to
+ * support "video/mp4;codecs=h264" so tests pick the new preferred codec.
+ * We also support "video/webm;codecs=vp9" as the webm fallback path.
+ */
+const SUPPORTED_MP4 = "video/mp4;codecs=h264"
+const SUPPORTED_WEBM = "video/webm;codecs=vp9"
 
 /** Minimal MediaRecorder stand-in — jsdom has none. */
 class MockMediaRecorder {
   static instances: MockMediaRecorder[] = []
-  static isTypeSupported = vi.fn((t: string) => t === SUPPORTED_MIME)
+  static isTypeSupported = vi.fn(
+    (t: string) => t === SUPPORTED_MP4 || t === SUPPORTED_WEBM,
+  )
   state: "inactive" | "recording" = "inactive"
   ondataavailable: ((e: { data: Blob }) => void) | null = null
   onstop: (() => void) | null = null
@@ -68,6 +76,9 @@ function options(overrides: Partial<UseSessionRecorderOptions> = {}): UseSession
 
 beforeEach(() => {
   MockMediaRecorder.instances = []
+  MockMediaRecorder.isTypeSupported = vi.fn(
+    (t: string) => t === SUPPORTED_MP4 || t === SUPPORTED_WEBM,
+  )
   vi.stubGlobal("MediaRecorder", MockMediaRecorder)
   vi.stubGlobal("requestAnimationFrame", vi.fn((): number => 1))
   vi.stubGlobal("cancelAnimationFrame", vi.fn())
@@ -87,8 +98,13 @@ afterEach(() => {
 })
 
 describe("codec selection", () => {
-  it("picks the first supported candidate", () => {
-    expect(pickMimeType()).toBe(SUPPORTED_MIME)
+  it("picks mp4 first when supported (iOS)", () => {
+    expect(pickMimeType()).toBe(SUPPORTED_MP4)
+  })
+
+  it("falls back to webm when mp4 is not supported", () => {
+    MockMediaRecorder.isTypeSupported = vi.fn((t: string) => t === SUPPORTED_WEBM)
+    expect(pickMimeType()).toBe(SUPPORTED_WEBM)
   })
 
   it("derives the file extension from the mime type", () => {
@@ -116,7 +132,7 @@ describe("useSessionRecorder lifecycle", () => {
     act(() => result.current.start())
     expect(result.current.recording).toBe(true)
     expect(MockMediaRecorder.instances).toHaveLength(1)
-    expect(MockMediaRecorder.instances[0].options?.mimeType).toBe(SUPPORTED_MIME)
+    expect(MockMediaRecorder.instances[0].options?.mimeType).toBe(SUPPORTED_MP4)
     expect(MockMediaRecorder.instances[0].start).toHaveBeenCalled()
     expect(requestAnimationFrame).toHaveBeenCalled()
   })
@@ -135,41 +151,52 @@ describe("useSessionRecorder lifecycle", () => {
     expect(ctxSpies.scale).not.toHaveBeenCalledWith(-1, 1)
   })
 
-  it("stop() flushes chunks to a Blob and saves via the download fallback", async () => {
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {})
+  it("stop() sets lastRecording with the recorded blob for in-app preview", () => {
     const { result } = renderHook(() => useSessionRecorder(options()))
     act(() => result.current.start())
 
     const recorder = MockMediaRecorder.instances[0]
-    act(() => recorder.ondataavailable?.({ data: new Blob(["x"], { type: SUPPORTED_MIME }) }))
+    act(() => recorder.ondataavailable?.({ data: new Blob(["x"], { type: SUPPORTED_MP4 }) }))
 
-    await act(async () => {
+    act(() => {
       result.current.stop()
-      await Promise.resolve()
     })
 
     expect(recorder.stop).toHaveBeenCalled()
     expect(result.current.recording).toBe(false)
-    await waitFor(() => expect(clickSpy).toHaveBeenCalled())
-    expect(URL.createObjectURL).toHaveBeenCalled()
+    expect(result.current.lastRecording).not.toBeNull()
+    expect(result.current.lastRecording?.blob).toBeInstanceOf(Blob)
+    expect(result.current.lastRecording?.mimeType).toBe(SUPPORTED_MP4)
+    expect(result.current.lastRecording?.fileName).toMatch(/^posecoach-squat-\d+\.mp4$/)
   })
 
-  it("stop() prefers the native share sheet when canShare reports files are shareable", async () => {
-    const share = vi.fn(() => Promise.resolve())
-    ;(navigator as { canShare?: (d: unknown) => boolean }).canShare = vi.fn(() => true)
-    ;(navigator as { share?: (d: unknown) => Promise<void> }).share = share
-
+  it("clearRecording() dismisses the recording", () => {
     const { result } = renderHook(() => useSessionRecorder(options()))
     act(() => result.current.start())
+
     const recorder = MockMediaRecorder.instances[0]
-    act(() => recorder.ondataavailable?.({ data: new Blob(["x"], { type: SUPPORTED_MIME }) }))
+    act(() => recorder.ondataavailable?.({ data: new Blob(["x"], { type: SUPPORTED_MP4 }) }))
 
-    await act(async () => {
-      result.current.stop()
-      await Promise.resolve()
-    })
+    act(() => result.current.stop())
+    expect(result.current.lastRecording).not.toBeNull()
 
-    await waitFor(() => expect(share).toHaveBeenCalled())
+    act(() => result.current.clearRecording())
+    expect(result.current.lastRecording).toBeNull()
+  })
+
+  it("start() clears previous recording", () => {
+    const { result } = renderHook(() => useSessionRecorder(options()))
+
+    // First recording
+    act(() => result.current.start())
+    const recorder1 = MockMediaRecorder.instances[0]
+    act(() => recorder1.ondataavailable?.({ data: new Blob(["x"], { type: SUPPORTED_MP4 }) }))
+    act(() => result.current.stop())
+    expect(result.current.lastRecording).not.toBeNull()
+
+    // Start new recording — should clear previous
+    act(() => result.current.start())
+    expect(result.current.lastRecording).toBeNull()
   })
 
   it("stop() is a no-op when not recording (safe to call from auto-stop hooks)", () => {

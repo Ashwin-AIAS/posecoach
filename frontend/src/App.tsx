@@ -10,6 +10,7 @@ import { HistoryPanel } from "./components/HistoryPanel"
 import { HowToDrawer } from "./components/HowToDrawer"
 import { InstallBanner } from "./components/InstallBanner"
 import { PoseOverlay } from "./components/PoseOverlay"
+import { RecordingPreview } from "./components/RecordingPreview"
 import { ReferenceVideoPanel } from "./components/ReferenceVideoPanel"
 import { SessionSummary } from "./components/SessionSummary"
 import { UserMenu } from "./components/UserMenu"
@@ -222,6 +223,9 @@ export default function App(): JSX.Element {
       <HowToDrawer exercise={howTo} onClose={() => setHowTo(null)} />
       {summary !== null && (
         <SessionSummary exercise={exercise} stats={summary} onClose={closeSummary} />
+      )}
+      {recorder.lastRecording !== null && (
+        <RecordingPreview session={recorder.lastRecording} onClose={recorder.clearRecording} />
       )}
       <InstallBanner />
 
