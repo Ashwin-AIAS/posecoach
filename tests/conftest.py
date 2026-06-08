@@ -10,7 +10,9 @@ from unittest.mock import AsyncMock, MagicMock
 os.environ.setdefault("POSTGRES_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET", "test_secret_at_least_32_chars_long_ok")
-os.environ.setdefault("MODEL_PATH", "models/yolo_posecoach_v1.onnx")
+# Point the lifespan at the .pt path so it takes the (mocked) Ultralytics branch
+# — the .onnx path now does a real onnxruntime load, which the test env lacks.
+os.environ.setdefault("MODEL_PATH", "models/yolo_posecoach_v1.pt")
 os.environ.setdefault("GEMINI_API_KEY", "test_gemini_key")
 os.environ.setdefault("OPENROUTER_API_KEY", "test_openrouter_key")
 os.environ.setdefault("CHROMA_PATH", "data/chroma_test")

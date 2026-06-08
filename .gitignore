@@ -61,6 +61,7 @@ coverage.xml
 # PyTorch
 *.onnx
 !models/yolo_posecoach_v1.onnx
+!models/yolo_posecoach_v1_320.onnx
 
 # Misc
 *.bak

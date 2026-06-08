@@ -20,6 +20,7 @@ from app.api.v1.chat import router as chat_router
 from app.api.v1.history import router as history_router
 from app.api.v1.ws_inference import router as ws_router
 from app.cache import create_redis_client
+from app.inference.onnx_session import OnnxPoseSession
 from app.logging_config import setup_logging
 from app.metrics import registry as metrics_registry
 from app.middleware import RequestIdMiddleware, SecurityHeadersMiddleware, TimingMiddleware
@@ -79,19 +80,18 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     log = structlog.get_logger(__name__)
     log.info("startup_begin")
 
-    # Load YOLO26 model once — 3-5s, stored in app.state for all requests
+    # Load the pose model once — stored in app.state for all requests.
     model_path = os.environ["MODEL_PATH"]
 
-    # Ultralytics 8.4.x ONNX bug: InferenceSession enters a bad state after the
-    # first predict(), causing results[0].keypoints to be None on all subsequent
-    # calls. The PT model avoids this — use it when present alongside the ONNX.
     if model_path.endswith(".onnx"):
-        pt_path = model_path[:-5] + ".pt"
-        if os.path.exists(pt_path):
-            log.info("pt_preferred_over_onnx", pt=pt_path)
-            model_path = pt_path
-
-    application.state.model = YOLO(model_path, task="pose")
+        # Direct ONNX Runtime path with its own keypoint decode — bypasses the
+        # Ultralytics 8.4.x InferenceSession bug (which the old code worked around
+        # by silently loading the slow .pt) and is far faster on CPU.
+        onnx_threads = int(os.environ.get("ONNX_INTRA_OP_THREADS", "2"))
+        application.state.model = OnnxPoseSession(model_path, intra_op_threads=onnx_threads)
+    else:
+        # PyTorch weights — dev/local convenience (env-selectable via MODEL_PATH).
+        application.state.model = YOLO(model_path, task="pose")
     application.state.executor = ThreadPoolExecutor(max_workers=2)
     log.info("model_loaded", path=model_path)
 

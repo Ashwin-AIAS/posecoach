@@ -38,8 +38,16 @@ module = [
     "google",
     "google.genai",
     "google.genai.*",
-    "ultralytics",
     "torch",
+    "onnxruntime",
     "prometheus_client",
 ]
 ignore_missing_imports = true
+
+# Ultralytics ships no py.typed. When it IS installed (e.g. a dev box that ran an
+# ONNX export), --strict's no-implicit-reexport flags `from ultralytics import
+# YOLO`; skipping follow keeps it Any whether or not the heavy lib is present.
+[[tool.mypy.overrides]]
+module = ["ultralytics", "ultralytics.*"]
+ignore_missing_imports = true
+follow_imports = "skip"

@@ -16,7 +16,7 @@ from starlette.testclient import TestClient
 os.environ.setdefault("POSTGRES_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET", "test_secret_at_least_32_chars_long_ok")
-os.environ.setdefault("MODEL_PATH", "models/yolo_posecoach_v1.onnx")
+os.environ.setdefault("MODEL_PATH", "models/yolo_posecoach_v1.pt")
 
 from app.analysis.form_scorer import SUPPORTED_EXERCISES
 from app.main import app

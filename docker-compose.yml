@@ -47,7 +47,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       JWT_SECRET: ${JWT_SECRET:-dev_secret_change_in_production}
-      MODEL_PATH: models/yolo_posecoach_v1.onnx
+      MODEL_PATH: models/yolo_posecoach_v1_320.onnx
       CHROMA_PATH: data/chroma
       ALLOWED_ORIGINS: http://localhost:5173
       ENVIRONMENT: development
