@@ -254,8 +254,11 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     recorder.ondataavailable = (event: BlobEvent): void => {
       if (event.data.size > 0) chunksRef.current.push(event.data)
     }
+    // Defer finalize by one microtask so the browser's final ondataavailable
+    // event (which carries any remaining data) lands before we read chunksRef.
+    // Without this, short recordings (< timeslice) produce zero chunks.
     recorder.onstop = (): void => {
-      finalize()
+      void Promise.resolve().then(() => finalize())
     }
     recorderRef.current = recorder
 
@@ -270,7 +273,7 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     // Clear any previous recording when starting a new one
     setLastRecording(null)
 
-    recorder.start(1000) // periodic chunks so a long clip survives a tab kill
+    recorder.start(200) // short timeslice so even brief recordings have data
     renderOnce() // paint the first frame immediately, then drive the loop
     rafRef.current = requestAnimationFrame(tick)
   }, [finalize, renderOnce, tick])
@@ -285,7 +288,17 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     }
     const recorder = recorderRef.current
     if (recorder !== null && recorder.state !== "inactive") {
-      recorder.stop() // fires onstop → finalize() → sets lastRecording
+      // Force-flush any pending data before stopping. requestData() is
+      // unsupported on some iOS Safari versions — guard with try/catch.
+      try {
+        if (typeof recorder.requestData === "function") {
+          recorder.requestData()
+        }
+      } catch {
+        // requestData not supported — the 200ms timeslice ensures
+        // ondataavailable will have fired for any recording > 200ms.
+      }
+      recorder.stop() // fires onstop → deferred finalize() → sets lastRecording
     } else {
       finalize()
     }

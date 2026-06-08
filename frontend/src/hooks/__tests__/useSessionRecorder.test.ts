@@ -25,6 +25,10 @@ class MockMediaRecorder {
   state: "inactive" | "recording" = "inactive"
   ondataavailable: ((e: { data: Blob }) => void) | null = null
   onstop: (() => void) | null = null
+  requestData = vi.fn(() => {
+    // Simulate flushing data — fire ondataavailable with any pending data.
+    // In tests we manually fire ondataavailable, so this is a no-op.
+  })
   start = vi.fn(() => {
     this.state = "recording"
   })
@@ -151,15 +155,17 @@ describe("useSessionRecorder lifecycle", () => {
     expect(ctxSpies.scale).not.toHaveBeenCalledWith(-1, 1)
   })
 
-  it("stop() sets lastRecording with the recorded blob for in-app preview", () => {
+  it("stop() sets lastRecording with the recorded blob for in-app preview", async () => {
     const { result } = renderHook(() => useSessionRecorder(options()))
     act(() => result.current.start())
 
     const recorder = MockMediaRecorder.instances[0]
     act(() => recorder.ondataavailable?.({ data: new Blob(["x"], { type: SUPPORTED_MP4 }) }))
 
-    act(() => {
+    // stop() defers finalize via Promise.resolve().then() — need async act.
+    await act(async () => {
       result.current.stop()
+      await Promise.resolve()
     })
 
     expect(recorder.stop).toHaveBeenCalled()
@@ -170,28 +176,34 @@ describe("useSessionRecorder lifecycle", () => {
     expect(result.current.lastRecording?.fileName).toMatch(/^posecoach-squat-\d+\.mp4$/)
   })
 
-  it("clearRecording() dismisses the recording", () => {
+  it("clearRecording() dismisses the recording", async () => {
     const { result } = renderHook(() => useSessionRecorder(options()))
     act(() => result.current.start())
 
     const recorder = MockMediaRecorder.instances[0]
     act(() => recorder.ondataavailable?.({ data: new Blob(["x"], { type: SUPPORTED_MP4 }) }))
 
-    act(() => result.current.stop())
+    await act(async () => {
+      result.current.stop()
+      await Promise.resolve()
+    })
     expect(result.current.lastRecording).not.toBeNull()
 
     act(() => result.current.clearRecording())
     expect(result.current.lastRecording).toBeNull()
   })
 
-  it("start() clears previous recording", () => {
+  it("start() clears previous recording", async () => {
     const { result } = renderHook(() => useSessionRecorder(options()))
 
     // First recording
     act(() => result.current.start())
     const recorder1 = MockMediaRecorder.instances[0]
     act(() => recorder1.ondataavailable?.({ data: new Blob(["x"], { type: SUPPORTED_MP4 }) }))
-    act(() => result.current.stop())
+    await act(async () => {
+      result.current.stop()
+      await Promise.resolve()
+    })
     expect(result.current.lastRecording).not.toBeNull()
 
     // Start new recording — should clear previous
