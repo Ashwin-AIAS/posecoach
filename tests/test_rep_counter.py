@@ -157,3 +157,23 @@ def test_other_exercises_count_with_their_joints(exercise: str) -> None:
         for frac in [0.5 - 0.5 * math.cos(math.pi * (i / 8)) for i in range(1, 9)]:
             last = counter.update({j: lo + (hi - lo) * frac for j, (lo, hi) in per_joint.items()})
     assert last == 3
+
+
+@pytest.mark.parametrize("exercise", ["shrug", "front_raise", "overhead_triceps"])
+def test_p15_exercises_count_full_reps(exercise: str) -> None:
+    # P15: oscillate each PRIMARY joint across its own Fit3D [p5, p95] for 5 reps.
+    # Ranges are read via joint_range (never hardcoded degrees) to stay locked to
+    # angle_ranges.json. This is the shrug decision test (section 2): the full-
+    # range sweep clears the amplitude guard, so no per-exercise ROM override is
+    # needed for the synthetic benchmark.
+    joints = list(REP_SIGNAL[exercise].primary)
+    per_joint = {j: r for j in joints if (r := joint_range(exercise, j)) is not None}
+    assert per_joint, f"{exercise} should have at least one ranged primary joint"
+    counter = RepCounter(exercise)
+    last = 0
+    for _ in range(5):
+        for frac in [0.5 - 0.5 * math.cos(math.pi * (i / 8)) for i in range(1, 9)]:
+            last = counter.update({j: hi - (hi - lo) * frac for j, (lo, hi) in per_joint.items()})
+        for frac in [0.5 - 0.5 * math.cos(math.pi * (i / 8)) for i in range(1, 9)]:
+            last = counter.update({j: lo + (hi - lo) * frac for j, (lo, hi) in per_joint.items()})
+    assert last == 5

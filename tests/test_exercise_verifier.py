@@ -91,6 +91,27 @@ def test_wrong_exercise_curling_while_squat_chosen_flags_absent() -> None:
     assert res.detected_hint is not None
 
 
+def test_squat_motion_while_front_raise_chosen_flags_absent() -> None:
+    # Knees drive a squat-like sweep while the shoulders — the front-raise movers —
+    # stay put: real activity is present, but the wrong joints are moving.
+    knee = _sweep(178.0, 80.0, 3)
+    shoulder = [30.0] * len(knee)  # arms held down, not raising
+    win = _two_joint_window("knee_angle", knee, "shoulder_angle", shoulder)
+    res = classify("front_raise", win)
+    assert res.verified is False
+    assert res.detected_hint is not None
+    assert len(res.detected_hint.split()) <= 8
+
+
+def test_correct_front_raise_is_verified() -> None:
+    # Shoulders sweep their range (the front-raise mover); knees stay locked.
+    lo_s, hi_s = joint_range("front_raise", "left_shoulder_angle") or (53.0, 142.0)
+    shoulder = _sweep(hi_s, lo_s, 3)
+    knee = [178.0] * len(shoulder)
+    win = _two_joint_window("shoulder_angle", shoulder, "knee_angle", knee)
+    assert classify("front_raise", win).verified is True
+
+
 def test_idle_standing_is_not_flagged() -> None:
     win: list[dict[str, float | None]] = [
         {"left_knee_angle": 178.0, "right_knee_angle": 178.0} for _ in range(60)

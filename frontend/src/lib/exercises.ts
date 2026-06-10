@@ -177,6 +177,34 @@ export const EXERCISE_META: Record<Exercise, ExerciseMeta> = {
     difficulty: "Beginner",
     formTips: ["Squeeze glutes, keep back flat", "Shoulders stacked over elbows"],
   },
+  // P15 expansion (Fit3D-backed) — youtubeIds oEmbed-verified, reputable channels.
+  shrug: {
+    id: "shrug",
+    label: "Shrug",
+    category: "Pull",
+    primaryMuscles: ["Traps"],
+    youtubeId: "xDt6qbKgLkY",
+    difficulty: "Beginner",
+    formTips: ["Straight arms, shrug straight up", "Pause at the top, lower slow"],
+  },
+  front_raise: {
+    id: "front_raise",
+    label: "Front Raise",
+    category: "Shoulders",
+    primaryMuscles: ["Front Delts"],
+    youtubeId: "CH9JzDStL3U",
+    difficulty: "Beginner",
+    formTips: ["Raise to shoulder height only", "No swinging — strict and slow"],
+  },
+  overhead_triceps: {
+    id: "overhead_triceps",
+    label: "Overhead Triceps Extension",
+    category: "Arms",
+    primaryMuscles: ["Triceps"],
+    youtubeId: "fYqswDVbJDg",
+    difficulty: "Beginner",
+    formTips: ["Elbows up, close to head", "Stretch deep, extend to lockout"],
+  },
 }
 
 /** All metadata in declaration order. */

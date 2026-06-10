@@ -26,7 +26,6 @@ from app.chatbot import gemini_client, qwen_client, rag, web_search
 from app.chatbot import router as chat_router
 from app.chatbot.prompts import (
     CONVERSATIONAL_SYSTEM_PROMPT,
-    FALLBACK_MESSAGE,
     SAFETY_NOTE,
     build_smart_fallback,
     build_sources_footer,

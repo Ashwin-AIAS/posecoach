@@ -14,6 +14,9 @@ export type Exercise =
   | "diamond_pushup"
   | "drag_curl"
   | "one_arm_row"
+  | "shrug"
+  | "front_raise"
+  | "overhead_triceps"
 
 export const EXERCISES: readonly Exercise[] = [
   "squat",
@@ -31,6 +34,9 @@ export const EXERCISES: readonly Exercise[] = [
   "diamond_pushup",
   "drag_curl",
   "one_arm_row",
+  "shrug",
+  "front_raise",
+  "overhead_triceps",
 ] as const
 
 export type Keypoint = readonly [number, number]

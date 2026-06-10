@@ -64,6 +64,7 @@ class ExerciseSignature:
 _ELBOWS = ("left_elbow_angle", "right_elbow_angle")
 _KNEES = ("left_knee_angle", "right_knee_angle")
 _HIPS = ("left_hip_angle", "right_hip_angle")
+_SHOULDERS = ("left_shoulder_angle", "right_shoulder_angle")
 
 # Verification signatures. Only exercises where a wrong-movement is plausible and
 # detectable carry special rules; the rest just require their movers to move.
@@ -97,8 +98,20 @@ EXERCISE_SIGNATURES: dict[str, ExerciseSignature] = {
         absent_hint="Pull with your elbow to row",
     ),
     "lateral_raise": ExerciseSignature(
-        ("left_shoulder_angle", "right_shoulder_angle"),
+        _SHOULDERS,
         absent_hint="Raise your arms out wide",
+    ),
+    "shrug": ExerciseSignature(
+        _SHOULDERS,
+        absent_hint="Shrug your shoulders up",
+    ),
+    "front_raise": ExerciseSignature(
+        _SHOULDERS,
+        absent_hint="Raise your arms forward",
+    ),
+    "overhead_triceps": ExerciseSignature(
+        _ELBOWS,
+        absent_hint="Extend your elbows overhead",
     ),
     # plank: isometric — no movement signature to verify.
 }

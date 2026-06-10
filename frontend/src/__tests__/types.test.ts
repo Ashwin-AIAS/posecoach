@@ -17,7 +17,7 @@ describe("EXERCISES list", () => {
   })
 
   it("exposes the full expanded set with no duplicates", () => {
-    expect(EXERCISES.length).toBe(15)
+    expect(EXERCISES.length).toBe(18)
     expect(new Set(EXERCISES).size).toBe(EXERCISES.length)
   })
 })

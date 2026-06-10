@@ -34,6 +34,10 @@ SUPPORTED_EXERCISES = frozenset(
         "diamond_pushup",
         "drag_curl",
         "one_arm_row",
+        # P15 expansion (Fit3D-backed)
+        "shrug",
+        "front_raise",
+        "overhead_triceps",
     }
 )
 
@@ -54,6 +58,12 @@ _EXERCISE_DATA_KEY: dict[str, str | None] = {
     "diamond_pushup": "diamond_pushup",
     "drag_curl": "drag_curl",
     "one_arm_row": "one_arm_row",
+    # P15 expansion (Fit3D-backed)
+    "shrug": "barbell_shrug",
+    "front_raise": "dumbbell_scaptions",
+    # Caveat: overhead_extension_thruster source clips include a leg-drive
+    # (thruster) component, so knees/hips are deliberately NOT scored here.
+    "overhead_triceps": "overhead_extension_thruster",
 }
 
 # Joints scored per exercise (subset of ANGLE_TRIPLETS + hip_trunk_angle)
@@ -73,6 +83,15 @@ _EXERCISE_JOINTS: dict[str, list[str]] = {
     "diamond_pushup": ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
     "drag_curl": ["left_elbow_angle", "right_elbow_angle"],
     "one_arm_row": ["left_elbow_angle", "right_elbow_angle", "left_hip_angle", "right_hip_angle"],
+    # shrug: arms hang straight (elbow ~147-169 = posture), shoulder angle sweeps
+    # as the dumbbells/bar ride up (p5 ~37-47 -> p95 ~110-114 = mover)
+    "shrug": ["left_shoulder_angle", "right_shoulder_angle", "left_elbow_angle", "right_elbow_angle"],
+    # front_raise: shoulder is the mover (p5 ~39-53 -> p95 ~140-143),
+    # elbow stays nearly straight (p5 ~135-142 -> p95 ~173 = posture)
+    "front_raise": ["left_shoulder_angle", "right_shoulder_angle", "left_elbow_angle", "right_elbow_angle"],
+    # overhead_triceps: elbow is the mover (p5 ~34 -> p95 ~167-168 huge ROM),
+    # shoulder stays elevated (p25 ~85-96 -> p75 ~131-133 = posture)
+    "overhead_triceps": ["left_elbow_angle", "right_elbow_angle", "left_shoulder_angle", "right_shoulder_angle"],
 }
 
 # Hardcoded biomechanical ranges for plank (neutral spine alignment)
@@ -166,6 +185,24 @@ _CUES: dict[str, dict[str, dict[str, str]]] = {
         "left_hip_angle": {"low": "Keep your back flat and braced", "high": "Hinge forward, support on bench"},
         "right_hip_angle": {"low": "Keep your back flat and braced", "high": "Hinge forward, support on bench"},
     },
+    "shrug": {
+        "left_shoulder_angle": {"low": "Let arms hang fully down", "high": "Shrug straight up, not forward"},
+        "right_shoulder_angle": {"low": "Let arms hang fully down", "high": "Shrug straight up, not forward"},
+        "left_elbow_angle": {"low": "Keep arms straight, don't curl", "high": "Relax your arms"},
+        "right_elbow_angle": {"low": "Keep arms straight, don't curl", "high": "Relax your arms"},
+    },
+    "front_raise": {
+        "left_shoulder_angle": {"low": "Raise arms to shoulder height", "high": "Stop at shoulder height"},
+        "right_shoulder_angle": {"low": "Raise arms to shoulder height", "high": "Stop at shoulder height"},
+        "left_elbow_angle": {"low": "Keep arms nearly straight", "high": "Soften your elbows slightly"},
+        "right_elbow_angle": {"low": "Keep arms nearly straight", "high": "Soften your elbows slightly"},
+    },
+    "overhead_triceps": {
+        "left_elbow_angle": {"low": "Stretch deeper behind your head", "high": "Extend to full lockout"},
+        "right_elbow_angle": {"low": "Stretch deeper behind your head", "high": "Extend to full lockout"},
+        "left_shoulder_angle": {"low": "Keep elbows pointing up", "high": "Tuck elbows closer in"},
+        "right_shoulder_angle": {"low": "Keep elbows pointing up", "high": "Tuck elbows closer in"},
+    },
 }
 
 
@@ -257,6 +294,10 @@ _POSTURE_JOINTS: dict[str, frozenset[str]] = {
     "barbell_row": frozenset({"left_hip_angle", "right_hip_angle"}),
     "one_arm_row": frozenset({"left_hip_angle", "right_hip_angle"}),
     "plank": frozenset({"left_hip_angle", "right_hip_angle", "hip_trunk_angle"}),
+    # P15: straight arms on a shrug/raise, elevated shoulders on overhead triceps
+    "shrug": frozenset({"left_elbow_angle", "right_elbow_angle"}),
+    "front_raise": frozenset({"left_elbow_angle", "right_elbow_angle"}),
+    "overhead_triceps": frozenset({"left_shoulder_angle", "right_shoulder_angle"}),
 }
 
 # Credit a joint earns at the edge of its full ROM (p5/p95) when it is a posture

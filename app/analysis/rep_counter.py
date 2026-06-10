@@ -82,6 +82,18 @@ REP_SIGNAL: dict[str, RepSignal] = {
     ),
     # Raise — shoulder abduction drives
     "lateral_raise": RepSignal(("left_shoulder_angle", "right_shoulder_angle")),
+    # Shrug — shoulder elevation drives, straight arms are context
+    "shrug": RepSignal(
+        ("left_shoulder_angle", "right_shoulder_angle"),
+        ("left_elbow_angle", "right_elbow_angle"),
+    ),
+    # Raise — shoulder flexion drives
+    "front_raise": RepSignal(("left_shoulder_angle", "right_shoulder_angle")),
+    # Overhead extension — elbow drives, elevated shoulder is context
+    "overhead_triceps": RepSignal(
+        ("left_elbow_angle", "right_elbow_angle"),
+        ("left_shoulder_angle", "right_shoulder_angle"),
+    ),
     # plank: isometric — no rep signal (uses the hold timer instead)
 }
 
