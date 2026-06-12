@@ -88,3 +88,17 @@ export function isPoseError(msg: ServerMessage): msg is PoseError {
 }
 
 export type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error"
+
+/** 1-tap post-set effort rating (P16): 1 = too easy, 3 = just right, 5 = too hard. */
+export type EffortRating = 1 | 3 | 5
+
+/** Next-session recommendation from the adaptive coach (P16). */
+export interface Recommendation {
+  readonly exercise: string
+  /** Reps to add/remove vs last session (seconds for plank). */
+  readonly rep_target_delta: number
+  /** Worst-scoring joint key from the last session (e.g. "left_knee_angle"), if any. */
+  readonly focus_joint: string | null
+  /** One-line plain-English coaching message. */
+  readonly message: string
+}

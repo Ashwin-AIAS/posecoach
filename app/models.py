@@ -34,6 +34,8 @@ class WorkoutSession(Base):
     exercise: Mapped[str] = mapped_column(String, nullable=False)
     rep_count: Mapped[int] = mapped_column(Integer, default=0)
     avg_form_score: Mapped[float] = mapped_column(Float, default=0.0)
+    # 1-tap post-set self-report (P16): 1 = too easy, 3 = just right, 5 = too hard
+    effort_rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # keypoints/scores only — never raw frames
     keypoints_data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     started_at: Mapped[datetime] = mapped_column(

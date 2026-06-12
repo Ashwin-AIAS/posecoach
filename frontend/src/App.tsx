@@ -10,6 +10,7 @@ import { HistoryPanel } from "./components/HistoryPanel"
 import { HowToDrawer } from "./components/HowToDrawer"
 import { InstallBanner } from "./components/InstallBanner"
 import { PoseOverlay } from "./components/PoseOverlay"
+import { RecommendationCard } from "./components/RecommendationCard"
 import { RecordingPreview } from "./components/RecordingPreview"
 import { ReferenceVideoPanel } from "./components/ReferenceVideoPanel"
 import { SessionSummary } from "./components/SessionSummary"
@@ -218,6 +219,8 @@ export default function App(): JSX.Element {
           </button>
         </div>
       </div>
+
+      <RecommendationCard exercise={exercise} />
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
       <HowToDrawer exercise={howTo} onClose={() => setHowTo(null)} />

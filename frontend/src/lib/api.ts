@@ -6,6 +6,8 @@
  * that succeeds the original request is retried; otherwise the error bubbles.
  */
 
+import type { EffortRating, Recommendation } from "../types"
+
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || ""
 const REFRESH_PATH = `${BASE_URL}/api/v1/auth/refresh`
 
@@ -45,6 +47,31 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
 
   resp = await fetch(targetUrl, opts)
   return resp
+}
+
+/** Save the 1-tap effort rating for a finished session (P16). */
+export async function submitEffort(sessionId: string, effort: EffortRating): Promise<void> {
+  await apiJson<unknown>(`/api/v1/history/sessions/${sessionId}/feedback`, {
+    method: "PATCH",
+    body: JSON.stringify({ effort }),
+  })
+}
+
+/**
+ * Fetch the adaptive coach's next-session recommendation (P16).
+ * Returns null on cold start (204), when signed out, or on any error —
+ * the card simply doesn't render.
+ */
+export async function fetchRecommendation(exercise: string): Promise<Recommendation | null> {
+  try {
+    const resp = await apiFetch(
+      `/api/v1/history/recommendation?exercise=${encodeURIComponent(exercise)}`,
+    )
+    if (resp.status === 204 || !resp.ok) return null
+    return (await resp.json()) as Recommendation
+  } catch {
+    return null
+  }
 }
 
 export async function apiJson<T>(input: string, init: RequestInit = {}): Promise<T> {

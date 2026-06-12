@@ -10,13 +10,23 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analysis.adaptive import recommend
+from app.analysis.form_scorer import SUPPORTED_EXERCISES
 from app.auth.deps import get_current_user
-from app.auth.schemas import SessionDetail, SessionSummary
+from app.auth.schemas import (
+    FeedbackRequest,
+    RecommendationResponse,
+    SessionDetail,
+    SessionSummary,
+)
 from app.db import get_db
 from app.models import User, WorkoutSession
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/v1/history", tags=["history"])
+
+# How many recent sessions of an exercise feed the recommendation engine
+RECOMMENDATION_SESSION_LIMIT = 5
 
 
 @router.get("/sessions", response_model=list[SessionSummary])
@@ -40,6 +50,7 @@ async def list_sessions(
             avg_form_score=r.avg_form_score,
             started_at=r.started_at,
             ended_at=r.ended_at,
+            effort_rating=r.effort_rating,
         )
         for r in rows
     ]
@@ -64,6 +75,7 @@ async def get_session(
         avg_form_score=row.avg_form_score,
         started_at=row.started_at,
         ended_at=row.ended_at,
+        effort_rating=row.effort_rating,
         keypoints_data=row.keypoints_data or {},
     )
 
@@ -84,3 +96,65 @@ async def delete_session(
     await db.flush()
     logger.info("session_deleted", user_id=user.id, session_id=session_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/sessions/{session_id}/feedback", response_model=SessionSummary)
+async def submit_feedback(
+    session_id: str,
+    body: FeedbackRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SessionSummary:
+    """Save the 1-tap effort rating for a session (idempotent overwrite)."""
+    stmt = select(WorkoutSession).where(
+        WorkoutSession.id == session_id, WorkoutSession.user_id == user.id
+    )
+    row = (await db.execute(stmt)).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+    row.effort_rating = body.effort
+    await db.flush()
+    logger.info("feedback_saved", user_id=user.id, session_id=session_id, effort=body.effort)
+    return SessionSummary(
+        id=row.id,
+        exercise=row.exercise,
+        rep_count=row.rep_count,
+        avg_form_score=row.avg_form_score,
+        started_at=row.started_at,
+        ended_at=row.ended_at,
+        effort_rating=row.effort_rating,
+    )
+
+
+@router.get("/recommendation", response_model=RecommendationResponse)
+async def get_recommendation(
+    exercise: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> RecommendationResponse | Response:
+    """Next-session recommendation for an exercise; 204 on cold start."""
+    name = exercise.lower().strip()
+    if name not in SUPPORTED_EXERCISES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"unsupported exercise '{exercise}'",
+        )
+    stmt = (
+        select(WorkoutSession)
+        .where(WorkoutSession.user_id == user.id, WorkoutSession.exercise == name)
+        .order_by(WorkoutSession.started_at.desc())
+        .limit(RECOMMENDATION_SESSION_LIMIT)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    rec = recommend(rows)
+    if rec is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    logger.info(
+        "recommendation_served", user_id=user.id, exercise=name, delta=rec.rep_target_delta
+    )
+    return RecommendationResponse(
+        exercise=rec.exercise,
+        rep_target_delta=rec.rep_target_delta,
+        focus_joint=rec.focus_joint,
+        message=rec.message,
+    )

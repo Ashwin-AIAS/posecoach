@@ -30,7 +30,23 @@ class SessionSummary(BaseModel):
     avg_form_score: float
     started_at: datetime
     ended_at: datetime | None
+    effort_rating: int | None = None
 
 
 class SessionDetail(SessionSummary):
     keypoints_data: dict[str, Any]
+
+
+class FeedbackRequest(BaseModel):
+    """1-tap post-set effort rating (P16): 1 = too easy … 5 = too hard."""
+
+    effort: int = Field(ge=1, le=5)
+
+
+class RecommendationResponse(BaseModel):
+    """Next-session recommendation from the adaptive coach (P16)."""
+
+    exercise: str
+    rep_target_delta: int
+    focus_joint: str | None
+    message: str

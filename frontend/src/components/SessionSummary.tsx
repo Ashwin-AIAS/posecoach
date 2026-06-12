@@ -1,16 +1,23 @@
 import { useEffect, useState } from "react"
 
 import type { SessionStats } from "../hooks/useSessionStats"
-import type { Exercise } from "../types"
-import { apiJson } from "../lib/api"
+import type { EffortRating, Exercise } from "../types"
+import { apiJson, submitEffort } from "../lib/api"
 import { exerciseLabel } from "../lib/exercises"
 import { scoreColor } from "../lib/skeleton"
 
 interface HistorySession {
   readonly id: string
+  readonly exercise?: string
   readonly avg_form_score: number
   readonly started_at: string
 }
+
+const EFFORT_OPTIONS: readonly { value: EffortRating; label: string }[] = [
+  { value: 1, label: "Too easy" },
+  { value: 3, label: "Just right" },
+  { value: 5, label: "Too hard" },
+]
 
 interface SessionSummaryProps {
   readonly exercise: Exercise
@@ -103,6 +110,8 @@ function StatTile({ label, value, color }: { label: string; value: string; color
 export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps): JSX.Element {
   const [trend, setTrend] = useState<number[] | null>(null)
   const [authed, setAuthed] = useState(true)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [rated, setRated] = useState<EffortRating | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -110,6 +119,10 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
       try {
         const sessions = await apiJson<HistorySession[]>("/api/v1/history/sessions")
         if (cancelled) return
+        // Listing is newest-first — the first row for this exercise is the set
+        // that just finished, which is the one the effort rating belongs to.
+        const latest = sessions.find((s) => s.exercise === exercise)
+        setSessionId(latest?.id ?? null)
         const series = [...sessions]
           .sort((a, b) => a.started_at.localeCompare(b.started_at))
           .map((s) => s.avg_form_score)
@@ -123,7 +136,15 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [exercise])
+
+  const tapEffort = (value: EffortRating): void => {
+    if (rated !== null || sessionId === null) return
+    setRated(value)
+    void submitEffort(sessionId, value).catch(() => {
+      // Non-blocking — the rating is best-effort; the summary stays usable.
+    })
+  }
 
   const best = trend && trend.length > 0 ? Math.max(...trend, stats.bestScore) : stats.bestScore
 
@@ -168,6 +189,33 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
             color={best > 0 ? scoreColor(best) : undefined}
           />
         </div>
+
+        {authed && sessionId !== null && (
+          <div className="mt-5" data-testid="effort-question">
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+              How hard was that?
+            </h3>
+            <div className="flex gap-2">
+              {EFFORT_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => tapEffort(value)}
+                  disabled={rated !== null}
+                  aria-pressed={rated === value}
+                  className={
+                    "flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition disabled:opacity-50 " +
+                    (rated === value
+                      ? "border-accent bg-accent-soft text-accent disabled:opacity-100"
+                      : "border-surface-hairline bg-surface-overlay text-gray-300 hover:border-accent/50 hover:text-white")
+                  }
+                >
+                  {rated === value ? `✓ ${label}` : label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {stats.repScores.length > 0 ? (
           <div className="mt-5">
