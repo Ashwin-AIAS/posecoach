@@ -8,6 +8,7 @@ import { EmptyStageHint } from "./components/EmptyStageHint"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
 import { HowToDrawer } from "./components/HowToDrawer"
+import { DivisionSelector } from "./components/DivisionSelector"
 import { InstallBanner } from "./components/InstallBanner"
 import { ModeToggle } from "./components/ModeToggle"
 import { PoseOverlay } from "./components/PoseOverlay"
@@ -28,7 +29,8 @@ import type { SessionStats } from "./hooks/useSessionStats"
 import type { HudScene } from "./lib/hudRenderer"
 import { renderHud } from "./lib/hudRenderer"
 import { worstJoint } from "./lib/joints"
-import type { Exercise, PoseName, SessionMode } from "./types"
+import { DIVISIONS } from "./lib/poses"
+import type { Division, Exercise, PoseName, SessionMode } from "./types"
 
 const LATENCY_BUDGET_MS = 100
 
@@ -51,7 +53,14 @@ const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): 
 export default function App(): JSX.Element {
   const [exercise, setExercise] = useState<Exercise>("squat")
   const [mode, setMode] = useState<SessionMode>("exercise")
+  const [division, setDivision] = useState<Division>("open")
   const [poseName, setPoseName] = useState<PoseName>("front_double_biceps")
+
+  // Switching division resets the pose to that division's first mandatory.
+  const selectDivision = useCallback((next: Division): void => {
+    setDivision(next)
+    setPoseName(DIVISIONS[next].mandatories[0])
+  }, [])
   const [showHistory, setShowHistory] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
   const [summary, setSummary] = useState<SessionStats | null>(null)
@@ -192,7 +201,14 @@ export default function App(): JSX.Element {
         <div className="flex min-w-0 items-center gap-3">
           <ModeToggle value={mode} onChange={setMode} />
           {posing ? (
-            <PoseSelector value={poseName} onChange={setPoseName} />
+            <>
+              <DivisionSelector value={division} onChange={selectDivision} />
+              <PoseSelector
+                value={poseName}
+                onChange={setPoseName}
+                poses={DIVISIONS[division].mandatories}
+              />
+            </>
           ) : (
             <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
           )}

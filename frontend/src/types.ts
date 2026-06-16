@@ -44,13 +44,24 @@ export type Keypoint = readonly [number, number]
 /** Session mode: rep-based exercise scoring vs. held-pose (bodybuilding) scoring (P15). */
 export type SessionMode = "exercise" | "posing"
 
-/** Bodybuilding poses scored in posing mode (P15 front/rear seed + P16 side poses). */
+/** Bodybuilding poses scored in posing mode (P15 seed + P16 side + P17 full catalogue). */
 export type PoseName =
   | "front_double_biceps"
   | "front_lat_spread"
   | "rear_double_biceps"
   | "side_chest"
   | "side_triceps"
+  | "rear_lat_spread"
+  | "abdominal_and_thigh"
+  | "most_muscular"
+  | "favorite_classic_pose"
+  | "mp_front"
+  | "mp_side"
+  | "mp_back"
+  | "qt_front"
+  | "qt_back"
+  | "figure_front"
+  | "figure_back"
 
 export const POSES: readonly PoseName[] = [
   "front_double_biceps",
@@ -58,7 +69,28 @@ export const POSES: readonly PoseName[] = [
   "rear_double_biceps",
   "side_chest",
   "side_triceps",
+  "rear_lat_spread",
+  "abdominal_and_thigh",
+  "most_muscular",
+  "favorite_classic_pose",
+  "mp_front",
+  "mp_side",
+  "mp_back",
+  "qt_front",
+  "qt_back",
+  "figure_front",
+  "figure_back",
 ] as const
+
+/** Competition divisions, each with its own mandatory pose lineup (P17). */
+export type Division =
+  | "open"
+  | "classic"
+  | "mens_physique"
+  | "bikini"
+  | "wellness"
+  | "figure"
+  | "womens_physique"
 
 /** Body orientation classified from keypoint geometry (posing mode). */
 export type Orientation = "front" | "rear" | "side" | "unknown"

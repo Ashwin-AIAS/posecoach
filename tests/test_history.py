@@ -303,3 +303,72 @@ async def test_recommendation_unknown_exercise_returns_422(
 async def test_recommendation_without_auth_returns_401(client: AsyncClient) -> None:
     resp = await client.get("/api/v1/history/recommendation?exercise=squat")
     assert resp.status_code == 401
+
+
+# ── P17: contest-prep cycles ──────────────────────────────────────────────────
+
+
+def _posing_session(uid: str) -> WorkoutSession:
+    return WorkoutSession(
+        user_id=uid,
+        exercise="front_double_biceps",
+        session_type="posing",
+        rep_count=0,
+        avg_form_score=88.0,
+        keypoints_data={"snapshots": []},
+        started_at=datetime.now(timezone.utc),
+    )
+
+
+async def test_create_and_list_prep_with_weeks_out(client: AsyncClient) -> None:
+    await _register_and_get_user_id(client, "prep1@x.com")
+    show = (datetime.now(timezone.utc) + timedelta(weeks=10)).date().isoformat()
+    create = await client.post(
+        "/api/v1/history/preps", json={"name": "Autumn Show", "show_date": show}
+    )
+    assert create.status_code == 201
+    body = create.json()
+    assert body["name"] == "Autumn Show"
+    assert body["weeks_out"] is not None and body["weeks_out"] >= 9
+
+    listing = await client.get("/api/v1/history/preps")
+    assert listing.status_code == 200
+    assert any(p["name"] == "Autumn Show" for p in listing.json())
+
+
+async def test_tag_session_to_prep(client: AsyncClient, test_db: AsyncSession) -> None:
+    """A posing session can be tagged to a prep and the prep_id round-trips (P17)."""
+    uid = await _register_and_get_user_id(client, "prep2@x.com")
+    session = _posing_session(uid)
+    test_db.add(session)
+    await test_db.commit()
+
+    prep = (await client.post("/api/v1/history/preps", json={"name": "Cut"})).json()
+
+    assign = await client.patch(
+        f"/api/v1/history/sessions/{session.id}/prep", json={"prep_id": prep["id"]}
+    )
+    assert assign.status_code == 200
+    assert assign.json()["prep_id"] == prep["id"]
+
+    detail = await client.get(f"/api/v1/history/sessions/{session.id}")
+    assert detail.json()["prep_id"] == prep["id"]
+
+
+async def test_tag_session_to_unknown_prep_returns_404(
+    client: AsyncClient, test_db: AsyncSession
+) -> None:
+    uid = await _register_and_get_user_id(client, "prep3@x.com")
+    session = _posing_session(uid)
+    test_db.add(session)
+    await test_db.commit()
+
+    resp = await client.patch(
+        f"/api/v1/history/sessions/{session.id}/prep", json={"prep_id": "does-not-exist"}
+    )
+    assert resp.status_code == 404
+
+
+async def test_preps_without_auth_returns_401(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/history/preps")
+    assert resp.status_code == 401

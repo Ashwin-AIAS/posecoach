@@ -1,21 +1,24 @@
 import { memo } from "react"
 
-import { getPoseMeta, POSE_META_LIST } from "../lib/poses"
+import { getPoseMeta } from "../lib/poses"
 import type { PoseName } from "../types"
 
 interface PoseSelectorProps {
   readonly value: PoseName
   readonly onChange: (next: PoseName) => void
+  /** The mandatory poses to choose from (the active division's lineup, P17). */
+  readonly poses: readonly PoseName[]
   readonly disabled?: boolean
 }
 
-/** Pick the mandatory pose to score in posing mode (P15 seed set). */
-function PoseSelectorInner({ value, onChange, disabled = false }: PoseSelectorProps): JSX.Element {
+/** Pick a mandatory pose to score from the active division's lineup (P17). */
+function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSelectorProps): JSX.Element {
   const active = getPoseMeta(value)
   return (
     <div className="flex flex-col gap-1.5">
       <div role="radiogroup" aria-label="Pose" className="flex flex-wrap items-center gap-2">
-        {POSE_META_LIST.map((meta) => {
+        {poses.map((id) => {
+          const meta = getPoseMeta(id)
           const isActive = meta.id === value
           return (
             <button

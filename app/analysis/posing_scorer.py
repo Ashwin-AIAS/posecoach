@@ -30,11 +30,13 @@ import numpy.typing as npt
 
 from app.analysis.keypoint_utils import (
     LEFT_ANKLE,
+    LEFT_EAR,
     LEFT_ELBOW,
     LEFT_HIP,
     LEFT_SHOULDER,
     LEFT_WRIST,
     RIGHT_ANKLE,
+    RIGHT_EAR,
     RIGHT_ELBOW,
     RIGHT_HIP,
     RIGHT_SHOULDER,
@@ -59,15 +61,16 @@ _TEMPLATES_PATH = Path(__file__).parent / "pose_templates.json"
 with _TEMPLATES_PATH.open() as _f:
     _POSE_DATA: dict[str, dict[str, Any]] = json.load(_f)
 
-# Flatten division → pose → template into a single pose-id lookup. Pose ids are
-# unique across divisions, so the UI can pick by pose id alone (nc=1 philosophy:
-# the pose comes from the UI, never a classifier baked into the model).
-_POSE_REGISTRY: dict[str, dict[str, Any]] = {}
-for _division, _poses in _POSE_DATA.items():
-    for _pose_id, _template in _poses.items():
-        _POSE_REGISTRY[_pose_id] = {"division": _division, **_template}
+# ``poses`` holds one template per unique pose; ``divisions`` maps each division
+# to its ordered mandatory lineup (a pose may appear in several divisions — e.g.
+# Front Double Biceps is judged in Open, Classic, and Women's Physique — so the
+# template is defined once and referenced by id, never duplicated). The pose id
+# still comes from the UI, never a classifier baked into the model (nc=1).
+_POSE_REGISTRY: dict[str, dict[str, Any]] = _POSE_DATA["poses"]
+_DIVISIONS: dict[str, dict[str, Any]] = _POSE_DATA["divisions"]
 
 SUPPORTED_POSES = frozenset(_POSE_REGISTRY)
+SUPPORTED_DIVISIONS = frozenset(_DIVISIONS)
 
 # Orientation in which left/right symmetry is meaningful.
 _SYMMETRY_ORIENTATIONS = frozenset({ORIENT_FRONT, ORIENT_REAR})
@@ -131,6 +134,35 @@ def pose_label(pose: str) -> str | None:
     return None if template is None else str(template["label"])
 
 
+def pose_orientation(pose: str) -> str | None:
+    """Required body orientation for a pose id, or None if unknown."""
+    template = _POSE_REGISTRY.get(pose)
+    return None if template is None else str(template["orientation"])
+
+
+def pose_template(pose: str) -> dict[str, Any] | None:
+    """Shallow copy of a pose's raw template (for validation/UI), or None."""
+    template = _POSE_REGISTRY.get(pose)
+    return dict(template) if template is not None else None
+
+
+def supported_divisions() -> list[str]:
+    """Sorted list of division ids the catalogue covers (stable UI ordering)."""
+    return sorted(SUPPORTED_DIVISIONS)
+
+
+def division_label(division: str) -> str | None:
+    """Human-readable label for a division id, or None if unknown."""
+    entry = _DIVISIONS.get(division)
+    return None if entry is None else str(entry["label"])
+
+
+def division_poses(division: str) -> list[str] | None:
+    """Ordered mandatory pose ids for a division, or None if the division is unknown."""
+    entry = _DIVISIONS.get(division)
+    return None if entry is None else [str(p) for p in entry["mandatories"]]
+
+
 def _torso_height(kp: npt.NDArray[Any], kp_conf: npt.NDArray[Any], thr: float) -> float | None:
     """Vertical shoulder-to-hip extent, used to normalize positional params.
 
@@ -143,6 +175,13 @@ def _torso_height(kp: npt.NDArray[Any], kp_conf: npt.NDArray[Any], thr: float) -
     hip_mid_y = (float(kp[LEFT_HIP][1]) + float(kp[RIGHT_HIP][1])) / 2.0
     height = abs(hip_mid_y - shoulder_mid_y)
     return height if height > 1e-6 else None
+
+
+def _norm_distance(kp: npt.NDArray[Any], a: int, b: int) -> float:
+    """Euclidean distance (normalized image units) between two keypoints."""
+    dx = float(kp[a][0]) - float(kp[b][0])
+    dy = float(kp[a][1]) - float(kp[b][1])
+    return math.hypot(dx, dy)
 
 
 def _forearm_vertical(kp: npt.NDArray[Any], elbow: int, wrist: int) -> float:
@@ -201,6 +240,18 @@ def _compute_params(
         # torso height. A lifted front heel makes one ankle sit higher than the other.
         if kp_conf[LEFT_ANKLE] >= thr and kp_conf[RIGHT_ANKLE] >= thr:
             params["heel_raise"] = abs(float(kp[LEFT_ANKLE][1]) - float(kp[RIGHT_ANKLE][1])) / torso
+        # Hand-on-hip / hands-behind-head positions, normalized by torso. Small =
+        # the hand is at the hip (lat spread, quarter turns) or behind the head
+        # (abdominal & thigh). Same-side keypoints, so the far hand in profile
+        # simply drops out below the gate.
+        if kp_conf[LEFT_WRIST] >= thr and kp_conf[LEFT_HIP] >= thr:
+            params["left_wrist_to_hip"] = _norm_distance(kp, LEFT_WRIST, LEFT_HIP) / torso
+        if kp_conf[RIGHT_WRIST] >= thr and kp_conf[RIGHT_HIP] >= thr:
+            params["right_wrist_to_hip"] = _norm_distance(kp, RIGHT_WRIST, RIGHT_HIP) / torso
+        if kp_conf[LEFT_WRIST] >= thr and kp_conf[LEFT_EAR] >= thr:
+            params["left_wrist_to_ear"] = _norm_distance(kp, LEFT_WRIST, LEFT_EAR) / torso
+        if kp_conf[RIGHT_WRIST] >= thr and kp_conf[RIGHT_EAR] >= thr:
+            params["right_wrist_to_ear"] = _norm_distance(kp, RIGHT_WRIST, RIGHT_EAR) / torso
 
     if kp_conf[LEFT_ELBOW] >= thr and kp_conf[LEFT_WRIST] >= thr:
         params["left_forearm_vertical"] = _forearm_vertical(kp, LEFT_ELBOW, LEFT_WRIST)
@@ -218,6 +269,16 @@ def _compute_params(
     ):
         ankle_dx = abs(float(kp[LEFT_ANKLE][0]) - float(kp[RIGHT_ANKLE][0]))
         params["stance_ratio"] = ankle_dx / shoulder_dx
+
+    # Fists together (most muscular): wrist-to-wrist gap ÷ shoulder width.
+    if (
+        kp_conf[LEFT_WRIST] >= thr
+        and kp_conf[RIGHT_WRIST] >= thr
+        and kp_conf[LEFT_SHOULDER] >= thr
+        and kp_conf[RIGHT_SHOULDER] >= thr
+        and shoulder_dx > 1e-6
+    ):
+        params["wrist_separation"] = _norm_distance(kp, LEFT_WRIST, RIGHT_WRIST) / shoulder_dx
 
     return params
 
@@ -461,3 +522,63 @@ class HoldTracker:
         """Clear the hold window and timer (call on disconnect / pose change)."""
         self._frames.clear()
         self._hold_start = None
+
+
+# The mandatory quarter-turn rotation judged in physique divisions (P17).
+QUARTER_TURN_SEQUENCE: tuple[str, ...] = (ORIENT_FRONT, ORIENT_SIDE, ORIENT_REAR, ORIENT_SIDE)
+# Classifier confidence a turn must clear before it counts as reached.
+QUARTER_TURN_MIN_CONFIDENCE = 0.5
+
+
+@dataclass
+class QuarterTurnState:
+    """Progress through the quarter-turn rotation for one frame."""
+
+    orientation: str
+    step: int  # how many turns confirmed so far (0..len(sequence))
+    expected_next: str | None  # orientation the user should turn to next, or None
+    completed: bool
+
+
+class QuarterTurnVerifier:
+    """Verifies a front→side→rear→side quarter-turn rotation (P17).
+
+    Stateful: feed each frame's keypoints and it advances when the orientation
+    classifier confirms the next expected turn. Out-of-order or low-confidence
+    frames are ignored (they don't advance and don't reset progress). One per
+    WebSocket connection — call :meth:`reset` to start a fresh rotation.
+    """
+
+    def __init__(
+        self,
+        sequence: tuple[str, ...] = QUARTER_TURN_SEQUENCE,
+        min_confidence: float = QUARTER_TURN_MIN_CONFIDENCE,
+        conf_threshold: float = POSING_CONF_THRESHOLD,
+    ) -> None:
+        self.sequence = sequence
+        self.min_confidence = min_confidence
+        self.conf_threshold = conf_threshold
+        self._step = 0
+
+    def update(self, kp: npt.NDArray[Any], kp_conf: npt.NDArray[Any]) -> QuarterTurnState:
+        """Fold one frame into the rotation and return live progress."""
+        orient = classify_orientation(kp, kp_conf, self.conf_threshold)
+        if self._step < len(self.sequence):
+            expected = self.sequence[self._step]
+            if orient.orientation == expected and orient.confidence >= self.min_confidence:
+                self._step += 1
+        return QuarterTurnState(
+            orientation=orient.orientation,
+            step=self._step,
+            expected_next=self.sequence[self._step] if self._step < len(self.sequence) else None,
+            completed=self._step >= len(self.sequence),
+        )
+
+    @property
+    def completed(self) -> bool:
+        """Whether the full rotation has been confirmed."""
+        return self._step >= len(self.sequence)
+
+    def reset(self) -> None:
+        """Restart the rotation from the first turn."""
+        self._step = 0

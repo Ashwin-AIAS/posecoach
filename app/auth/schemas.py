@@ -1,7 +1,7 @@
 """Pydantic schemas for auth + history responses."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
@@ -36,6 +36,8 @@ class SessionSummary(BaseModel):
 
 
 class SessionDetail(SessionSummary):
+    # Contest-prep cycle this session belongs to (P17), or null if ungrouped.
+    prep_id: str | None = None
     keypoints_data: dict[str, Any]
 
 
@@ -52,3 +54,27 @@ class RecommendationResponse(BaseModel):
     rep_target_delta: int
     focus_joint: str | None
     message: str
+
+
+class PrepCycleCreate(BaseModel):
+    """Create a contest-prep cycle (P17)."""
+
+    name: str = Field(min_length=1, max_length=120)
+    show_date: date | None = None
+
+
+class PrepCycleResponse(BaseModel):
+    """A contest-prep cycle with a derived weeks-out countdown (P17)."""
+
+    id: str
+    name: str
+    show_date: date | None
+    created_at: datetime
+    # Whole weeks until the show date (negative once past), null if no date set.
+    weeks_out: int | None = None
+
+
+class AssignPrepRequest(BaseModel):
+    """Tag (or untag) a session to a prep cycle (P17). Null detaches it."""
+
+    prep_id: str | None = None
