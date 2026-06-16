@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import type { Exercise, PoseResult, ServerMessage } from "../types"
+import type { Exercise, PoseName, PoseResult, ServerMessage, SessionMode } from "../types"
 import { isPoseError } from "../types"
 import { useWebSocket } from "./useWebSocket"
 
@@ -23,6 +23,10 @@ interface UsePoseStreamOptions {
   readonly videoRef: React.RefObject<HTMLVideoElement>
   readonly exercise: Exercise
   readonly active: boolean
+  /** "exercise" (default) streams rep-based scoring; "posing" scores a held pose (P15). */
+  readonly mode?: SessionMode
+  /** Active pose when `mode === "posing"`. Ignored in exercise mode. */
+  readonly pose?: PoseName
   readonly wsUrl?: string
 }
 
@@ -49,7 +53,7 @@ function getDefaultWsUrl(): string {
  * hasn't returned yet (no queuing on the wire).
  */
 export function usePoseStream(opts: UsePoseStreamOptions): UsePoseStreamResult {
-  const { videoRef, exercise, active, wsUrl } = opts
+  const { videoRef, exercise, active, mode = "exercise", pose = "front_double_biceps", wsUrl } = opts
   const [result, setResult] = useState<PoseResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,10 +64,20 @@ export function usePoseStream(opts: UsePoseStreamOptions): UsePoseStreamResult {
   const rttEmaRef = useRef(0) // smoothed round-trip latency, ms
   const rafRef = useRef<number | null>(null)
   const exerciseRef = useRef<Exercise>(exercise)
+  const modeRef = useRef<SessionMode>(mode)
+  const poseRef = useRef<PoseName>(pose)
 
   useEffect(() => {
     exerciseRef.current = exercise
   }, [exercise])
+
+  useEffect(() => {
+    modeRef.current = mode
+  }, [mode])
+
+  useEffect(() => {
+    poseRef.current = pose
+  }, [pose])
 
   const handleMessage = useCallback((msg: ServerMessage) => {
     // Measure the round-trip of the frame that just came back, before clearing
@@ -110,7 +124,11 @@ export function usePoseStream(opts: UsePoseStreamOptions): UsePoseStreamResult {
     const dataUrl = canvas.toDataURL("image/jpeg", profile.quality)
     const base64 = dataUrl.split(",", 2)[1] ?? ""
 
-    const sent = ws.send({ frame: base64, exercise: exerciseRef.current })
+    const payload =
+      modeRef.current === "posing"
+        ? { frame: base64, mode: "posing", pose: poseRef.current }
+        : { frame: base64, exercise: exerciseRef.current }
+    const sent = ws.send(payload)
     if (sent) {
       inFlightRef.current = true
       sentAtRef.current = performance.now()

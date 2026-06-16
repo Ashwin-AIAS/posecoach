@@ -1,0 +1,48 @@
+import { memo } from "react"
+
+import type { SessionMode } from "../types"
+
+interface ModeToggleProps {
+  readonly value: SessionMode
+  readonly onChange: (next: SessionMode) => void
+  readonly disabled?: boolean
+}
+
+const MODES: readonly { id: SessionMode; label: string }[] = [
+  { id: "exercise", label: "Exercise" },
+  { id: "posing", label: "Posing" },
+]
+
+/** Segmented control switching between rep-based exercise and held-pose modes (P15). */
+function ModeToggleInner({ value, onChange, disabled = false }: ModeToggleProps): JSX.Element {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Session mode"
+      className="inline-flex rounded-full border border-surface-hairline bg-surface-raised p-0.5"
+    >
+      {MODES.map((m) => {
+        const active = m.id === value
+        return (
+          <button
+            key={m.id}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            disabled={disabled}
+            onClick={() => onChange(m.id)}
+            className={
+              "rounded-full px-3 py-1 text-xs font-medium transition disabled:opacity-50 " +
+              (active ? "bg-accent text-surface-base" : "text-gray-400 hover:text-white")
+            }
+            data-testid={`mode-${m.id}`}
+          >
+            {m.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+export const ModeToggle = memo(ModeToggleInner)

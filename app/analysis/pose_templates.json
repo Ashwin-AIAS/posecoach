@@ -1,0 +1,230 @@
+{
+  "open": {
+    "front_double_biceps": {
+      "label": "Front Double Biceps",
+      "orientation": "front",
+      "checks": [
+        {
+          "param": "left_elbow_height",
+          "lo": 0.0,
+          "hi": 0.6,
+          "margin": 0.45,
+          "cue_low": "Raise your left elbow higher",
+          "cue_high": "Lower left elbow to shoulder line"
+        },
+        {
+          "param": "right_elbow_height",
+          "lo": 0.0,
+          "hi": 0.6,
+          "margin": 0.45,
+          "cue_low": "Raise your right elbow higher",
+          "cue_high": "Lower right elbow to shoulder line"
+        },
+        {
+          "param": "left_forearm_vertical",
+          "lo": 0.0,
+          "hi": 35.0,
+          "margin": 35.0,
+          "cue_low": "Keep left forearm pointing up",
+          "cue_high": "Bring left forearm more vertical"
+        },
+        {
+          "param": "right_forearm_vertical",
+          "lo": 0.0,
+          "hi": 35.0,
+          "margin": 35.0,
+          "cue_low": "Keep right forearm pointing up",
+          "cue_high": "Bring right forearm more vertical"
+        },
+        {
+          "param": "left_elbow_angle",
+          "lo": 30.0,
+          "hi": 95.0,
+          "margin": 45.0,
+          "cue_low": "Open left arm slightly",
+          "cue_high": "Bring left fist toward your head"
+        },
+        {
+          "param": "right_elbow_angle",
+          "lo": 30.0,
+          "hi": 95.0,
+          "margin": 45.0,
+          "cue_low": "Open right arm slightly",
+          "cue_high": "Bring right fist toward your head"
+        },
+        {
+          "param": "stance_ratio",
+          "lo": 0.9,
+          "hi": 1.9,
+          "margin": 0.7,
+          "cue_low": "Widen your stance a little",
+          "cue_high": "Bring your feet a little closer"
+        }
+      ],
+      "symmetry": [
+        {
+          "params": ["left_elbow_angle", "right_elbow_angle"],
+          "tolerance": 35.0,
+          "cue": "Match both elbow angles"
+        },
+        {
+          "params": ["left_elbow_height", "right_elbow_height"],
+          "tolerance": 0.3,
+          "cue": "Level your elbows evenly"
+        },
+        {
+          "params": ["left_shoulder_angle", "right_shoulder_angle"],
+          "tolerance": 35.0,
+          "cue": "Square your shoulders evenly"
+        }
+      ]
+    },
+    "front_lat_spread": {
+      "label": "Front Lat Spread",
+      "orientation": "front",
+      "checks": [
+        {
+          "param": "left_shoulder_angle",
+          "lo": 70.0,
+          "hi": 115.0,
+          "margin": 45.0,
+          "cue_low": "Raise left arm out to the side",
+          "cue_high": "Lower left arm to shoulder level"
+        },
+        {
+          "param": "right_shoulder_angle",
+          "lo": 70.0,
+          "hi": 115.0,
+          "margin": 45.0,
+          "cue_low": "Raise right arm out to the side",
+          "cue_high": "Lower right arm to shoulder level"
+        },
+        {
+          "param": "left_elbow_angle",
+          "lo": 150.0,
+          "hi": 180.0,
+          "margin": 45.0,
+          "cue_low": "Straighten your left arm more",
+          "cue_high": "Relax left arm slightly"
+        },
+        {
+          "param": "right_elbow_angle",
+          "lo": 150.0,
+          "hi": 180.0,
+          "margin": 45.0,
+          "cue_low": "Straighten your right arm more",
+          "cue_high": "Relax right arm slightly"
+        },
+        {
+          "param": "left_elbow_height",
+          "lo": -0.2,
+          "hi": 0.25,
+          "margin": 0.35,
+          "cue_low": "Raise left elbow to shoulder line",
+          "cue_high": "Lower left elbow to shoulder line"
+        },
+        {
+          "param": "right_elbow_height",
+          "lo": -0.2,
+          "hi": 0.25,
+          "margin": 0.35,
+          "cue_low": "Raise right elbow to shoulder line",
+          "cue_high": "Lower right elbow to shoulder line"
+        }
+      ],
+      "symmetry": [
+        {
+          "params": ["left_shoulder_angle", "right_shoulder_angle"],
+          "tolerance": 35.0,
+          "cue": "Spread both arms evenly"
+        },
+        {
+          "params": ["left_elbow_height", "right_elbow_height"],
+          "tolerance": 0.3,
+          "cue": "Level your arms evenly"
+        }
+      ]
+    }
+  },
+  "classic": {
+    "rear_double_biceps": {
+      "label": "Rear Double Biceps",
+      "orientation": "rear",
+      "checks": [
+        {
+          "param": "left_elbow_height",
+          "lo": 0.0,
+          "hi": 0.6,
+          "margin": 0.45,
+          "cue_low": "Raise your left elbow higher",
+          "cue_high": "Lower left elbow to shoulder line"
+        },
+        {
+          "param": "right_elbow_height",
+          "lo": 0.0,
+          "hi": 0.6,
+          "margin": 0.45,
+          "cue_low": "Raise your right elbow higher",
+          "cue_high": "Lower right elbow to shoulder line"
+        },
+        {
+          "param": "left_forearm_vertical",
+          "lo": 0.0,
+          "hi": 35.0,
+          "margin": 35.0,
+          "cue_low": "Keep left forearm pointing up",
+          "cue_high": "Bring left forearm more vertical"
+        },
+        {
+          "param": "right_forearm_vertical",
+          "lo": 0.0,
+          "hi": 35.0,
+          "margin": 35.0,
+          "cue_low": "Keep right forearm pointing up",
+          "cue_high": "Bring right forearm more vertical"
+        },
+        {
+          "param": "left_elbow_angle",
+          "lo": 30.0,
+          "hi": 95.0,
+          "margin": 45.0,
+          "cue_low": "Open left arm slightly",
+          "cue_high": "Bring left fist toward your head"
+        },
+        {
+          "param": "right_elbow_angle",
+          "lo": 30.0,
+          "hi": 95.0,
+          "margin": 45.0,
+          "cue_low": "Open right arm slightly",
+          "cue_high": "Bring right fist toward your head"
+        },
+        {
+          "param": "stance_ratio",
+          "lo": 0.9,
+          "hi": 1.9,
+          "margin": 0.7,
+          "cue_low": "Widen your stance a little",
+          "cue_high": "Bring your feet a little closer"
+        }
+      ],
+      "symmetry": [
+        {
+          "params": ["left_elbow_angle", "right_elbow_angle"],
+          "tolerance": 35.0,
+          "cue": "Match both elbow angles"
+        },
+        {
+          "params": ["left_elbow_height", "right_elbow_height"],
+          "tolerance": 0.3,
+          "cue": "Level your elbows evenly"
+        },
+        {
+          "params": ["left_shoulder_angle", "right_shoulder_angle"],
+          "tolerance": 35.0,
+          "cue": "Square your shoulders evenly"
+        }
+      ]
+    }
+  }
+}

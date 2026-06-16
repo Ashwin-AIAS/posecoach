@@ -21,6 +21,12 @@ from app.analysis.form_scorer import (
     worst_joint,
 )
 from app.analysis.keypoint_utils import compute_angles
+from app.analysis.posing_scorer import STATUS_OK as POSING_STATUS_OK
+from app.analysis.posing_scorer import (
+    SUPPORTED_POSES,
+    HoldTracker,
+    score_pose,
+)
 from app.analysis.rep_counter import RepCounter
 from app.analysis.score_smoother import ScoreSmoother
 from app.auth.deps import ACCESS_COOKIE, get_user_from_cookie_optional
@@ -144,6 +150,8 @@ async def ws_inference(websocket: WebSocket) -> None:
 
     kp_smoother = KeypointSmoother(alpha=0.6)
     score_smoother = ScoreSmoother(alpha=0.6)
+    hold_tracker = HoldTracker()  # posing-mode hold duration + steadiness (P15)
+    posing_pose: str | None = None  # active pose id; reset hold on change
     hold_start: float | None = None  # for plank hold tracking
     rep_counter: RepCounter | None = None  # created on first frame; reset on exercise change
     verifier: ExerciseVerifier | None = None  # exercise-match gate (P13); per connection
@@ -253,6 +261,7 @@ async def ws_inference(websocket: WebSocket) -> None:
 
             frame_proc_t0 = time.perf_counter()
             frame_b64: str = data.get("frame", "")
+            mode: str = data.get("mode", "exercise").lower().strip()
             exercise: str = data.get("exercise", "squat").lower().strip()
 
             if not frame_b64:
@@ -262,6 +271,85 @@ async def ws_inference(websocket: WebSocket) -> None:
             if len(frame_b64) > MAX_FRAME_BYTES:
                 logger.warning("ws_frame_too_large", frame_chars=len(frame_b64), limit=MAX_FRAME_BYTES)
                 await websocket.send_json({"error": "frame too large", "max_bytes": MAX_FRAME_BYTES})
+                continue
+
+            # Posing mode (P15): score a held bodybuilding pose instead of a
+            # rep-based exercise. No rep counter / verifier / DB session here —
+            # posing-session persistence lands in P16.
+            if mode == "posing":
+                pose: str = data.get("pose", "front_double_biceps").lower().strip()
+                if pose not in SUPPORTED_POSES:
+                    await websocket.send_json(
+                        {"error": f"unsupported pose '{pose}'", "supported_poses": sorted(SUPPORTED_POSES)}
+                    )
+                    continue
+                if pose != posing_pose:
+                    posing_pose = pose
+                    hold_tracker.reset()
+                    score_smoother.reset()
+
+                pose_inf = await run_inference(model, executor, frame_b64)
+                if pose_inf is None:
+                    hold_tracker.reset()
+                    await websocket.send_json(
+                        {
+                            "keypoints": [],
+                            "confidence": [],
+                            "score": None,
+                            "symmetry": None,
+                            "cues": ["Step into frame"],
+                            "hold": {"seconds": 0.0, "stability": 0.0, "steady": False},
+                            "latency_ms": 0.0,
+                            "status": "no_person",
+                        }
+                    )
+                    continue
+
+                kp_smooth_pose = kp_smoother.update(pose_inf.kp_xyn)
+                pose_result = score_pose(pose, kp_smooth_pose, pose_inf.kp_conf)
+
+                if pose_result.status == POSING_STATUS_OK:
+                    smoothed_pose_score = score_smoother.update(pose_result.score)
+                    hold = hold_tracker.update(
+                        smoothed_pose_score, kp_smooth_pose, pose_inf.kp_conf, time.monotonic()
+                    )
+                    score_value: float | None = round(smoothed_pose_score, 1)
+                    symmetry_value: float | None = pose_result.symmetry_score
+                else:
+                    # No meaningful score this frame (low confidence / wrong way).
+                    score_smoother.reset()
+                    hold_tracker.reset()
+                    hold = hold_tracker.update(
+                        0.0, kp_smooth_pose, pose_inf.kp_conf, time.monotonic()
+                    )
+                    score_value = None
+                    symmetry_value = None
+
+                await websocket.send_json(
+                    {
+                        "keypoints": kp_smooth_pose.tolist(),
+                        "confidence": pose_inf.kp_conf.tolist(),
+                        "score": score_value,
+                        "symmetry": symmetry_value,
+                        "cues": pose_result.cues,
+                        "hold": {
+                            "seconds": hold.seconds,
+                            "stability": hold.stability,
+                            "steady": hold.steady,
+                        },
+                        "check_scores": pose_result.check_scores,
+                        "orientation": pose_result.orientation,
+                        "latency_ms": round(pose_inf.latency_ms, 1),
+                        "status": pose_result.status,
+                    }
+                )
+                logger.info(
+                    "ws_posing_frame",
+                    pose=pose,
+                    orientation=pose_result.orientation,
+                    status=pose_result.status,
+                    hold_s=hold.seconds,
+                )
                 continue
 
             if exercise not in SUPPORTED_EXERCISES:
@@ -515,6 +603,7 @@ async def ws_inference(websocket: WebSocket) -> None:
                 await recv_task
         kp_smoother.reset()
         score_smoother.reset()
+        hold_tracker.reset()
         # Release the per-user guard so the user can reconnect immediately.
         if conn_guard_key is not None and guard_acquired:
             with contextlib.suppress(Exception):

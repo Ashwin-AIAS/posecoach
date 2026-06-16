@@ -9,7 +9,10 @@ import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
 import { HowToDrawer } from "./components/HowToDrawer"
 import { InstallBanner } from "./components/InstallBanner"
+import { ModeToggle } from "./components/ModeToggle"
 import { PoseOverlay } from "./components/PoseOverlay"
+import { PoseSelector } from "./components/PoseSelector"
+import { PosingPanel } from "./components/PosingPanel"
 import { RecommendationCard } from "./components/RecommendationCard"
 import { RecordingPreview } from "./components/RecordingPreview"
 import { ReferenceVideoPanel } from "./components/ReferenceVideoPanel"
@@ -25,7 +28,7 @@ import type { SessionStats } from "./hooks/useSessionStats"
 import type { HudScene } from "./lib/hudRenderer"
 import { renderHud } from "./lib/hudRenderer"
 import { worstJoint } from "./lib/joints"
-import type { Exercise } from "./types"
+import type { Exercise, PoseName, SessionMode } from "./types"
 
 const LATENCY_BUDGET_MS = 100
 
@@ -47,6 +50,8 @@ const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): 
 
 export default function App(): JSX.Element {
   const [exercise, setExercise] = useState<Exercise>("squat")
+  const [mode, setMode] = useState<SessionMode>("exercise")
+  const [poseName, setPoseName] = useState<PoseName>("front_double_biceps")
   const [showHistory, setShowHistory] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
   const [summary, setSummary] = useState<SessionStats | null>(null)
@@ -64,7 +69,11 @@ export default function App(): JSX.Element {
     videoRef: camera.videoRef,
     exercise,
     active: camera.ready,
+    mode,
+    pose: poseName,
   })
+
+  const posing = mode === "posing"
 
   const stats = useSessionStats(pose.result)
   const topCue = pose.result?.cues?.[0]
@@ -110,10 +119,10 @@ export default function App(): JSX.Element {
   const detected = pose.result !== null && pose.result.score !== null
   const showHint = camera.ready && !detected && summary === null
 
-  // A new exercise is a new set — reset the accumulated stats.
+  // A new exercise, pose, or mode is a new set — reset the accumulated stats.
   useEffect(() => {
     stats.reset()
-  }, [exercise, stats])
+  }, [exercise, mode, poseName, stats])
 
   const finishSet = (): void => {
     recorder.stop() // never leave a recording running past the end of a set
@@ -180,7 +189,14 @@ export default function App(): JSX.Element {
       </header>
 
       <div className="relative z-20 flex items-center justify-between gap-3 border-b border-surface-hairline bg-surface-base/60 px-4 py-2">
-        <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
+        <div className="flex min-w-0 items-center gap-3">
+          <ModeToggle value={mode} onChange={setMode} />
+          {posing ? (
+            <PoseSelector value={poseName} onChange={setPoseName} />
+          ) : (
+            <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
+          )}
+        </div>
         <div className="flex shrink-0 items-center gap-2">
           {recorder.supported && (
             <button
@@ -220,7 +236,7 @@ export default function App(): JSX.Element {
         </div>
       </div>
 
-      <RecommendationCard exercise={exercise} />
+      {!posing && <RecommendationCard exercise={exercise} />}
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
       <HowToDrawer exercise={howTo} onClose={() => setHowTo(null)} />
@@ -272,12 +288,13 @@ export default function App(): JSX.Element {
         </div>
 
         <aside className="flex flex-col gap-4 overflow-y-auto">
+          {posing && <PosingPanel result={pose.result} pose={poseName} />}
           <CoachingCues
             result={pose.result}
             connectionState={pose.connectionState}
             error={pose.error}
           />
-          <ReferenceVideoPanel exercise={exercise} />
+          {!posing && <ReferenceVideoPanel exercise={exercise} />}
           <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
         </aside>
       </main>

@@ -31,6 +31,8 @@ const STATUS_FALLBACK: Record<Exclude<PoseStatus, "ok">, string> = {
   no_person: "Step into frame",
   insufficient_confidence: "Hold still — adjusting to you",
   mismatch: "Doesn't match the exercise",
+  wrong_orientation: "Turn to the right orientation",
+  unknown_pose: "Pick a pose to score",
 }
 
 const FONT = "Inter, system-ui, sans-serif"

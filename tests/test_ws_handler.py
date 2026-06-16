@@ -176,6 +176,28 @@ def test_ws_frame_at_size_limit_not_rejected() -> None:
             assert data.get("error") != "frame too large"
 
 
+def test_ws_posing_mode_returns_pose_fields() -> None:
+    """Posing route returns {score, symmetry, cues, hold} for a 17-kpt fixture (P15)."""
+    with TestClient(app) as client:
+        _override_app_state()
+        with client.websocket_connect("/ws/inference") as ws:
+            ws.send_json({"frame": _make_frame_b64(), "mode": "posing", "pose": "front_double_biceps"})
+            data = ws.receive_json()
+            for key in ("score", "symmetry", "cues", "hold", "status", "keypoints"):
+                assert key in data, f"missing posing field: {key}"
+            assert {"seconds", "stability", "steady"} <= set(data["hold"].keys())
+
+
+def test_ws_posing_unsupported_pose_returns_error() -> None:
+    with TestClient(app) as client:
+        _override_app_state()
+        with client.websocket_connect("/ws/inference") as ws:
+            ws.send_json({"frame": _make_frame_b64(), "mode": "posing", "pose": "not_a_pose"})
+            data = ws.receive_json()
+            assert "error" in data
+            assert "supported_poses" in data
+
+
 def test_ws_anon_connection_cap_rejects_excess(monkeypatch: pytest.MonkeyPatch) -> None:
     """A 2nd anonymous socket from the same IP is rejected once the cap is hit."""
     monkeypatch.setattr("app.api.v1.ws_inference.MAX_ANON_CONNS_PER_IP", 1)

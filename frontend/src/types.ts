@@ -41,6 +41,28 @@ export const EXERCISES: readonly Exercise[] = [
 
 export type Keypoint = readonly [number, number]
 
+/** Session mode: rep-based exercise scoring vs. held-pose (bodybuilding) scoring (P15). */
+export type SessionMode = "exercise" | "posing"
+
+/** Bodybuilding poses scored in posing mode (P15 seed set). */
+export type PoseName = "front_double_biceps" | "front_lat_spread" | "rear_double_biceps"
+
+export const POSES: readonly PoseName[] = [
+  "front_double_biceps",
+  "front_lat_spread",
+  "rear_double_biceps",
+] as const
+
+/** Body orientation classified from keypoint geometry (posing mode). */
+export type Orientation = "front" | "rear" | "side" | "unknown"
+
+/** Live hold telemetry for a held pose: duration, steadiness, and a steady flag. */
+export interface HoldInfo {
+  readonly seconds: number
+  readonly stability: number
+  readonly steady: boolean
+}
+
 /** Rep cycle phase from the backend rep counter. */
 export type RepState = "up" | "down" | "hold"
 
@@ -51,7 +73,13 @@ export type RepState = "up" | "down" | "hold"
  * `mismatch` means the movement doesn't match the chosen exercise (P13) so the
  * score is deliberately withheld rather than reported as good form.
  */
-export type PoseStatus = "ok" | "no_person" | "insufficient_confidence" | "mismatch"
+export type PoseStatus =
+  | "ok"
+  | "no_person"
+  | "insufficient_confidence"
+  | "mismatch"
+  | "wrong_orientation"
+  | "unknown_pose"
 
 export interface PoseResult {
   readonly keypoints: readonly Keypoint[]
@@ -74,6 +102,14 @@ export interface PoseResult {
   readonly status?: PoseStatus
   /** On a `mismatch`, the exercise the movement was checked against (for the banner). */
   readonly expected_exercise?: Exercise
+  /** Posing mode (P15): left/right symmetry sub-score 0–100, or null when not scored. */
+  readonly symmetry?: number | null
+  /** Posing mode: live hold duration + steadiness telemetry. */
+  readonly hold?: HoldInfo
+  /** Posing mode: classified body orientation for the active frame. */
+  readonly orientation?: Orientation
+  /** Posing mode: per-check 0–100 scores keyed by parameter name. */
+  readonly check_scores?: Readonly<Record<string, number>>
 }
 
 export interface PoseError {
