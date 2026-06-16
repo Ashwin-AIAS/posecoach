@@ -32,6 +32,11 @@ class WorkoutSession(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False, index=True)
     exercise: Mapped[str] = mapped_column(String, nullable=False)
+    # "exercise" (rep-based form scoring) or "posing" (held-pose scoring, P16).
+    # For posing sessions, ``exercise`` holds the pose id (e.g. "front_double_biceps").
+    session_type: Mapped[str] = mapped_column(
+        String, nullable=False, server_default="exercise", default="exercise"
+    )
     rep_count: Mapped[int] = mapped_column(Integer, default=0)
     avg_form_score: Mapped[float] = mapped_column(Float, default=0.0)
     # 1-tap post-set self-report (P16): 1 = too easy, 3 = just right, 5 = too hard

@@ -69,12 +69,35 @@ def _front_lat_spread() -> tuple[np.ndarray, np.ndarray]:
     return kp, conf
 
 
+def _side_pose() -> tuple[np.ndarray, np.ndarray]:
+    """Profile skeleton: shoulders collapse onto one x, front knee bent, heel raised."""
+    kp = np.zeros((17, 2), dtype=float)
+    kp[_NOSE] = (0.48, 0.12)
+    kp[_LEYE] = (0.47, 0.10)
+    kp[_REYE] = (0.49, 0.10)
+    kp[_LSH] = (0.50, 0.30)
+    kp[_RSH] = (0.47, 0.30)
+    kp[_LEL] = (0.52, 0.42)
+    kp[_REL] = (0.49, 0.42)
+    kp[_LWR] = (0.53, 0.52)
+    kp[_RWR] = (0.50, 0.52)
+    kp[_LHIP] = (0.50, 0.55)
+    kp[_RHIP] = (0.48, 0.55)
+    kp[_LKNE] = (0.58, 0.72)  # front (bent) leg
+    kp[_RKNE] = (0.47, 0.78)  # back (straight) leg
+    kp[_LANK] = (0.53, 0.92)  # front heel raised → higher than the back ankle
+    kp[_RANK] = (0.47, 1.00)
+    return kp, np.ones(17, dtype=float)
+
+
 def _skeleton_for(pose: str) -> tuple[np.ndarray, np.ndarray]:
     """Pick an orientation-appropriate skeleton so a pose can actually score OK."""
     if pose == "rear_double_biceps":
         return _rear_double_biceps()
     if pose == "front_lat_spread":
         return _front_lat_spread()
+    if pose in ("side_chest", "side_triceps"):
+        return _side_pose()
     return _front_double_biceps()
 
 
@@ -168,12 +191,36 @@ def test_asymmetry_lowers_symmetry_score() -> None:
     assert asymmetric.symmetry_score < symmetric.symmetry_score
 
 
+def test_side_pose_disables_symmetry() -> None:
+    """P16: in profile, symmetry is neither scored nor cued (it's meaningless)."""
+    kp, conf = _side_pose()
+    result = score_pose("side_chest", kp, conf)
+    assert result.status == STATUS_OK
+    assert result.orientation == "side"
+    assert result.symmetry_applicable is False
+    # No symmetry pair is evaluated, so no symmetry cue can be emitted.
+    symmetry_cues = {"Match both elbow angles", "Level your elbows evenly", "Square your shoulders evenly"}
+    assert not (set(result.cues) & symmetry_cues)
+
+
+def test_low_visibility_joints_are_skipped() -> None:
+    """P16: joints below the 0.5 low-vis gate are excluded, not scored as garbage."""
+    kp, conf = _front_double_biceps()
+    # Drop the left arm below the gate (0.4 < 0.5); the right arm stays confident.
+    conf[_LEL] = 0.4
+    conf[_LWR] = 0.4
+    result = score_pose("front_double_biceps", kp, conf)
+    assert "left_elbow_angle" not in result.measured_params
+    assert "left_forearm_vertical" not in result.measured_params
+    assert "right_elbow_angle" in result.measured_params
+
+
 def test_supported_poses_and_labels() -> None:
-    assert "front_double_biceps" in SUPPORTED_POSES
-    assert "front_lat_spread" in SUPPORTED_POSES
-    assert "rear_double_biceps" in SUPPORTED_POSES
+    for pose in ("front_double_biceps", "front_lat_spread", "rear_double_biceps", "side_chest", "side_triceps"):
+        assert pose in SUPPORTED_POSES
     assert supported_poses() == sorted(SUPPORTED_POSES)
     assert pose_label("front_double_biceps") == "Front Double Biceps"
+    assert pose_label("side_chest") == "Side Chest"
     assert pose_label("not_a_real_pose") is None
 
 

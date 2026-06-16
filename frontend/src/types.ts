@@ -44,13 +44,20 @@ export type Keypoint = readonly [number, number]
 /** Session mode: rep-based exercise scoring vs. held-pose (bodybuilding) scoring (P15). */
 export type SessionMode = "exercise" | "posing"
 
-/** Bodybuilding poses scored in posing mode (P15 seed set). */
-export type PoseName = "front_double_biceps" | "front_lat_spread" | "rear_double_biceps"
+/** Bodybuilding poses scored in posing mode (P15 front/rear seed + P16 side poses). */
+export type PoseName =
+  | "front_double_biceps"
+  | "front_lat_spread"
+  | "rear_double_biceps"
+  | "side_chest"
+  | "side_triceps"
 
 export const POSES: readonly PoseName[] = [
   "front_double_biceps",
   "front_lat_spread",
   "rear_double_biceps",
+  "side_chest",
+  "side_triceps",
 ] as const
 
 /** Body orientation classified from keypoint geometry (posing mode). */

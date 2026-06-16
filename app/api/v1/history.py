@@ -46,6 +46,7 @@ async def list_sessions(
         SessionSummary(
             id=r.id,
             exercise=r.exercise,
+            session_type=r.session_type,
             rep_count=r.rep_count,
             avg_form_score=r.avg_form_score,
             started_at=r.started_at,
@@ -71,6 +72,7 @@ async def get_session(
     return SessionDetail(
         id=row.id,
         exercise=row.exercise,
+        session_type=row.session_type,
         rep_count=row.rep_count,
         avg_form_score=row.avg_form_score,
         started_at=row.started_at,
@@ -118,6 +120,7 @@ async def submit_feedback(
     return SessionSummary(
         id=row.id,
         exercise=row.exercise,
+        session_type=row.session_type,
         rep_count=row.rep_count,
         avg_form_score=row.avg_form_score,
         started_at=row.started_at,

@@ -6,6 +6,8 @@ import { HistoryTrend } from "./HistoryTrend"
 interface SessionSummary {
   readonly id: string
   readonly exercise: string
+  /** "exercise" or "posing" (P16) — absent on older servers → treat as exercise. */
+  readonly session_type?: string
   readonly rep_count: number
   readonly avg_form_score: number
   readonly started_at: string
@@ -97,6 +99,11 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="font-medium capitalize">{s.exercise.replace(/_/g, " ")}</span>
+                  {s.session_type === "posing" && (
+                    <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">
+                      Posing
+                    </span>
+                  )}
                   <span className="text-xs text-gray-600">{formatDate(s.started_at)}</span>
                 </div>
                 <div className="text-xs text-gray-400">

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -28,7 +29,6 @@ import numpy as np
 import numpy.typing as npt
 
 from app.analysis.keypoint_utils import (
-    ANGLE_CONF_THRESHOLD,
     LEFT_ANKLE,
     LEFT_ELBOW,
     LEFT_HIP,
@@ -47,6 +47,13 @@ from app.analysis.orientation import (
     ORIENT_SIDE,
     classify_orientation,
 )
+
+# Low-visibility confidence gate for posing (P16). A held pose is deliberate and
+# well-framed, so we apply the documented 0.5 project gate (CLAUDE.md) rather
+# than the lower webcam-motion threshold used for rep-based exercises — occluded
+# joints (especially the far side in profile) are excluded rather than scored as
+# garbage. Env-overridable so it can be tuned against real footage.
+POSING_CONF_THRESHOLD = float(os.environ.get("POSING_CONF_THRESHOLD", "0.5"))
 
 _TEMPLATES_PATH = Path(__file__).parent / "pose_templates.json"
 with _TEMPLATES_PATH.open() as _f:
@@ -107,6 +114,9 @@ class PoseScore:
     measured_params: dict[str, float] = field(default_factory=dict)
     orientation: str = ""
     orientation_ok: bool = True
+    # Whether left/right symmetry was scored. False in profile (P16) — symmetry is
+    # meaningless when half the body is occluded, so it is neither scored nor cued.
+    symmetry_applicable: bool = True
     status: str = STATUS_OK
 
 
@@ -155,17 +165,25 @@ def _compute_params(
     """
     params: dict[str, float] = {}
 
-    # Joint angles (elbow flexion + shoulder abduction) reuse the tested helper.
+    # Joint angles (elbow + shoulder + knee flexion) reuse the tested helper.
     angles = compute_angles(kp, kp_conf, thr)
     for name in (
         "left_elbow_angle",
         "right_elbow_angle",
         "left_shoulder_angle",
         "right_shoulder_angle",
+        "left_knee_angle",
+        "right_knee_angle",
     ):
         value = angles.get(name)
         if value is not None:
             params[name] = float(value)
+
+    # Profile-valid checks (P16 side poses): the bent front leg is the more-flexed
+    # knee, and a raised front heel shows as a vertical gap between the ankles.
+    knees = [params[k] for k in ("left_knee_angle", "right_knee_angle") if k in params]
+    if knees:
+        params["front_knee_angle"] = min(knees)
 
     torso = _torso_height(kp, kp_conf, thr)
     if torso is not None:
@@ -179,6 +197,10 @@ def _compute_params(
             params["right_elbow_height"] = (
                 float(kp[RIGHT_SHOULDER][1]) - float(kp[RIGHT_ELBOW][1])
             ) / torso
+        # Heel raise (side poses): vertical gap between the ankles, normalized by
+        # torso height. A lifted front heel makes one ankle sit higher than the other.
+        if kp_conf[LEFT_ANKLE] >= thr and kp_conf[RIGHT_ANKLE] >= thr:
+            params["heel_raise"] = abs(float(kp[LEFT_ANKLE][1]) - float(kp[RIGHT_ANKLE][1])) / torso
 
     if kp_conf[LEFT_ELBOW] >= thr and kp_conf[LEFT_WRIST] >= thr:
         params["left_forearm_vertical"] = _forearm_vertical(kp, LEFT_ELBOW, LEFT_WRIST)
@@ -231,7 +253,7 @@ def score_pose(
     pose: str,
     kp: npt.NDArray[Any],
     kp_conf: npt.NDArray[Any],
-    conf_threshold: float = ANGLE_CONF_THRESHOLD,
+    conf_threshold: float = POSING_CONF_THRESHOLD,
 ) -> PoseScore:
     """Score one frame against a pose template (deterministic).
 
@@ -256,6 +278,8 @@ def score_pose(
         )
 
     required_orient = str(template["orientation"])
+    # Symmetry is only meaningful in front/rear; in profile it is disabled (P16).
+    symmetry_applies = required_orient in _SYMMETRY_ORIENTATIONS
     orient = classify_orientation(kp, kp_conf, conf_threshold)
 
     # Clear wrong-orientation gate: only reject when the classifier is confident.
@@ -271,6 +295,7 @@ def score_pose(
             cues=[cue],
             orientation=orient.orientation,
             orientation_ok=False,
+            symmetry_applicable=symmetry_applies,
             status=STATUS_WRONG_ORIENTATION,
         )
 
@@ -299,13 +324,13 @@ def score_pose(
             symmetry_score=0.0,
             cues=["Position yourself fully in frame"],
             orientation=orient.orientation,
+            symmetry_applicable=symmetry_applies,
             status=STATUS_INSUFFICIENT_CONFIDENCE,
         )
 
     position_score = float(np.mean(list(check_scores.values())))
 
     # Symmetry — only where left/right is meaningful (front/rear).
-    symmetry_applies = required_orient in _SYMMETRY_ORIENTATIONS
     symmetry_credits: list[float] = []
     if symmetry_applies:
         for entry in template.get("symmetry", []):
@@ -342,6 +367,7 @@ def score_pose(
         measured_params={k: round(v, 3) for k, v in params.items()},
         orientation=orient.orientation,
         orientation_ok=True,
+        symmetry_applicable=symmetry_applies,
         status=STATUS_OK,
     )
 
@@ -376,7 +402,7 @@ class HoldTracker:
         score_threshold: float = HOLD_SCORE_THRESHOLD,
         stability_tolerance: float = HOLD_STABILITY_TOLERANCE,
         window: int = _HOLD_WINDOW,
-        conf_threshold: float = ANGLE_CONF_THRESHOLD,
+        conf_threshold: float = POSING_CONF_THRESHOLD,
     ) -> None:
         self.score_threshold = score_threshold
         self.stability_tolerance = stability_tolerance

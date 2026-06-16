@@ -18,6 +18,12 @@ function PosingPanelInner({ result, pose }: PosingPanelProps): JSX.Element {
   const status = result?.status
   const hold = result?.hold
   const orientationMismatch = status === "wrong_orientation"
+  const facingHint =
+    meta.orientation === "rear"
+      ? "Turn your back to the camera"
+      : meta.orientation === "side"
+        ? "Stand side-on to the camera"
+        : "Turn to face the camera"
 
   return (
     <section
@@ -38,7 +44,7 @@ function PosingPanelInner({ result, pose }: PosingPanelProps): JSX.Element {
         </div>
         <div className="rounded-xl bg-surface-overlay p-2.5">
           <div className="hud-numerals text-xl font-semibold text-white" data-testid="posing-symmetry">
-            {metric(result?.symmetry)}
+            {meta.orientation === "side" ? "N/A" : metric(result?.symmetry)}
           </div>
           <div className="text-[10px] uppercase tracking-wider text-gray-500">Symmetry</div>
         </div>
@@ -59,7 +65,7 @@ function PosingPanelInner({ result, pose }: PosingPanelProps): JSX.Element {
 
       {orientationMismatch && (
         <p className="rounded-lg bg-score-mid/10 px-3 py-2 text-xs text-score-mid" data-testid="posing-orientation-warn">
-          {result?.cues?.[0] ?? `Face ${meta.orientation === "rear" ? "away from" : "toward"} the camera`}
+          {result?.cues?.[0] ?? facingHint}
         </p>
       )}
 

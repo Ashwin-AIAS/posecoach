@@ -15,8 +15,8 @@ import { POSES } from "../types"
 
 export interface PoseMeta {
   readonly id: PoseName
-  /** Orientation in which left/right symmetry is meaningful (front/rear only). */
-  readonly orientation: Extract<Orientation, "front" | "rear">
+  /** Orientation the user must face. Symmetry is scored only for front/rear. */
+  readonly orientation: Extract<Orientation, "front" | "rear" | "side">
   readonly label: string
   readonly division: string
   /** Short plain-English setup hint shown under the picker. */
@@ -44,6 +44,20 @@ export const POSE_META: Record<PoseName, PoseMeta> = {
     label: "Rear Double Biceps",
     division: "Classic",
     hint: "Turn your back to the camera, elbows up.",
+  },
+  side_chest: {
+    id: "side_chest",
+    orientation: "side",
+    label: "Side Chest",
+    division: "Open",
+    hint: "Stand side-on; bend the front knee, lift the front heel.",
+  },
+  side_triceps: {
+    id: "side_triceps",
+    orientation: "side",
+    label: "Side Triceps",
+    division: "Open",
+    hint: "Stand side-on; front leg flexed, heel lifted.",
   },
 }
 

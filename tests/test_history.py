@@ -79,6 +79,45 @@ async def test_list_sessions_without_auth_returns_401(client: AsyncClient) -> No
     assert resp.status_code == 401
 
 
+async def test_exercise_sessions_report_exercise_session_type(
+    client: AsyncClient, seeded_user: str
+) -> None:
+    """Seeded sessions default to session_type='exercise' (P16 backfill default)."""
+    resp = await client.get("/api/v1/history/sessions")
+    assert resp.status_code == 200
+    assert {r["session_type"] for r in resp.json()} == {"exercise"}
+
+
+async def test_posing_session_persists_and_is_retrievable(
+    client: AsyncClient, test_db: AsyncSession
+) -> None:
+    """P16: a posing session persists with session_type='posing' and is listed."""
+    uid = await _register_and_get_user_id(client, "poser@x.com")
+    test_db.add(
+        WorkoutSession(
+            user_id=uid,
+            exercise="front_double_biceps",
+            session_type="posing",
+            rep_count=0,
+            avg_form_score=88.0,
+            keypoints_data={"snapshots": [{"ts": 1.0, "score": 88, "kp": []}]},
+            started_at=datetime.now(timezone.utc),
+        )
+    )
+    await test_db.commit()
+
+    listing = await client.get("/api/v1/history/sessions")
+    posing = [r for r in listing.json() if r["session_type"] == "posing"]
+    assert len(posing) == 1
+    assert posing[0]["exercise"] == "front_double_biceps"
+
+    detail = await client.get(f"/api/v1/history/sessions/{posing[0]['id']}")
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["session_type"] == "posing"
+    assert "snapshots" in body["keypoints_data"]
+
+
 async def test_get_session_detail_includes_keypoints(
     client: AsyncClient, seeded_user: str, test_db: AsyncSession
 ) -> None:

@@ -166,6 +166,9 @@ async def ws_inference(websocket: WebSocket) -> None:
     session_id: str | None = None
     session_user_id: str | None = None
     session_exercise: str | None = None
+    # "exercise" or "posing" (P16) — set when the session row is created so the
+    # close logic and snapshot accounting only ever touch the matching mode.
+    session_type: str = "exercise"
     snapshots: list[dict[str, Any]] = []
     score_total = 0.0
     score_count = 0
@@ -288,6 +291,25 @@ async def ws_inference(websocket: WebSocket) -> None:
                     hold_tracker.reset()
                     score_smoother.reset()
 
+                # Create the posing session row on the first valid posing frame
+                # for authenticated users (P16). ``exercise`` holds the pose id.
+                # Only created when no session exists yet, so an exercise session
+                # already open on this socket is never repurposed.
+                if session_user_id and session_id is None:
+                    async with AsyncSessionLocal() as pose_db:
+                        pose_row = WorkoutSession(
+                            user_id=session_user_id,
+                            exercise=pose,
+                            session_type="posing",
+                            keypoints_data={"snapshots": []},
+                        )
+                        pose_db.add(pose_row)
+                        await pose_db.commit()
+                        session_id = pose_row.id
+                        session_exercise = pose
+                        session_type = "posing"
+                    last_snapshot_t = time.monotonic()
+
                 pose_inf = await run_inference(model, executor, frame_b64)
                 if pose_inf is None:
                     hold_tracker.reset()
@@ -314,7 +336,29 @@ async def ws_inference(websocket: WebSocket) -> None:
                         smoothed_pose_score, kp_smooth_pose, pose_inf.kp_conf, time.monotonic()
                     )
                     score_value: float | None = round(smoothed_pose_score, 1)
-                    symmetry_value: float | None = pose_result.symmetry_score
+                    # Symmetry is null in profile (P16) — meaningless when occluded.
+                    symmetry_value: float | None = (
+                        round(pose_result.symmetry_score, 1)
+                        if pose_result.symmetry_applicable
+                        else None
+                    )
+                    # Persist a snapshot every SNAPSHOT_INTERVAL_S for the posing session.
+                    if session_id is not None and session_type == "posing":
+                        score_total += smoothed_pose_score
+                        score_count += 1
+                        now = time.monotonic()
+                        if now - last_snapshot_t >= SNAPSHOT_INTERVAL_S:
+                            snapshots.append(
+                                {
+                                    "ts": time.time(),
+                                    "score": round(smoothed_pose_score, 1),
+                                    "kp": kp_smooth_pose.tolist(),
+                                }
+                            )
+                            last_snapshot_t = now
+                            if conn_guard_key is not None and guard_acquired:
+                                with contextlib.suppress(Exception):
+                                    await redis.expire(conn_guard_key, WS_CONN_TTL_S)
                 else:
                     # No meaningful score this frame (low confidence / wrong way).
                     score_smoother.reset()

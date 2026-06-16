@@ -26,6 +26,8 @@ class UserResponse(BaseModel):
 class SessionSummary(BaseModel):
     id: str
     exercise: str
+    # "exercise" or "posing" (P16). For posing, ``exercise`` holds the pose id.
+    session_type: str = "exercise"
     rep_count: int
     avg_form_score: float
     started_at: datetime
