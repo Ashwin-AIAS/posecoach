@@ -61,12 +61,18 @@ export default {
           "0%, 100%": { opacity: "0.3" },
           "50%": { opacity: "1" },
         },
+        "ring-celebrate": {
+          "0%": { transform: "scale(1)" },
+          "40%": { transform: "scale(1.08)" },
+          "100%": { transform: "scale(1)" },
+        },
       },
       animation: {
         "caption-in": "caption-in 0.25s ease-out",
         "fade-in": "fade-in 0.2s ease-out",
         "scale-in": "scale-in 0.18s ease-out",
         "pulse-dot": "pulse-dot 1.2s ease-in-out infinite",
+        "ring-celebrate": "ring-celebrate 0.5s ease-out",
       },
     },
   },
