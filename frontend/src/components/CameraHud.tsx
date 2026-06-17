@@ -50,15 +50,17 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      {/* Corner score ring on a glass chip */}
+      {/* Corner score ring on a glass chip — the dominant, glanceable readout */}
       <div className="absolute right-3 top-3 rounded-2xl bg-surface-base/45 p-1.5 shadow-elev-1 backdrop-blur-md">
-        <ScoreRing score={score} size={104} />
+        <ScoreRing score={score} size={128} />
       </div>
 
-      {/* Worst-joint callout — the exact body part to fix (multi-joint scoring) */}
+      {/* Worst-joint callout — a soft accent glow, never a hard outline, so it
+          reads as a gentle highlight rather than an alarm. */}
       {!blocked && worst !== null && (
         <div
-          className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-score-bad/40 bg-score-bad/15 px-3 py-1 text-sm font-medium text-score-bad backdrop-blur-md"
+          className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-score-bad/15 px-3 py-1 text-sm font-medium text-score-bad backdrop-blur-md"
+          style={{ boxShadow: "0 0 24px -2px rgba(255, 77, 77, 0.5)" }}
           data-testid="worst-joint-chip"
         >
           Fix: {worst.bodyPart}
@@ -75,25 +77,36 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         ?
       </button>
 
-      {/* Top-left: plank hold timer, otherwise the large rep counter */}
+      {/* Top-left dashboard cluster: plank hold timer or the large rep counter,
+          with the exercise name receding underneath in smaller, low-contrast text. */}
       {isPlank ? (
         holdS !== undefined && (
           <div className="absolute left-3 top-3 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md">
-            <span className="hud-numerals font-display text-2xl font-semibold text-accent">
-              {holdS.toFixed(1)}s
+            <div className="flex items-baseline gap-1.5">
+              <span className="hud-numerals font-display text-3xl font-semibold leading-none text-accent">
+                {holdS.toFixed(1)}s
+              </span>
+              <span className="text-[11px] uppercase tracking-wide text-gray-400">hold</span>
+            </div>
+            <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
+              {exerciseLabel(exercise)}
             </span>
-            <span className="ml-1.5 text-[11px] uppercase tracking-wide text-gray-400">hold</span>
           </div>
         )
       ) : (
         <div
-          className="absolute left-3 top-3 flex items-baseline gap-1.5 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md"
+          className="absolute left-3 top-3 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md"
           data-testid="rep-counter"
         >
-          <span className="hud-numerals font-display text-3xl font-semibold leading-none text-white">
-            {reps}
+          <div className="flex items-baseline gap-1.5">
+            <span className="hud-numerals font-display text-4xl font-semibold leading-none text-white">
+              {reps}
+            </span>
+            <span className="text-[11px] uppercase tracking-wide text-gray-400">reps</span>
+          </div>
+          <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
+            {exerciseLabel(exercise)}
           </span>
-          <span className="text-[11px] uppercase tracking-wide text-gray-400">reps</span>
         </div>
       )}
 

@@ -64,6 +64,7 @@ export default function App(): JSX.Element {
     setDivision(next)
     setPoseName(DIVISIONS[next].mandatories[0])
   }, [])
+  const [mobileTab, setMobileTab] = useState<"cues" | "chat">("cues")
   const [showHistory, setShowHistory] = useState(false)
   const [showPrep, setShowPrep] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
@@ -201,70 +202,20 @@ export default function App(): JSX.Element {
         </div>
       </header>
 
-      <div className="relative z-20 flex items-center justify-between gap-3 bg-surface-base/60 px-4 py-2 shadow-elev-1">
-        <div className="flex min-w-0 items-center gap-3">
-          <ModeToggle value={mode} onChange={setMode} />
-          {posing ? (
-            <>
-              <DivisionSelector value={division} onChange={selectDivision} />
-              <PoseSelector
-                value={poseName}
-                onChange={setPoseName}
-                poses={DIVISIONS[division].mandatories}
-              />
-            </>
-          ) : (
-            <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {posing && (
-            <button
-              type="button"
-              onClick={() => setShowPrep(true)}
-              title="Contest-prep progress — symmetry & hold trends over your prep"
-              className="rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white"
-              data-testid="prep-btn"
-            >
-              Prep
-            </button>
-          )}
-          {recorder.supported && (
-            <button
-              type="button"
-              onClick={() => (recorder.recording ? recorder.stop() : recorder.start())}
-              disabled={!camera.ready}
-              aria-pressed={recorder.recording}
-              aria-label={recorder.recording ? "Stop recording" : "Record session"}
-              title="Record this set (saved on your device only)"
-              className={
-                "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40 " +
-                (recorder.recording
-                  ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
-                  : "bg-surface-raised text-gray-200 shadow-elev-1 hover:text-white")
-              }
-              data-testid="record-btn"
-            >
-              <span
-                className={
-                  "h-2 w-2 rounded-full bg-score-bad " +
-                  (recorder.recording ? "animate-pulse-dot" : "")
-                }
-                aria-hidden="true"
-              />
-              {recorder.recording ? "Stop" : "Record"}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={finishSet}
-            disabled={!camera.ready}
-            className="rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-40"
-            data-testid="finish-set-btn"
-          >
-            Finish set
-          </button>
-        </div>
+      <div className="relative z-20 flex min-w-0 items-center gap-3 bg-surface-base/60 px-4 py-2 shadow-elev-1">
+        <ModeToggle value={mode} onChange={setMode} />
+        {posing ? (
+          <>
+            <DivisionSelector value={division} onChange={selectDivision} />
+            <PoseSelector
+              value={poseName}
+              onChange={setPoseName}
+              poses={DIVISIONS[division].mandatories}
+            />
+          </>
+        ) : (
+          <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
+        )}
       </div>
 
       {!posing && <RecommendationCard exercise={exercise} />}
@@ -280,7 +231,7 @@ export default function App(): JSX.Element {
       )}
       <InstallBanner />
 
-      <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[1fr_360px]">
+      <main className="grid flex-1 grid-cols-1 grid-rows-[minmax(220px,1fr)_auto] gap-3 overflow-hidden p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1">
         <div className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-black shadow-elev-3">
           <CameraFeed
             ref={camera.videoRef}
@@ -319,17 +270,111 @@ export default function App(): JSX.Element {
           {showHint && <EmptyStageHint exercise={exercise} />}
         </div>
 
-        <aside className="flex flex-col gap-4 overflow-y-auto">
-          {posing && <PosingPanel result={pose.result} pose={poseName} />}
-          <CoachingCues
-            result={pose.result}
-            connectionState={pose.connectionState}
-            error={pose.error}
-          />
-          {!posing && <ReferenceVideoPanel exercise={exercise} />}
-          <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
+        <aside className="flex min-h-0 flex-col gap-2 overflow-hidden lg:gap-4 lg:overflow-y-auto">
+          {/* Mobile-only tab switcher — on >=lg both panels below are always shown. */}
+          <div role="tablist" aria-label="Panels" className="flex shrink-0 gap-1.5 lg:hidden">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === "cues"}
+              onClick={() => setMobileTab("cues")}
+              className={
+                "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 " +
+                (mobileTab === "cues"
+                  ? "bg-accent-soft text-accent"
+                  : "bg-surface-raised text-gray-400 shadow-elev-1")
+              }
+              data-testid="mobile-tab-cues"
+            >
+              Coaching
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === "chat"}
+              onClick={() => setMobileTab("chat")}
+              className={
+                "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 " +
+                (mobileTab === "chat"
+                  ? "bg-accent-soft text-accent"
+                  : "bg-surface-raised text-gray-400 shadow-elev-1")
+              }
+              data-testid="mobile-tab-chat"
+            >
+              Chat
+            </button>
+          </div>
+
+          <div
+            className={
+              (mobileTab === "cues" ? "flex" : "hidden") +
+              " min-h-0 flex-col gap-4 overflow-y-auto lg:flex"
+            }
+          >
+            {posing && <PosingPanel result={pose.result} pose={poseName} />}
+            <CoachingCues
+              result={pose.result}
+              connectionState={pose.connectionState}
+              error={pose.error}
+            />
+            {!posing && <ReferenceVideoPanel exercise={exercise} />}
+          </div>
+
+          <div className={(mobileTab === "chat" ? "flex" : "hidden") + " min-h-0 flex-col lg:flex"}>
+            <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
+          </div>
         </aside>
       </main>
+
+      {/* Thumb-reachable action bar — anchored at the bottom of the viewport so
+          Record/Finish (the controls used mid-set) never require a reach on phones. */}
+      <div className="relative z-20 flex shrink-0 items-center justify-center gap-2 bg-surface-raised/60 px-4 py-2.5 shadow-elev-1 backdrop-blur-md">
+        {posing && (
+          <button
+            type="button"
+            onClick={() => setShowPrep(true)}
+            title="Contest-prep progress — symmetry & hold trends over your prep"
+            className="rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white"
+            data-testid="prep-btn"
+          >
+            Prep
+          </button>
+        )}
+        {recorder.supported && (
+          <button
+            type="button"
+            onClick={() => (recorder.recording ? recorder.stop() : recorder.start())}
+            disabled={!camera.ready}
+            aria-pressed={recorder.recording}
+            aria-label={recorder.recording ? "Stop recording" : "Record session"}
+            title="Record this set (saved on your device only)"
+            className={
+              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40 " +
+              (recorder.recording
+                ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
+                : "bg-surface-raised text-gray-200 shadow-elev-1 hover:text-white")
+            }
+            data-testid="record-btn"
+          >
+            <span
+              className={
+                "h-2 w-2 rounded-full bg-score-bad " + (recorder.recording ? "animate-pulse-dot" : "")
+              }
+              aria-hidden="true"
+            />
+            {recorder.recording ? "Stop" : "Record"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={finishSet}
+          disabled={!camera.ready}
+          className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:brightness-110 disabled:translate-y-0 disabled:opacity-40"
+          data-testid="finish-set-btn"
+        >
+          Finish set
+        </button>
+      </div>
     </div>
   )
 }

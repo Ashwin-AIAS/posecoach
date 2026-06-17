@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { CoachingCues } from "../components/CoachingCues"
@@ -25,9 +25,12 @@ describe("CoachingCues", () => {
     expect(screen.getByTestId("score-value").textContent).toBe("—")
   })
 
-  it("renders every coaching cue", () => {
+  it("shows the top cue prominently and reveals the rest on tap (UI-04)", () => {
     render(<CoachingCues result={sampleResult} connectionState="open" error={null} />)
     expect(screen.getByText("Drive knees out wider")).toBeInTheDocument()
+    expect(screen.queryByText("Keep chest up and tall")).toBeNull()
+
+    fireEvent.click(screen.getByTestId("cues-toggle"))
     expect(screen.getByText("Keep chest up and tall")).toBeInTheDocument()
   })
 

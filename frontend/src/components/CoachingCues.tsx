@@ -1,4 +1,4 @@
-import { memo } from "react"
+import { memo, useState } from "react"
 
 import type { ConnectionState, PoseResult } from "../types"
 import { jointLabel, scoreColor } from "../lib/skeleton"
@@ -54,8 +54,10 @@ function JointBar({ name, value }: { name: string; value: number }): JSX.Element
 }
 
 function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps): JSX.Element {
+  const [expanded, setExpanded] = useState(false)
   const score = result?.score ?? null
   const cues = result?.cues ?? []
+  const [primaryCue, ...restCues] = cues
   const holdS = result?.hold_s
   const latency = result?.latency_ms ?? null
   const jointScores = result?.joint_scores ?? {}
@@ -96,18 +98,41 @@ function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps
         </div>
       )}
 
-      {cues.length > 0 && (
-        <ul className="mt-4 space-y-1.5" data-testid="cues-list">
-          {cues.map((cue) => (
-            <li
-              key={cue}
-              className="flex animate-caption-in items-start gap-2 text-sm text-gray-100"
-            >
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-              {cue}
-            </li>
-          ))}
-        </ul>
+      {primaryCue !== undefined && (
+        <p
+          key={primaryCue}
+          className="mt-4 animate-caption-in rounded-xl bg-surface-overlay/60 px-3 py-2.5 text-sm font-medium text-white"
+          data-testid="primary-cue"
+        >
+          {primaryCue}
+        </p>
+      )}
+
+      {restCues.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            aria-expanded={expanded}
+            className="mt-2 text-xs font-medium text-gray-500 transition hover:text-accent"
+            data-testid="cues-toggle"
+          >
+            {expanded ? "Show less" : `+${restCues.length} more cue${restCues.length > 1 ? "s" : ""}`}
+          </button>
+          {expanded && (
+            <ul className="mt-2 space-y-1.5" data-testid="cues-list">
+              {restCues.map((cue) => (
+                <li
+                  key={cue}
+                  className="flex animate-caption-in items-start gap-2 text-sm text-gray-300"
+                >
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-500" aria-hidden="true" />
+                  {cue}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       {error !== null && (
