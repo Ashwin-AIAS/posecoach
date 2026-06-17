@@ -23,6 +23,12 @@ const STARTER_PROMPTS = [
   "Help me fix butt wink",
 ]
 
+/** Always-available quick replies for common questions, shown above the input bar. */
+const QUICK_REPLIES = ["How's my depth?", "Fix my back", "What muscles?"]
+
+/** Pixels of slack from the bottom that still counts as "at the bottom". */
+const NEAR_BOTTOM_PX = 48
+
 function captureSnapshot(video: HTMLVideoElement | null): string | null {
   if (!video || video.readyState < 2) return null
   const canvas = document.createElement("canvas")
@@ -41,9 +47,20 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
   const { messages, state, error, send, regenerate, setFeedback } = useChat()
   const voice = useVoiceInput()
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Only auto-scroll on new content when the user was already near the bottom —
+  // otherwise a long answer would yank them back down mid-read of older messages.
+  const stickToBottomRef = useRef(true)
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
+  }, [])
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
+    const el = scrollRef.current
+    if (!stickToBottomRef.current || !el || typeof el.scrollTo !== "function") return
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
   }, [messages])
 
   // Sync voice transcript → input field
@@ -123,7 +140,12 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
       </div>
 
       {/* Messages area */}
-      <div ref={scrollRef} className="flex-1 space-y-2.5 overflow-y-auto pr-1" data-testid="chat-messages">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 space-y-3 overflow-y-auto pr-1"
+        data-testid="chat-messages"
+      >
         {messages.length === 0 && (
           <div className="flex flex-col items-center gap-3 py-4">
             {/* Welcome message */}
@@ -171,6 +193,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
                 isLast={isLastAssistant}
                 isStreaming={state === "streaming"}
                 chatState={state}
+                respondingToFrame={isLastAssistant && Boolean(messages[idx - 1]?.hasFrame)}
                 onRegenerate={isLastAssistant && !isBusy ? () => void regenerate() : undefined}
                 onFeedback={
                   m.role === "assistant"
@@ -186,6 +209,22 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
       {/* Error display */}
       {error && <p className="text-xs text-score-bad">{error}</p>}
       {voice.error && <p className="text-xs text-score-bad">{voice.error}</p>}
+
+      {/* Quick-reply chips — always available, not just on the empty-state welcome */}
+      <div className="flex flex-wrap gap-1.5" data-testid="quick-replies">
+        {QUICK_REPLIES.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            onClick={() => void submitStarter(prompt)}
+            disabled={isBusy}
+            className="rounded-full bg-surface-base px-3 py-1 text-[11px] text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+            data-testid="quick-reply-chip"
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
 
       {/* Input bar */}
       <div className="flex items-stretch gap-2">

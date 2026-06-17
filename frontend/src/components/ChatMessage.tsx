@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from "react"
-import { Check, Copy, RefreshCw, ThumbsDown, ThumbsUp, Volume2, VolumeX } from "lucide-react"
+import { Camera, Check, Copy, RefreshCw, ThumbsDown, ThumbsUp, Volume2, VolumeX } from "lucide-react"
 
 import type { ChatMessage as ChatMessageType, ChatState } from "../hooks/useChat"
 import { Icon } from "./ui/Icon"
@@ -9,9 +9,18 @@ interface ChatMessageProps {
   readonly isLast: boolean
   readonly isStreaming: boolean
   readonly chatState: ChatState
+  /** True when this is the pending assistant reply to a query sent with a frame. */
+  readonly respondingToFrame?: boolean
   readonly onRegenerate?: () => void
   readonly onFeedback?: (value: "up" | "down" | null) => void
   readonly onFollowUp?: (question: string) => void
+}
+
+/** Message ids are minted as `${Date.now()}-${rand}` — recover a display time without touching useChat. */
+function timeFromId(id: string): string {
+  const ms = Number(id.split("-")[0])
+  if (!Number.isFinite(ms)) return ""
+  return new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
 }
 
 // ---------------------------------------------------------------------------
@@ -338,15 +347,24 @@ function MessageActions({
 // Thinking indicator
 // ---------------------------------------------------------------------------
 
-function ThinkingIndicator(): JSX.Element {
+function ThinkingIndicator({ respondingToFrame = false }: { respondingToFrame?: boolean }): JSX.Element {
   return (
-    <div className="flex items-center gap-2 py-1">
+    <div className="flex items-center gap-2 py-1" data-testid="thinking-indicator">
       <div className="flex gap-0.5">
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent/60 [animation-delay:0s]" />
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent/60 [animation-delay:0.2s]" />
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent/60 [animation-delay:0.4s]" />
       </div>
-      <span className="text-[11px] font-medium text-gray-500">Coach is thinking…</span>
+      <span className="text-[11px] font-medium text-gray-500">
+        {respondingToFrame ? (
+          <span className="inline-flex items-center gap-1">
+            <Icon icon={Camera} size={11} />
+            Looking at your form…
+          </span>
+        ) : (
+          "Coach is thinking…"
+        )}
+      </span>
     </div>
   )
 }
@@ -360,6 +378,7 @@ function ChatMessageInner({
   isLast,
   isStreaming,
   chatState,
+  respondingToFrame = false,
   onRegenerate,
   onFeedback,
 }: ChatMessageProps): JSX.Element {
@@ -368,6 +387,7 @@ function ChatMessageInner({
     message.role === "assistant" && chatState === "thinking" && !message.text
   const showStreaming =
     message.role === "assistant" && isStreaming && !message.text && !isThinking
+  const timestamp = useMemo(() => timeFromId(message.id), [message.id])
 
   // Parse follow-up questions from blockquotes (> 💡 ...) for potential chip rendering
   const followUpQuestions = useMemo(() => {
@@ -381,22 +401,23 @@ function ChatMessageInner({
   return (
     <div className={isUser ? "flex justify-end" : "flex justify-start"}>
       <div className="max-w-[85%]">
+        {isUser && message.hasFrame && (
+          <div className="mb-1 flex items-center justify-end gap-1 text-[10px] font-medium uppercase tracking-wide text-accent">
+            <Icon icon={Camera} size={11} />
+            Looking at your form
+          </div>
+        )}
+
         <div
           className={
-            "rounded-2xl px-3 py-2 text-sm " +
+            "rounded-2xl px-3.5 py-2.5 text-sm shadow-elev-1 " +
             (isUser
               ? "rounded-br-sm bg-accent-soft text-white"
               : "rounded-bl-sm bg-surface-overlay text-gray-100")
           }
         >
-          {isUser && message.hasFrame && (
-            <span className="mr-1.5 align-middle text-[10px] font-medium uppercase tracking-wide text-accent">
-              [frame]
-            </span>
-          )}
-
           {isThinking ? (
-            <ThinkingIndicator />
+            <ThinkingIndicator respondingToFrame={respondingToFrame} />
           ) : showStreaming ? (
             <span className="inline-flex gap-1 py-1" aria-label="Coach is typing">
               <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-gray-400" />
@@ -410,15 +431,22 @@ function ChatMessageInner({
           )}
         </div>
 
-        {/* Action buttons — only for assistant messages with content */}
-        {!isUser && message.text && !isThinking && !showStreaming && (
-          <MessageActions
-            message={message}
-            isLast={isLast}
-            onRegenerate={onRegenerate}
-            onFeedback={onFeedback}
-          />
-        )}
+        <div className={"mt-1 flex items-center gap-2 " + (isUser ? "justify-end" : "justify-start")}>
+          {/* Action buttons — only for assistant messages with content */}
+          {!isUser && message.text && !isThinking && !showStreaming && (
+            <MessageActions
+              message={message}
+              isLast={isLast}
+              onRegenerate={onRegenerate}
+              onFeedback={onFeedback}
+            />
+          )}
+          {timestamp && !isThinking && !showStreaming && (
+            <span className="text-[10px] text-gray-600" data-testid="message-timestamp">
+              {timestamp}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
