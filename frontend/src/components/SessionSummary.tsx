@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react"
+import { Check, X } from "lucide-react"
 
 import type { SessionStats } from "../hooks/useSessionStats"
 import type { EffortRating, Exercise } from "../types"
 import { apiJson, submitEffort } from "../lib/api"
 import { exerciseLabel } from "../lib/exercises"
 import { scoreColor } from "../lib/skeleton"
+import { Icon } from "./ui/Icon"
 
 interface HistorySession {
   readonly id: string
@@ -172,7 +174,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
             className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
             aria-label="Close"
           >
-            ✕
+            <Icon icon={X} size={18} />
           </button>
         </div>
 
@@ -210,7 +212,14 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
                       : "border-surface-hairline bg-surface-overlay text-gray-300 hover:border-accent/50 hover:text-white")
                   }
                 >
-                  {rated === value ? `✓ ${label}` : label}
+                  {rated === value ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Icon icon={Check} size={14} />
+                      {label}
+                    </span>
+                  ) : (
+                    label
+                  )}
                 </button>
               ))}
             </div>

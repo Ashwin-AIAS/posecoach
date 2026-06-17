@@ -1,7 +1,9 @@
 import { useEffect } from "react"
+import { X } from "lucide-react"
 
 import type { Exercise } from "../types"
 import { EXERCISE_META } from "../lib/exercises"
+import { Icon } from "./ui/Icon"
 
 interface HowToDrawerProps {
   /** Exercise to show the tips for, or null when the drawer is closed. */
@@ -56,7 +58,7 @@ export function HowToDrawer({ exercise, onClose }: HowToDrawerProps): JSX.Elemen
             className="rounded-md p-1 text-gray-400 hover:bg-surface-overlay hover:text-white"
             aria-label="Close"
           >
-            ✕
+            <Icon icon={X} size={18} />
           </button>
         </div>
 

@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { RefreshCw, Volume2, VolumeX } from "lucide-react"
 
 import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
@@ -20,6 +21,7 @@ import { RecordingPreview } from "./components/RecordingPreview"
 import { ReferenceVideoPanel } from "./components/ReferenceVideoPanel"
 import { SessionSummary } from "./components/SessionSummary"
 import { UserMenu } from "./components/UserMenu"
+import { Icon } from "./components/ui/Icon"
 import { useAuth } from "./hooks/useAuth"
 import { useCamera } from "./hooks/useCamera"
 import { useCueVoice, isSpeechSupported } from "./hooks/useCueVoice"
@@ -175,7 +177,7 @@ export default function App(): JSX.Element {
             className="rounded-full border border-surface-hairline px-2.5 py-1 text-sm text-gray-400 transition hover:text-white disabled:opacity-40"
             data-testid="flip-camera"
           >
-            🔄
+            <Icon icon={RefreshCw} size={16} />
           </button>
           {isSpeechSupported() && (
             <button
@@ -192,7 +194,7 @@ export default function App(): JSX.Element {
               }
               data-testid="voice-toggle"
             >
-              {voice ? "🔊" : "🔈"}
+              <Icon icon={voice ? Volume2 : VolumeX} size={16} />
             </button>
           )}
           <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />

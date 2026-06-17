@@ -1,8 +1,10 @@
 import { memo, useCallback, useEffect, useState } from "react"
+import { BarChart3, X } from "lucide-react"
 
 import { apiFetch, apiJson, assignSessionPrep, fetchPreps } from "../lib/api"
 import type { PrepCycle } from "../types"
 import { HistoryTrend } from "./HistoryTrend"
+import { Icon } from "./ui/Icon"
 
 interface SessionSummary {
   readonly id: string
@@ -91,7 +93,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
             className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
             aria-label="Close"
           >
-            ✕
+            <Icon icon={X} size={18} />
           </button>
         </div>
 
@@ -99,8 +101,8 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
         {error && <p className="text-sm text-score-bad">{error}</p>}
         {!loading && !error && sessions.length === 0 && (
           <div className="grid place-content-center gap-2 py-12 text-center">
-            <div className="mx-auto grid h-12 w-12 place-content-center rounded-full bg-surface-overlay text-2xl">
-              📊
+            <div className="mx-auto grid h-12 w-12 place-content-center rounded-full bg-surface-overlay">
+              <Icon icon={BarChart3} size={22} className="text-gray-400" />
             </div>
             <p className="text-sm text-gray-400">No sessions yet.</p>
             <p className="text-xs text-gray-600">Sign in and train — your sets will appear here.</p>

@@ -1,7 +1,9 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react"
+import { Download, Share2, X } from "lucide-react"
 
 import type { RecordedSession } from "../hooks/useSessionRecorder"
 import { canShareFiles, downloadFile, shareFile } from "../hooks/useSessionRecorder"
+import { Icon } from "./ui/Icon"
 
 interface RecordingPreviewProps {
   readonly session: RecordedSession
@@ -71,7 +73,7 @@ function RecordingPreviewInner({ session, onClose }: RecordingPreviewProps): JSX
             aria-label="Close preview"
             data-testid="preview-close-btn"
           >
-            ✕
+            <Icon icon={X} size={18} />
           </button>
         </div>
 
@@ -106,7 +108,7 @@ function RecordingPreviewInner({ session, onClose }: RecordingPreviewProps): JSX
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-surface-base transition hover:brightness-110 disabled:opacity-50"
               data-testid="share-btn"
             >
-              <span aria-hidden="true">📤</span>
+              <Icon icon={Share2} size={16} />
               {sharing ? "Sharing…" : "Share"}
             </button>
           )}
@@ -119,14 +121,14 @@ function RecordingPreviewInner({ session, onClose }: RecordingPreviewProps): JSX
             }
             data-testid="download-btn"
           >
-            <span aria-hidden="true">💾</span>
+            <Icon icon={Download} size={16} />
             Download
           </button>
         </div>
 
         {/* Dismiss hint */}
         <p className="text-center text-[10px] text-gray-600">
-          Press Escape or ✕ to dismiss
+          Press Escape or close to dismiss
         </p>
       </div>
     </div>

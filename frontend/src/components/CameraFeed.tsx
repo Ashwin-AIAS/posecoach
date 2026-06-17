@@ -1,4 +1,7 @@
 import { forwardRef } from "react"
+import { CameraOff } from "lucide-react"
+
+import { Icon } from "./ui/Icon"
 
 interface CameraFeedProps {
   readonly error: string | null
@@ -34,8 +37,8 @@ export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
             className="absolute inset-0 grid place-content-center gap-3 bg-surface-base/95 px-6 text-center"
             role="alert"
           >
-            <div className="mx-auto grid h-12 w-12 place-content-center rounded-full bg-score-bad/15 text-2xl">
-              📷
+            <div className="mx-auto grid h-12 w-12 place-content-center rounded-full bg-score-bad/15">
+              <Icon icon={CameraOff} size={22} className="text-score-bad" />
             </div>
             <p className="font-display text-lg font-semibold text-white">Camera unavailable</p>
             <p className="mx-auto max-w-sm text-sm text-gray-400">{error}</p>

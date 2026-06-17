@@ -1,8 +1,10 @@
 import { memo, useCallback, useEffect, useState } from "react"
+import { X } from "lucide-react"
 
 import { createPrep, fetchPrepProgress, fetchPreps } from "../lib/api"
 import type { PoseProgress, PrepCycle, PrepProgress } from "../types"
 import { PoseTrendChart } from "./PoseTrendChart"
+import { Icon } from "./ui/Icon"
 
 interface PrepProgressPanelProps {
   readonly onClose: () => void
@@ -155,7 +157,7 @@ function PrepProgressPanelInner({ onClose }: PrepProgressPanelProps): JSX.Elemen
               className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
               aria-label="Close"
             >
-              ✕
+              <Icon icon={X} size={18} />
             </button>
           </div>
         </div>

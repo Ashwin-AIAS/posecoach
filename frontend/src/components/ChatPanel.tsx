@@ -1,9 +1,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react"
+import { Dumbbell, Mic, MessageCircle, X } from "lucide-react"
 
 import { useChat } from "../hooks/useChat"
 import { useVoiceInput } from "../hooks/useVoiceInput"
 import type { Exercise } from "../types"
 import { ChatMessage } from "./ChatMessage"
+import { Icon } from "./ui/Icon"
 
 interface ChatPanelProps {
   readonly exercise: Exercise
@@ -87,7 +89,10 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
         className="rounded-xl border border-surface-hairline bg-surface-raised px-3 py-2.5 text-sm font-medium text-gray-200 shadow-card transition hover:border-accent/50 hover:text-white"
         data-testid="chat-open-btn"
       >
-        💬 Ask the coach
+        <span className="inline-flex items-center gap-1.5">
+          <Icon icon={MessageCircle} size={16} />
+          Ask the coach
+        </span>
       </button>
     )
   }
@@ -102,18 +107,18 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-xs">
-            🏋️
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft">
+            <Icon icon={Dumbbell} size={13} className="text-accent" />
           </div>
           <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Coach</h2>
         </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded-md p-1 text-xs text-gray-400 hover:bg-surface-overlay hover:text-white"
+          className="rounded-md p-1 text-gray-400 hover:bg-surface-overlay hover:text-white"
           aria-label="Collapse chat"
         >
-          ✕
+          <Icon icon={X} size={16} />
         </button>
       </div>
 
@@ -122,8 +127,8 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
         {messages.length === 0 && (
           <div className="flex flex-col items-center gap-3 py-4">
             {/* Welcome message */}
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent-soft/50 text-lg">
-              🏋️
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent-soft/50">
+              <Icon icon={Dumbbell} size={18} className="text-accent" />
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-gray-200">
@@ -207,15 +212,16 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
             onClick={toggleVoice}
             disabled={isBusy}
             title={voice.isListening ? "Stop recording" : "Voice input"}
+            aria-label={voice.isListening ? "Stop recording" : "Voice input"}
             className={
-              "relative rounded-lg px-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 " +
+              "relative rounded-lg px-2.5 transition disabled:cursor-not-allowed disabled:opacity-40 " +
               (voice.isListening
                 ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
                 : "border border-surface-hairline text-gray-400 hover:border-accent/40 hover:text-accent")
             }
             data-testid="voice-btn"
           >
-            🎤
+            <Icon icon={Mic} size={16} />
             {voice.isListening && (
               <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-ping rounded-full bg-score-bad/60" />
             )}

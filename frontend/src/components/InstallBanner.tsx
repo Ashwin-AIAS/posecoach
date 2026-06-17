@@ -1,6 +1,8 @@
 import { useState } from "react"
+import { X } from "lucide-react"
 
 import { useInstallPrompt } from "../hooks/useInstallPrompt"
+import { Icon } from "./ui/Icon"
 
 /**
  * Dismissal is persisted so the iOS instructions don't nag on every visit
@@ -87,7 +89,7 @@ export function InstallBanner(): JSX.Element | null {
           aria-label="Dismiss install prompt"
           className="rounded-md p-1 text-gray-400 hover:text-white"
         >
-          ✕
+          <Icon icon={X} size={16} />
         </button>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import { memo } from "react"
+import { TriangleAlert } from "lucide-react"
 
 import type { Exercise, PoseResult, PoseStatus } from "../types"
 import type { WorstJoint } from "../lib/joints"
 import { exerciseLabel } from "../lib/exercises"
 import { ScoreRing } from "./ScoreRing"
+import { Icon } from "./ui/Icon"
 
 /** Fallback banner copy when the backend can't score a frame and sends no cue. */
 const STATUS_FALLBACK: Record<Exclude<PoseStatus, "ok">, string> = {
@@ -104,8 +106,9 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
             data-testid="mismatch-banner"
             className="animate-caption-in max-w-sm rounded-2xl border border-score-mid/60 bg-surface-base/80 px-5 py-3 text-center shadow-card backdrop-blur-md"
           >
-            <p className="text-base font-semibold text-score-mid">
-              ⚠ Doesn't look like {exerciseLabel(expected)}
+            <p className="flex items-center justify-center gap-1.5 text-base font-semibold text-score-mid">
+              <Icon icon={TriangleAlert} size={16} className="shrink-0" />
+              Doesn't look like {exerciseLabel(expected)}
             </p>
             {statusMessage !== undefined && (
               <p className="mt-1 text-sm text-gray-200">{statusMessage}</p>

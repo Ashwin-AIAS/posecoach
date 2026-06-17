@@ -1,6 +1,8 @@
 import { memo, useCallback, useMemo, useState } from "react"
+import { Check, Copy, RefreshCw, ThumbsDown, ThumbsUp, Volume2, VolumeX } from "lucide-react"
 
 import type { ChatMessage as ChatMessageType, ChatState } from "../hooks/useChat"
+import { Icon } from "./ui/Icon"
 
 interface ChatMessageProps {
   readonly message: ChatMessageType
@@ -260,9 +262,10 @@ function MessageActions({
         type="button"
         onClick={() => void handleCopy()}
         title={copied ? "Copied!" : "Copy message"}
-        className="rounded p-1 text-[11px] text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300"
+        aria-label={copied ? "Copied!" : "Copy message"}
+        className="rounded p-1 text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300"
       >
-        {copied ? "✓" : "📋"}
+        <Icon icon={copied ? Check : Copy} size={14} />
       </button>
 
       {/* Read aloud */}
@@ -271,12 +274,13 @@ function MessageActions({
           type="button"
           onClick={handleSpeak}
           title={speaking ? "Stop reading" : "Read aloud"}
+          aria-label={speaking ? "Stop reading" : "Read aloud"}
           className={
-            "rounded p-1 text-[11px] transition hover:bg-surface-overlay " +
+            "rounded p-1 transition hover:bg-surface-overlay " +
             (speaking ? "text-accent" : "text-gray-600 hover:text-gray-300")
           }
         >
-          {speaking ? "🔊" : "🔈"}
+          <Icon icon={speaking ? Volume2 : VolumeX} size={14} />
         </button>
       )}
 
@@ -285,14 +289,16 @@ function MessageActions({
         type="button"
         onClick={() => handleFeedback("up")}
         title="Good response"
+        aria-label="Good response"
+        aria-pressed={message.feedback === "up"}
         className={
-          "rounded p-1 text-[11px] transition hover:bg-surface-overlay " +
+          "rounded p-1 transition hover:bg-surface-overlay " +
           (message.feedback === "up"
             ? "text-score-good"
             : "text-gray-600 hover:text-gray-300")
         }
       >
-        👍
+        <Icon icon={ThumbsUp} size={14} />
       </button>
 
       {/* Thumbs down */}
@@ -300,14 +306,16 @@ function MessageActions({
         type="button"
         onClick={() => handleFeedback("down")}
         title="Poor response"
+        aria-label="Poor response"
+        aria-pressed={message.feedback === "down"}
         className={
-          "rounded p-1 text-[11px] transition hover:bg-surface-overlay " +
+          "rounded p-1 transition hover:bg-surface-overlay " +
           (message.feedback === "down"
             ? "text-score-bad"
             : "text-gray-600 hover:text-gray-300")
         }
       >
-        👎
+        <Icon icon={ThumbsDown} size={14} />
       </button>
 
       {/* Regenerate — only on the last assistant message */}
@@ -316,9 +324,10 @@ function MessageActions({
           type="button"
           onClick={onRegenerate}
           title="Regenerate response"
-          className="rounded p-1 text-[11px] text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300"
+          aria-label="Regenerate response"
+          className="rounded p-1 text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300"
         >
-          🔄
+          <Icon icon={RefreshCw} size={14} />
         </button>
       )}
     </div>

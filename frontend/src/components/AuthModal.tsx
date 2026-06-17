@@ -1,6 +1,8 @@
 import { memo, useState } from "react"
+import { X } from "lucide-react"
 
 import type { useAuth } from "../hooks/useAuth"
+import { Icon } from "./ui/Icon"
 
 type AuthHook = ReturnType<typeof useAuth>
 
@@ -56,7 +58,7 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
             className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
             aria-label="Close"
           >
-            ✕
+            <Icon icon={X} size={18} />
           </button>
         </div>
 
