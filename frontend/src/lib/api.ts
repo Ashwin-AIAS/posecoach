@@ -6,7 +6,7 @@
  * that succeeds the original request is retried; otherwise the error bubbles.
  */
 
-import type { EffortRating, Recommendation } from "../types"
+import type { EffortRating, PrepCycle, PrepProgress, Recommendation } from "../types"
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || ""
 const REFRESH_PATH = `${BASE_URL}/api/v1/auth/refresh`
@@ -72,6 +72,32 @@ export async function fetchRecommendation(exercise: string): Promise<Recommendat
   } catch {
     return null
   }
+}
+
+/** List the signed-in user's contest-prep cycles, newest first (P17). */
+export async function fetchPreps(): Promise<PrepCycle[]> {
+  return apiJson<PrepCycle[]>("/api/v1/history/preps")
+}
+
+/** Create a contest-prep cycle (P17). `showDate` is an ISO yyyy-mm-dd or null. */
+export async function createPrep(name: string, showDate: string | null): Promise<PrepCycle> {
+  return apiJson<PrepCycle>("/api/v1/history/preps", {
+    method: "POST",
+    body: JSON.stringify({ name, show_date: showDate }),
+  })
+}
+
+/** Fetch the per-pose symmetry & hold-steadiness progress for a prep (P18). */
+export async function fetchPrepProgress(prepId: string): Promise<PrepProgress> {
+  return apiJson<PrepProgress>(`/api/v1/history/preps/${prepId}/progress`)
+}
+
+/** Tag (or, with prepId=null, untag) a session to a prep cycle (P17). */
+export async function assignSessionPrep(sessionId: string, prepId: string | null): Promise<void> {
+  await apiJson<unknown>(`/api/v1/history/sessions/${sessionId}/prep`, {
+    method: "PATCH",
+    body: JSON.stringify({ prep_id: prepId }),
+  })
 }
 
 export async function apiJson<T>(input: string, init: RequestInit = {}): Promise<T> {

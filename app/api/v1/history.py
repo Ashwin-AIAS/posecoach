@@ -14,12 +14,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analysis.adaptive import recommend
 from app.analysis.form_scorer import SUPPORTED_EXERCISES
+from app.analysis.posing_progress import summarize_posing_progress
 from app.auth.deps import get_current_user
 from app.auth.schemas import (
     AssignPrepRequest,
     FeedbackRequest,
+    PosePointResponse,
+    PoseProgressResponse,
     PrepCycleCreate,
     PrepCycleResponse,
+    PrepProgressResponse,
     RecommendationResponse,
     SessionDetail,
     SessionSummary,
@@ -42,6 +46,17 @@ def _weeks_out(show_date: date | None) -> int | None:
     if show_date is None:
         return None
     return (show_date - date.today()).days // _DAYS_PER_WEEK
+
+
+def _weeks_before(show_date: date | None, when: date) -> int | None:
+    """Whole weeks from ``when`` until ``show_date`` (negative once past), or None.
+
+    Used per-rehearsal so the timeline reads in weeks-out *at the time of that
+    rehearsal* rather than relative to today.
+    """
+    if show_date is None:
+        return None
+    return (show_date - when).days // _DAYS_PER_WEEK
 
 
 def _prep_response(row: PrepCycle) -> PrepCycleResponse:
@@ -78,6 +93,7 @@ async def list_sessions(
             started_at=r.started_at,
             ended_at=r.ended_at,
             effort_rating=r.effort_rating,
+            prep_id=r.prep_id,
         )
         for r in rows
     ]
@@ -153,6 +169,7 @@ async def submit_feedback(
         started_at=row.started_at,
         ended_at=row.ended_at,
         effort_rating=row.effort_rating,
+        prep_id=row.prep_id,
     )
 
 
@@ -263,4 +280,66 @@ async def assign_session_prep(
         effort_rating=row.effort_rating,
         prep_id=row.prep_id,
         keypoints_data=row.keypoints_data or {},
+    )
+
+
+@router.get("/preps/{prep_id}/progress", response_model=PrepProgressResponse)
+async def get_prep_progress(
+    prep_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PrepProgressResponse:
+    """Per-pose symmetry & hold-steadiness trends across a contest prep (P18).
+
+    Every posing rehearsal tagged to the prep is re-scored through the
+    deterministic posing scorer and grouped by pose, so the timeline reads
+    week-over-week toward the show date.
+    """
+    prep = (
+        await db.execute(
+            select(PrepCycle).where(PrepCycle.id == prep_id, PrepCycle.user_id == user.id)
+        )
+    ).scalar_one_or_none()
+    if prep is None:
+        # 404 (not 403) so a foreign prep_id is indistinguishable from a missing one.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="prep not found")
+
+    stmt = (
+        select(WorkoutSession)
+        .where(
+            WorkoutSession.user_id == user.id,
+            WorkoutSession.prep_id == prep_id,
+            WorkoutSession.session_type == "posing",
+        )
+        .order_by(WorkoutSession.started_at.asc())
+    )
+    sessions = (await db.execute(stmt)).scalars().all()
+    progress = summarize_posing_progress(sessions)
+
+    poses = [
+        PoseProgressResponse(
+            pose=p.pose,
+            label=p.label,
+            focus_cue=p.focus_cue,
+            points=[
+                PosePointResponse(
+                    session_id=pt.session_id,
+                    started_at=pt.started_at,
+                    weeks_out=_weeks_before(prep.show_date, pt.started_at.date()),
+                    avg_score=pt.avg_score,
+                    symmetry=pt.symmetry,
+                    steadiness=pt.steadiness,
+                )
+                for pt in p.points
+            ],
+        )
+        for p in progress
+    ]
+    logger.info("prep_progress_served", user_id=user.id, prep_id=prep_id, poses=len(poses))
+    return PrepProgressResponse(
+        prep_id=prep.id,
+        name=prep.name,
+        show_date=prep.show_date,
+        weeks_out=_weeks_out(prep.show_date),
+        poses=poses,
     )

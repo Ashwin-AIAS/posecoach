@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useState } from "react"
 
-import { apiFetch, apiJson } from "../lib/api"
+import { apiFetch, apiJson, assignSessionPrep, fetchPreps } from "../lib/api"
+import type { PrepCycle } from "../types"
 import { HistoryTrend } from "./HistoryTrend"
 
 interface SessionSummary {
@@ -12,6 +13,8 @@ interface SessionSummary {
   readonly avg_form_score: number
   readonly started_at: string
   readonly ended_at: string | null
+  /** Contest-prep cycle this session is grouped under (P18), or null/absent. */
+  readonly prep_id?: string | null
 }
 
 interface HistoryPanelProps {
@@ -25,6 +28,7 @@ function formatDate(iso: string): string {
 
 function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
   const [sessions, setSessions] = useState<SessionSummary[]>([])
+  const [preps, setPreps] = useState<PrepCycle[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -44,6 +48,22 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
   useEffect(() => {
     void load()
   }, [load])
+
+  // Preps are best-effort: failure (e.g. signed out) just hides the tag control.
+  useEffect(() => {
+    void fetchPreps()
+      .then(setPreps)
+      .catch(() => setPreps([]))
+  }, [])
+
+  const reassign = async (id: string, prepId: string | null): Promise<void> => {
+    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, prep_id: prepId } : s)))
+    try {
+      await assignSessionPrep(id, prepId)
+    } catch {
+      void load() // revert optimistic update on failure
+    }
+  }
 
   const remove = async (id: string): Promise<void> => {
     if (!confirm("Delete this session?")) return
@@ -111,6 +131,22 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
                   Avg score: {s.avg_form_score.toFixed(1)}
                 </div>
               </div>
+              {s.session_type === "posing" && preps.length > 0 && (
+                <select
+                  value={s.prep_id ?? ""}
+                  onChange={(e) => void reassign(s.id, e.target.value || null)}
+                  aria-label="Assign to prep"
+                  data-testid="row-prep-select"
+                  className="max-w-[8rem] rounded-md border border-surface-hairline bg-surface-overlay px-1.5 py-1 text-xs text-gray-300 focus:border-accent focus:outline-none"
+                >
+                  <option value="">No prep</option>
+                  {preps.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 type="button"
                 onClick={() => void remove(s.id)}

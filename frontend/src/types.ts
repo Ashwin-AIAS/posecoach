@@ -167,6 +167,46 @@ export type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error
 /** 1-tap post-set effort rating (P16): 1 = too easy, 3 = just right, 5 = too hard. */
 export type EffortRating = 1 | 3 | 5
 
+/** A contest-prep cycle: a named run-up to a show date grouping rehearsals (P17). */
+export interface PrepCycle {
+  readonly id: string
+  readonly name: string
+  readonly show_date: string | null
+  readonly created_at: string
+  /** Whole weeks until the show date (negative once past), null if no date set. */
+  readonly weeks_out: number | null
+}
+
+/** One rehearsal's derived posing metrics on the progress timeline (P18). */
+export interface PosePoint {
+  readonly session_id: string
+  readonly started_at: string
+  /** Weeks before the show at the time of this rehearsal (null if no show date). */
+  readonly weeks_out: number | null
+  readonly avg_score: number | null
+  /** Left/right symmetry 0–100, null in profile poses where it is meaningless. */
+  readonly symmetry: number | null
+  /** Keypoint steadiness 0–100, null when a session has too few snapshots. */
+  readonly steadiness: number | null
+}
+
+/** Per-pose trend across a prep, plus the latest "fix this next" cue (P18). */
+export interface PoseProgress {
+  readonly pose: string
+  readonly label: string
+  readonly points: readonly PosePoint[]
+  readonly focus_cue: string | null
+}
+
+/** A prep's full posing progress: every rehearsed pose trended over the cycle (P18). */
+export interface PrepProgress {
+  readonly prep_id: string
+  readonly name: string
+  readonly show_date: string | null
+  readonly weeks_out: number | null
+  readonly poses: readonly PoseProgress[]
+}
+
 /** Next-session recommendation from the adaptive coach (P16). */
 export interface Recommendation {
   readonly exercise: string

@@ -14,6 +14,7 @@ import { ModeToggle } from "./components/ModeToggle"
 import { PoseOverlay } from "./components/PoseOverlay"
 import { PoseSelector } from "./components/PoseSelector"
 import { PosingPanel } from "./components/PosingPanel"
+import { PrepProgressPanel } from "./components/PrepProgressPanel"
 import { RecommendationCard } from "./components/RecommendationCard"
 import { RecordingPreview } from "./components/RecordingPreview"
 import { ReferenceVideoPanel } from "./components/ReferenceVideoPanel"
@@ -62,6 +63,7 @@ export default function App(): JSX.Element {
     setPoseName(DIVISIONS[next].mandatories[0])
   }, [])
   const [showHistory, setShowHistory] = useState(false)
+  const [showPrep, setShowPrep] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
   const [summary, setSummary] = useState<SessionStats | null>(null)
   const [voice, setVoice] = useState(false)
@@ -214,6 +216,17 @@ export default function App(): JSX.Element {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {posing && (
+            <button
+              type="button"
+              onClick={() => setShowPrep(true)}
+              title="Contest-prep progress — symmetry & hold trends over your prep"
+              className="rounded-full border border-surface-hairline bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 transition hover:border-accent/50 hover:text-white"
+              data-testid="prep-btn"
+            >
+              Prep
+            </button>
+          )}
           {recorder.supported && (
             <button
               type="button"
@@ -255,6 +268,7 @@ export default function App(): JSX.Element {
       {!posing && <RecommendationCard exercise={exercise} />}
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
+      {showPrep && <PrepProgressPanel onClose={() => setShowPrep(false)} />}
       <HowToDrawer exercise={howTo} onClose={() => setHowTo(null)} />
       {summary !== null && (
         <SessionSummary exercise={exercise} stats={summary} onClose={closeSummary} />
