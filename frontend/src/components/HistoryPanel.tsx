@@ -1,8 +1,10 @@
 import { memo, useCallback, useEffect, useState } from "react"
-import { BarChart3, X } from "lucide-react"
+import { BarChart3, ChevronRight, X } from "lucide-react"
 
 import { apiFetch, apiJson, assignSessionPrep, fetchPreps } from "../lib/api"
 import type { PrepCycle } from "../types"
+import { HistoryStats } from "./HistoryStats"
+import { HistorySessionDetail } from "./HistorySessionDetail"
 import { HistoryTrend } from "./HistoryTrend"
 import { Icon } from "./ui/Icon"
 
@@ -33,6 +35,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
   const [preps, setPreps] = useState<PrepCycle[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -82,7 +85,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[80vh] w-full max-w-2xl animate-scale-in flex-col rounded-2xl bg-surface-raised p-6 text-white shadow-elev-3"
+        className="relative flex max-h-[80vh] w-full max-w-2xl animate-scale-in flex-col rounded-2xl bg-surface-raised p-6 text-white shadow-elev-3"
         data-testid="history-panel"
       >
         <div className="mb-4 flex items-center justify-between">
@@ -110,29 +113,40 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
         )}
 
         {!loading && !error && sessions.length > 0 && (
-          <div className="mb-4 border-b border-surface-hairline pb-4">
-            <HistoryTrend sessions={sessions} />
-          </div>
+          <>
+            <HistoryStats sessions={sessions} />
+            <div className="mb-4 border-b border-surface-hairline pb-4">
+              <HistoryTrend sessions={sessions} />
+            </div>
+          </>
         )}
 
         <ul className="flex-1 divide-y divide-surface-hairline overflow-y-auto">
           {sessions.map((s) => (
-            <li key={s.id} className="flex items-center gap-4 py-3" data-testid="history-row">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-medium capitalize">{s.exercise.replace(/_/g, " ")}</span>
-                  {s.session_type === "posing" && (
-                    <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">
-                      Posing
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-600">{formatDate(s.started_at)}</span>
+            <li key={s.id} className="flex items-center gap-3 py-3" data-testid="history-row">
+              <button
+                type="button"
+                onClick={() => setDetailId(s.id)}
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition hover:text-white"
+                data-testid="history-row-open"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-medium capitalize">{s.exercise.replace(/_/g, " ")}</span>
+                    {s.session_type === "posing" && (
+                      <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">
+                        Posing
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-600">{formatDate(s.started_at)}</span>
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {s.rep_count > 0 && <span>{s.rep_count} reps · </span>}
+                    Avg score: {s.avg_form_score.toFixed(1)}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-400">
-                  {s.rep_count > 0 && <span>{s.rep_count} reps · </span>}
-                  Avg score: {s.avg_form_score.toFixed(1)}
-                </div>
-              </div>
+                <Icon icon={ChevronRight} size={16} className="text-gray-600" />
+              </button>
               {s.session_type === "posing" && preps.length > 0 && (
                 <select
                   value={s.prep_id ?? ""}
@@ -159,6 +173,8 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
             </li>
           ))}
         </ul>
+
+        {detailId && <HistorySessionDetail sessionId={detailId} onBack={() => setDetailId(null)} />}
       </div>
     </div>
   )

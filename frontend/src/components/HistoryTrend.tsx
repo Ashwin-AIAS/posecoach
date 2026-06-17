@@ -55,7 +55,11 @@ export function HistoryTrend({ sessions }: { sessions: readonly TrendSession[] }
   )
 
   if (sessions.length === 0) {
-    return <p className="text-sm text-gray-500">Train a few sessions to see your progress.</p>
+    return (
+      <div className="rounded-2xl bg-surface-raised p-4 shadow-elev-1">
+        <p className="text-sm text-gray-500">Train a few sessions to see your progress.</p>
+      </div>
+    )
   }
 
   const x = (i: number): number =>
@@ -68,9 +72,11 @@ export function HistoryTrend({ sessions }: { sessions: readonly TrendSession[] }
     values.length > 1
       ? `M${x(0).toFixed(1)},${baseline.toFixed(1)} L${line.replace(/ /g, " L")} L${x(values.length - 1).toFixed(1)},${baseline.toFixed(1)} Z`
       : ""
+  // Light horizontal guides at 0/25/50/75/100 — purely decorative, no data attached.
+  const gridStops = [0, 25, 50, 75, 100]
 
   return (
-    <div>
+    <div className="rounded-2xl bg-surface-raised p-4 shadow-elev-1">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Progress</h3>
         <select
@@ -94,6 +100,17 @@ export function HistoryTrend({ sessions }: { sessions: readonly TrendSession[] }
         role="img"
         aria-label={`Average form score over time for ${labelFor(active)}`}
       >
+        {gridStops.map((v) => (
+          <line
+            key={v}
+            x1={PAD_X}
+            x2={W - PAD_X}
+            y1={y(v)}
+            y2={y(v)}
+            stroke="rgb(var(--accent) / 0.08)"
+            strokeWidth={1}
+          />
+        ))}
         {area !== "" && <path d={area} fill="rgb(var(--accent) / 0.15)" />}
         {values.length > 1 && (
           <polyline

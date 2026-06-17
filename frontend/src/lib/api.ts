@@ -100,6 +100,29 @@ export async function assignSessionPrep(sessionId: string, prepId: string | null
   })
 }
 
+/** A single periodic snapshot persisted during a session (score + raw keypoints). */
+export interface SessionSnapshot {
+  readonly ts: number
+  readonly score: number
+}
+
+/** Full detail for one session — the `/history/sessions` list row plus its snapshot timeline. */
+export interface SessionDetail {
+  readonly id: string
+  readonly exercise: string
+  readonly session_type?: string
+  readonly rep_count: number
+  readonly avg_form_score: number
+  readonly started_at: string
+  readonly ended_at: string | null
+  readonly keypoints_data: { snapshots?: readonly SessionSnapshot[] }
+}
+
+/** Fetch one session's full detail, including its in-session score snapshots (UI-06 tap-in detail). */
+export async function getSessionDetail(sessionId: string): Promise<SessionDetail> {
+  return apiJson<SessionDetail>(`/api/v1/history/sessions/${sessionId}`)
+}
+
 export async function apiJson<T>(input: string, init: RequestInit = {}): Promise<T> {
   const resp = await apiFetch(input, init)
   if (!resp.ok) {
