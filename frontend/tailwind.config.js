@@ -31,6 +31,18 @@ export default {
         glow: "0 0 0 1px rgb(var(--accent) / 0.55), 0 0 22px -4px rgb(var(--accent) / 0.5)",
         "glow-sm": "0 0 0 1px rgb(var(--accent) / 0.4), 0 0 12px -4px rgb(var(--accent) / 0.4)",
         card: "0 8px 30px -12px rgba(0, 0, 0, 0.7)",
+        "elev-1":
+          "inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.5), 0 2px 8px -4px rgba(0, 0, 0, 0.6)",
+        "elev-2":
+          "inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 16px -6px rgba(0, 0, 0, 0.65), 0 12px 32px -16px rgba(0, 0, 0, 0.7)",
+        "elev-3":
+          "inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 28px -8px rgba(0, 0, 0, 0.7), 0 24px 56px -24px rgba(0, 0, 0, 0.8)",
+      },
+      transitionTimingFunction: {
+        spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+      },
+      fontSize: {
+        "display-hero": ["4rem", { lineHeight: "1", letterSpacing: "-0.02em" }],
       },
       keyframes: {
         "caption-in": {

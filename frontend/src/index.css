@@ -10,6 +10,16 @@
 :root {
   /* Electric-blue accent (#3D9BFF) as "R G B" channels — swap here to retheme. */
   --accent: 61 155 255;
+  /* Spring easing for premium motion (cards, buttons, ring celebrations). */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Big confident stat numbers (ScoreRing, dashboard hero figures). */
+.display-hero {
+  font-family: '"Space Grotesk Variable"', "Inter", system-ui, sans-serif;
+  font-size: 4rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 html,
