@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { RefreshCw, Volume2, VolumeX } from "lucide-react"
+import { ChevronLeft, RefreshCw, Volume2, VolumeX } from "lucide-react"
 
 import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
@@ -8,6 +8,7 @@ import { CoachingCues } from "./components/CoachingCues"
 import { EmptyStageHint } from "./components/EmptyStageHint"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
+import { Home } from "./components/Home"
 import { HowToDrawer } from "./components/HowToDrawer"
 import { DivisionSelector } from "./components/DivisionSelector"
 import { InstallBanner } from "./components/InstallBanner"
@@ -54,6 +55,9 @@ const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): 
 })
 
 export default function App(): JSX.Element {
+  // Home is the entry hub (UI-07); the live workout flow is unchanged — it's
+  // just one tap away, and back again via the header's back button.
+  const [view, setView] = useState<"home" | "live">("home")
   const [exercise, setExercise] = useState<Exercise>("squat")
   const [mode, setMode] = useState<SessionMode>("exercise")
   const [division, setDivision] = useState<Division>("open")
@@ -72,12 +76,17 @@ export default function App(): JSX.Element {
   const [voice, setVoice] = useState(false)
   const auth = useAuth()
   const camera = useCamera({ width: 640, height: 480, facingMode: "user" })
+  const cameraStart = camera.start
+  const cameraStop = camera.stop
 
+  // Camera only runs on the live screen — Home never touches the webcam.
   useEffect(() => {
-    void camera.start()
-    // start() is stable; intentionally empty deps to run once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (view === "live") {
+      void cameraStart()
+    } else {
+      cameraStop()
+    }
+  }, [view, cameraStart, cameraStop])
 
   const pose = usePoseStream({
     videoRef: camera.videoRef,
@@ -161,64 +170,62 @@ export default function App(): JSX.Element {
     <div className="flex h-screen w-screen flex-col bg-surface-base font-sans text-gray-100">
       <header className="relative z-30 flex items-center justify-between gap-4 bg-surface-raised/40 px-4 py-3 shadow-elev-1 backdrop-blur-md">
         <div className="flex items-center gap-3">
+          {view === "live" && (
+            <button
+              type="button"
+              onClick={() => setView("home")}
+              aria-label="Back to home"
+              title="Back to home"
+              className="rounded-full p-1 text-gray-400 transition hover:bg-surface-overlay hover:text-white"
+              data-testid="back-home-btn"
+            >
+              <Icon icon={ChevronLeft} size={18} />
+            </button>
+          )}
           <h1 className="font-display text-lg font-semibold tracking-tight">
             Pose<span className="text-accent">Coach</span>
           </h1>
-          <LatencyBadge ms={pose.result?.latency_ms ?? null} />
+          {view === "live" && <LatencyBadge ms={pose.result?.latency_ms ?? null} />}
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void camera.flip()}
-            disabled={!camera.ready}
-            aria-label={
-              camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
-            }
-            title="Flip camera (front / back)"
-            className="rounded-full bg-surface-raised px-2.5 py-1 text-sm text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-40"
-            data-testid="flip-camera"
-          >
-            <Icon icon={RefreshCw} size={16} />
-          </button>
-          {isSpeechSupported() && (
-            <button
-              type="button"
-              onClick={() => setVoice((v) => !v)}
-              aria-pressed={voice}
-              aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
-              title="Voice coaching cues"
-              className={
-                "rounded-full px-2.5 py-1 text-sm transition ease-spring hover:-translate-y-0.5 " +
-                (voice
-                  ? "bg-accent-soft text-accent shadow-glow-sm"
-                  : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")
-              }
-              data-testid="voice-toggle"
-            >
-              <Icon icon={voice ? Volume2 : VolumeX} size={16} />
-            </button>
+          {view === "live" && (
+            <>
+              <button
+                type="button"
+                onClick={() => void camera.flip()}
+                disabled={!camera.ready}
+                aria-label={
+                  camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
+                }
+                title="Flip camera (front / back)"
+                className="rounded-full bg-surface-raised px-2.5 py-1 text-sm text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-40"
+                data-testid="flip-camera"
+              >
+                <Icon icon={RefreshCw} size={16} />
+              </button>
+              {isSpeechSupported() && (
+                <button
+                  type="button"
+                  onClick={() => setVoice((v) => !v)}
+                  aria-pressed={voice}
+                  aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
+                  title="Voice coaching cues"
+                  className={
+                    "rounded-full px-2.5 py-1 text-sm transition ease-spring hover:-translate-y-0.5 " +
+                    (voice
+                      ? "bg-accent-soft text-accent shadow-glow-sm"
+                      : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")
+                  }
+                  data-testid="voice-toggle"
+                >
+                  <Icon icon={voice ? Volume2 : VolumeX} size={16} />
+                </button>
+              )}
+            </>
           )}
           <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
         </div>
       </header>
-
-      <div className="relative z-20 flex min-w-0 items-center gap-3 bg-surface-base/60 px-4 py-2 shadow-elev-1">
-        <ModeToggle value={mode} onChange={setMode} />
-        {posing ? (
-          <>
-            <DivisionSelector value={division} onChange={selectDivision} />
-            <PoseSelector
-              value={poseName}
-              onChange={setPoseName}
-              poses={DIVISIONS[division].mandatories}
-            />
-          </>
-        ) : (
-          <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
-        )}
-      </div>
-
-      {!posing && <RecommendationCard exercise={exercise} />}
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
       {showPrep && <PrepProgressPanel onClose={() => setShowPrep(false)} />}
@@ -231,7 +238,34 @@ export default function App(): JSX.Element {
       )}
       <InstallBanner />
 
-      <main className="grid flex-1 grid-cols-1 grid-rows-[minmax(220px,1fr)_auto] gap-3 overflow-hidden p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1">
+      {view === "home" ? (
+        <Home
+          user={auth.user}
+          lastExercise={exercise}
+          onStart={() => setView("live")}
+          onShowHistory={() => setShowHistory(true)}
+        />
+      ) : (
+        <>
+          <div className="relative z-20 flex min-w-0 items-center gap-3 bg-surface-base/60 px-4 py-2 shadow-elev-1">
+            <ModeToggle value={mode} onChange={setMode} />
+            {posing ? (
+              <>
+                <DivisionSelector value={division} onChange={selectDivision} />
+                <PoseSelector
+                  value={poseName}
+                  onChange={setPoseName}
+                  poses={DIVISIONS[division].mandatories}
+                />
+              </>
+            ) : (
+              <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
+            )}
+          </div>
+
+          {!posing && <RecommendationCard exercise={exercise} />}
+
+          <main className="grid flex-1 grid-cols-1 grid-rows-[minmax(220px,1fr)_auto] gap-3 overflow-hidden p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1">
         <div className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-black shadow-elev-3">
           <CameraFeed
             ref={camera.videoRef}
@@ -375,6 +409,8 @@ export default function App(): JSX.Element {
           Finish set
         </button>
       </div>
+        </>
+      )}
     </div>
   )
 }
