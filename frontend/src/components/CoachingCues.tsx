@@ -28,7 +28,7 @@ const STATE_DOT: Record<ConnectionState, string> = {
 function ConnectionPill({ state }: { state: ConnectionState }): JSX.Element {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border border-surface-hairline bg-surface-base/60 px-2.5 py-1 text-[11px] font-medium text-gray-300"
+      className="inline-flex items-center gap-1.5 rounded-full bg-surface-base/60 px-2.5 py-1 text-[11px] font-medium text-gray-300 shadow-elev-1"
       data-testid="connection-pill"
     >
       <span className={`h-1.5 w-1.5 rounded-full ${STATE_DOT[state]}`} aria-hidden="true" />
@@ -63,7 +63,7 @@ function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps
   const joints = Object.entries(jointScores).sort((a, b) => a[1] - b[1])
 
   return (
-    <section className="rounded-2xl border border-surface-hairline bg-surface-raised/70 p-4 shadow-card backdrop-blur-md">
+    <section className="rounded-2xl bg-surface-raised/70 p-4 shadow-elev-2 backdrop-blur-md">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Form score</h2>
         <ConnectionPill state={connectionState} />

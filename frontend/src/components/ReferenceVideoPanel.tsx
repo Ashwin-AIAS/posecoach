@@ -39,7 +39,7 @@ function ReferenceVideoPanelInner({ exercise }: ReferenceVideoPanelProps): JSX.E
 
   return (
     <section
-      className="rounded-2xl border border-surface-hairline bg-surface-raised/70 shadow-card backdrop-blur-md"
+      className="rounded-2xl bg-surface-raised/70 shadow-elev-2 backdrop-blur-md"
       data-testid="reference-video-panel"
     >
       <button

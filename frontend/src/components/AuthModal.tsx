@@ -45,7 +45,7 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="w-full max-w-sm animate-scale-in space-y-4 rounded-2xl border border-surface-hairline bg-surface-raised p-6 text-white shadow-card"
+        className="w-full max-w-sm animate-scale-in space-y-4 rounded-2xl bg-surface-raised p-6 text-white shadow-elev-3"
         data-testid="auth-modal"
       >
         <div className="flex items-center justify-between">

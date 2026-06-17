@@ -30,10 +30,10 @@ function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSel
               disabled={disabled}
               onClick={() => onChange(meta.id)}
               className={
-                "rounded-full border px-3 py-1 text-xs font-medium transition disabled:opacity-50 " +
+                "rounded-full px-3 py-1 text-xs font-medium transition ease-spring hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-50 " +
                 (isActive
-                  ? "border-accent bg-accent-soft text-accent"
-                  : "border-surface-hairline bg-surface-raised text-gray-300 hover:border-accent/50 hover:text-white")
+                  ? "border border-accent bg-accent-soft text-accent"
+                  : "bg-surface-raised text-gray-300 shadow-elev-1 hover:text-white")
               }
               data-testid={`pose-${meta.id}`}
             >

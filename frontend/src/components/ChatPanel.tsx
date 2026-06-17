@@ -86,7 +86,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-xl border border-surface-hairline bg-surface-raised px-3 py-2.5 text-sm font-medium text-gray-200 shadow-card transition hover:border-accent/50 hover:text-white"
+        className="rounded-xl bg-surface-raised px-3 py-2.5 text-sm font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white"
         data-testid="chat-open-btn"
       >
         <span className="inline-flex items-center gap-1.5">
@@ -101,7 +101,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
 
   return (
     <div
-      className="flex max-h-[520px] min-h-[320px] flex-col gap-2 rounded-2xl border border-surface-hairline bg-surface-raised/70 p-4 shadow-card backdrop-blur-md"
+      className="flex max-h-[520px] min-h-[320px] flex-col gap-2 rounded-2xl bg-surface-raised/70 p-4 shadow-elev-2 backdrop-blur-md"
       data-testid="chat-panel"
     >
       {/* Header */}
@@ -147,7 +147,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
                   key={prompt}
                   type="button"
                   onClick={() => void submitStarter(prompt)}
-                  className="rounded-full border border-surface-hairline bg-surface-base px-3 py-1.5 text-[11px] text-gray-400 transition hover:border-accent/40 hover:text-accent"
+                  className="rounded-full bg-surface-base px-3 py-1.5 text-[11px] text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-accent"
                 >
                   {prompt}
                 </button>
@@ -214,10 +214,10 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
             title={voice.isListening ? "Stop recording" : "Voice input"}
             aria-label={voice.isListening ? "Stop recording" : "Voice input"}
             className={
-              "relative rounded-lg px-2.5 transition disabled:cursor-not-allowed disabled:opacity-40 " +
+              "relative rounded-lg px-2.5 transition ease-spring disabled:cursor-not-allowed disabled:opacity-40 " +
               (voice.isListening
                 ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
-                : "border border-surface-hairline text-gray-400 hover:border-accent/40 hover:text-accent")
+                : "text-gray-400 shadow-elev-1 hover:-translate-y-0.5 hover:text-accent")
             }
             data-testid="voice-btn"
           >
@@ -243,7 +243,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
           type="button"
           onClick={() => void submit(true)}
           disabled={isBusy || !input.trim()}
-          className="rounded-lg border border-accent/40 px-3 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:border-surface-hairline disabled:text-gray-600"
+          className="rounded-lg border border-accent/40 px-3 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:text-gray-600"
           title="Send with a snapshot of the current frame"
         >
           + Frame

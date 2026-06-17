@@ -62,7 +62,7 @@ function RecordingPreviewInner({ session, onClose }: RecordingPreviewProps): JSX
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
       data-testid="recording-preview"
     >
-      <div className="mx-4 flex w-full max-w-lg flex-col gap-3 rounded-2xl border border-surface-hairline bg-surface-raised p-4 shadow-card">
+      <div className="mx-4 flex w-full max-w-lg flex-col gap-3 rounded-2xl bg-surface-raised p-4 shadow-elev-3">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">Session recording</h2>
@@ -116,7 +116,7 @@ function RecordingPreviewInner({ session, onClose }: RecordingPreviewProps): JSX
             type="button"
             onClick={handleDownload}
             className={
-              "flex items-center justify-center gap-2 rounded-xl border border-surface-hairline px-4 py-2.5 text-sm font-medium text-gray-200 transition hover:border-accent/50 hover:text-white " +
+              "flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white " +
               (shareSupported ? "flex-1" : "w-full")
             }
             data-testid="download-btn"

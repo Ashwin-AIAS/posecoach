@@ -30,13 +30,13 @@ export function RecommendationCard({ exercise }: { exercise: Exercise }): JSX.El
 
   return (
     <div
-      className="flex items-center gap-2 border-b border-surface-hairline bg-surface-raised/50 px-4 py-2 text-xs text-gray-200"
+      className="flex items-center gap-2 bg-surface-raised/50 px-4 py-2 text-xs text-gray-200 shadow-elev-1"
       data-testid="recommendation-card"
     >
       <span className="font-semibold uppercase tracking-wide text-accent">Coach</span>
       <span className="truncate">{rec.message}</span>
       {deltaLabel !== null && (
-        <span className="hud-numerals ml-auto shrink-0 rounded-full border border-surface-hairline bg-surface-overlay px-2 py-0.5 font-medium text-gray-300">
+        <span className="hud-numerals ml-auto shrink-0 rounded-full bg-surface-overlay px-2 py-0.5 font-medium text-gray-300 shadow-elev-1">
           {deltaLabel}
         </span>
       )}

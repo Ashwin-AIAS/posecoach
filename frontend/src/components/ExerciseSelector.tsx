@@ -46,10 +46,10 @@ function ExerciseCard({
         disabled={disabled}
         onClick={onSelect}
         className={
-          "flex w-full flex-col gap-2 rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+          "flex w-full flex-col gap-2 rounded-xl p-3 text-left transition ease-spring hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:translate-y-0 " +
           (active
-            ? "border-accent bg-accent-soft shadow-glow-sm"
-            : "border-surface-hairline bg-surface-overlay hover:border-accent/50 disabled:opacity-50")
+            ? "border border-accent bg-accent-soft shadow-glow-sm"
+            : "bg-surface-overlay shadow-elev-1 disabled:opacity-50")
         }
       >
         <span
@@ -71,7 +71,7 @@ function ExerciseCard({
         type="button"
         onClick={onShowHowTo}
         aria-label={`How to ${meta.label}`}
-        className="absolute right-2 top-2 grid h-6 w-6 place-content-center rounded-full border border-surface-hairline bg-surface-base/80 text-xs text-gray-400 hover:border-accent hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="absolute right-2 top-2 grid h-6 w-6 place-content-center rounded-full bg-surface-base/80 text-xs text-gray-400 shadow-elev-1 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         ?
       </button>
@@ -117,7 +117,7 @@ function ExerciseSelectorInner({
           disabled={disabled}
           aria-expanded={open}
           aria-haspopup="true"
-          className="rounded-full border border-surface-hairline bg-surface-raised px-3 py-1 text-xs font-medium text-gray-300 transition hover:border-accent/50 hover:text-white disabled:opacity-50"
+          className="rounded-full bg-surface-raised px-3 py-1 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-50"
           data-testid="exercise-change-btn"
         >
           Change ▾
@@ -127,7 +127,7 @@ function ExerciseSelectorInner({
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div className="absolute left-0 top-full z-40 mt-2 max-h-[70vh] w-[min(92vw,640px)] overflow-y-auto rounded-2xl border border-surface-hairline bg-surface-raised p-4 shadow-card animate-scale-in">
+          <div className="absolute left-0 top-full z-40 mt-2 max-h-[70vh] w-[min(92vw,640px)] overflow-y-auto rounded-2xl bg-surface-raised p-4 shadow-elev-3 animate-scale-in">
             <input
               type="search"
               value={query}

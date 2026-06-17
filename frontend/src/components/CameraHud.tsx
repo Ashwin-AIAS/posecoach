@@ -51,7 +51,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
       {/* Corner score ring on a glass chip */}
-      <div className="absolute right-3 top-3 rounded-2xl border border-surface-hairline/70 bg-surface-base/45 p-1.5 backdrop-blur-md">
+      <div className="absolute right-3 top-3 rounded-2xl bg-surface-base/45 p-1.5 shadow-elev-1 backdrop-blur-md">
         <ScoreRing score={score} size={104} />
       </div>
 
@@ -70,7 +70,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         type="button"
         onClick={() => onShowHowTo(exercise)}
         aria-label="Show how-to demo"
-        className="pointer-events-auto absolute bottom-4 right-4 grid h-9 w-9 place-content-center rounded-full border border-surface-hairline/70 bg-surface-base/55 text-gray-300 backdrop-blur-md transition hover:border-accent hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="pointer-events-auto absolute bottom-4 right-4 grid h-9 w-9 place-content-center rounded-full bg-surface-base/55 text-gray-300 shadow-elev-1 backdrop-blur-md transition hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         ?
       </button>
@@ -78,7 +78,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
       {/* Top-left: plank hold timer, otherwise the large rep counter */}
       {isPlank ? (
         holdS !== undefined && (
-          <div className="absolute left-3 top-3 rounded-2xl border border-surface-hairline/70 bg-surface-base/45 px-3 py-2 backdrop-blur-md">
+          <div className="absolute left-3 top-3 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md">
             <span className="hud-numerals font-display text-2xl font-semibold text-accent">
               {holdS.toFixed(1)}s
             </span>
@@ -87,7 +87,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         )
       ) : (
         <div
-          className="absolute left-3 top-3 flex items-baseline gap-1.5 rounded-2xl border border-surface-hairline/70 bg-surface-base/45 px-3 py-2 backdrop-blur-md"
+          className="absolute left-3 top-3 flex items-baseline gap-1.5 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md"
           data-testid="rep-counter"
         >
           <span className="hud-numerals font-display text-3xl font-semibold leading-none text-white">
@@ -135,7 +135,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         <div className="absolute inset-x-0 bottom-6 flex justify-center px-4">
           <p
             key={topCue}
-            className="animate-caption-in max-w-md rounded-full border border-surface-hairline/70 bg-surface-base/65 px-5 py-2.5 text-center text-base font-medium text-white shadow-card backdrop-blur-md"
+            className="animate-caption-in max-w-md rounded-full bg-surface-base/65 px-5 py-2.5 text-center text-base font-medium text-white shadow-elev-1 backdrop-blur-md"
           >
             {topCue}
           </p>

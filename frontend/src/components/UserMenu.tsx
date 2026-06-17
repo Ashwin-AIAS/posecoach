@@ -49,7 +49,7 @@ function UserMenuInner({ auth, onShowHistory }: UserMenuProps): JSX.Element {
       <button
         type="button"
         onClick={() => void auth.logout()}
-        className="rounded-full border border-surface-hairline px-2.5 py-1 text-xs text-gray-300 transition hover:border-accent/50 hover:text-white"
+        className="rounded-full px-2.5 py-1 text-xs text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white"
         data-testid="logout-btn"
       >
         Log out

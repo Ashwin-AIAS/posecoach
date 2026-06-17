@@ -43,7 +43,7 @@ const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): 
   const dot = ms === null ? "bg-gray-600" : within ? "bg-score-good" : "bg-score-mid"
   return (
     <span
-      className="hud-numerals inline-flex items-center gap-1.5 rounded-full border border-surface-hairline bg-surface-raised/70 px-2.5 py-1 text-[11px] font-medium text-gray-300"
+      className="hud-numerals inline-flex items-center gap-1.5 rounded-full bg-surface-raised/70 px-2.5 py-1 text-[11px] font-medium text-gray-300 shadow-elev-1"
       title="Live inference latency (target < 100ms)"
       data-testid="latency-badge"
     >
@@ -158,7 +158,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-surface-base font-sans text-gray-100">
-      <header className="flex items-center justify-between gap-4 border-b border-surface-hairline bg-surface-raised/40 px-4 py-3 backdrop-blur-md">
+      <header className="relative z-30 flex items-center justify-between gap-4 bg-surface-raised/40 px-4 py-3 shadow-elev-1 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-lg font-semibold tracking-tight">
             Pose<span className="text-accent">Coach</span>
@@ -174,7 +174,7 @@ export default function App(): JSX.Element {
               camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
             }
             title="Flip camera (front / back)"
-            className="rounded-full border border-surface-hairline px-2.5 py-1 text-sm text-gray-400 transition hover:text-white disabled:opacity-40"
+            className="rounded-full bg-surface-raised px-2.5 py-1 text-sm text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-40"
             data-testid="flip-camera"
           >
             <Icon icon={RefreshCw} size={16} />
@@ -187,10 +187,10 @@ export default function App(): JSX.Element {
               aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
               title="Voice coaching cues"
               className={
-                "rounded-full border px-2.5 py-1 text-sm transition " +
+                "rounded-full px-2.5 py-1 text-sm transition ease-spring hover:-translate-y-0.5 " +
                 (voice
-                  ? "border-accent bg-accent-soft text-accent"
-                  : "border-surface-hairline text-gray-400 hover:text-white")
+                  ? "bg-accent-soft text-accent shadow-glow-sm"
+                  : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")
               }
               data-testid="voice-toggle"
             >
@@ -201,7 +201,7 @@ export default function App(): JSX.Element {
         </div>
       </header>
 
-      <div className="relative z-20 flex items-center justify-between gap-3 border-b border-surface-hairline bg-surface-base/60 px-4 py-2">
+      <div className="relative z-20 flex items-center justify-between gap-3 bg-surface-base/60 px-4 py-2 shadow-elev-1">
         <div className="flex min-w-0 items-center gap-3">
           <ModeToggle value={mode} onChange={setMode} />
           {posing ? (
@@ -223,7 +223,7 @@ export default function App(): JSX.Element {
               type="button"
               onClick={() => setShowPrep(true)}
               title="Contest-prep progress — symmetry & hold trends over your prep"
-              className="rounded-full border border-surface-hairline bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 transition hover:border-accent/50 hover:text-white"
+              className="rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white"
               data-testid="prep-btn"
             >
               Prep
@@ -238,10 +238,10 @@ export default function App(): JSX.Element {
               aria-label={recorder.recording ? "Stop recording" : "Record session"}
               title="Record this set (saved on your device only)"
               className={
-                "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition disabled:opacity-40 " +
+                "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40 " +
                 (recorder.recording
-                  ? "border-score-bad/60 bg-score-bad/15 text-score-bad"
-                  : "border-surface-hairline bg-surface-raised text-gray-200 hover:border-accent/50 hover:text-white")
+                  ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
+                  : "bg-surface-raised text-gray-200 shadow-elev-1 hover:text-white")
               }
               data-testid="record-btn"
             >
@@ -259,7 +259,7 @@ export default function App(): JSX.Element {
             type="button"
             onClick={finishSet}
             disabled={!camera.ready}
-            className="rounded-full border border-surface-hairline bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 transition hover:border-accent/50 hover:text-white disabled:opacity-40"
+            className="rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-40"
             data-testid="finish-set-btn"
           >
             Finish set
@@ -281,7 +281,7 @@ export default function App(): JSX.Element {
       <InstallBanner />
 
       <main className="grid flex-1 grid-cols-1 gap-4 overflow-hidden p-4 lg:grid-cols-[1fr_360px]">
-        <div className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-surface-hairline bg-black shadow-card">
+        <div className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-black shadow-elev-3">
           <CameraFeed
             ref={camera.videoRef}
             error={camera.error}

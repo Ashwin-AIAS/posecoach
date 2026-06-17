@@ -48,7 +48,7 @@ export function InstallBanner(): JSX.Element | null {
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4" data-testid="install-banner">
-      <div className="flex animate-caption-in items-center gap-3 rounded-full border border-surface-hairline bg-surface-raised/90 px-4 py-2 shadow-card backdrop-blur-md">
+      <div className="flex animate-caption-in items-center gap-3 rounded-full bg-surface-raised/90 px-4 py-2 shadow-elev-2 backdrop-blur-md">
         {installMode === "native" ? (
           <>
             <span className="text-sm text-gray-200">Install PoseCoach for full-screen training</span>

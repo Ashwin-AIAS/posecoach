@@ -82,7 +82,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[80vh] w-full max-w-2xl animate-scale-in flex-col rounded-2xl border border-surface-hairline bg-surface-raised p-6 text-white shadow-card"
+        className="flex max-h-[80vh] w-full max-w-2xl animate-scale-in flex-col rounded-2xl bg-surface-raised p-6 text-white shadow-elev-3"
         data-testid="history-panel"
       >
         <div className="mb-4 flex items-center justify-between">

@@ -27,7 +27,7 @@ function metric(value: number | null | undefined): string {
 const PoseCard = memo(function PoseCard({ pose }: { pose: PoseProgress }): JSX.Element {
   const latest = pose.points[pose.points.length - 1]
   return (
-    <div className="rounded-xl border border-surface-hairline bg-surface-overlay/60 p-3" data-testid="prep-pose-card">
+    <div className="rounded-xl bg-surface-overlay/60 p-3 shadow-elev-1" data-testid="prep-pose-card">
       <div className="mb-1 flex items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium text-white">{pose.label}</h3>
         <span className="text-[11px] text-gray-500">
@@ -130,7 +130,7 @@ function PrepProgressPanelInner({ onClose }: PrepProgressPanelProps): JSX.Elemen
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85vh] w-full max-w-2xl animate-scale-in flex-col rounded-2xl border border-surface-hairline bg-surface-raised p-6 text-white shadow-card"
+        className="flex max-h-[85vh] w-full max-w-2xl animate-scale-in flex-col rounded-2xl bg-surface-raised p-6 text-white shadow-elev-3"
         data-testid="prep-progress-panel"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -194,7 +194,7 @@ function PrepProgressPanelInner({ onClose }: PrepProgressPanelProps): JSX.Elemen
               <button
                 type="submit"
                 disabled={!newName.trim()}
-                className="rounded-md border border-surface-hairline bg-surface-overlay px-3 py-1.5 text-xs font-medium text-gray-200 transition hover:border-accent/50 hover:text-white disabled:opacity-40"
+                className="rounded-md bg-surface-overlay px-3 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-40"
               >
                 Create
               </button>

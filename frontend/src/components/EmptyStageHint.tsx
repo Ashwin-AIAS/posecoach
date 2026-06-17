@@ -15,7 +15,7 @@ interface EmptyStageHintProps {
 export function EmptyStageHint({ exercise }: EmptyStageHintProps): JSX.Element {
   const meta = EXERCISE_META[exercise]
   return (
-    <div className="pointer-events-none absolute left-3 top-[4.25rem] z-20 max-w-[15rem] animate-fade-in rounded-full border border-surface-hairline/70 bg-surface-base/65 px-3 py-1.5 backdrop-blur-md">
+    <div className="pointer-events-none absolute left-3 top-[4.25rem] z-20 max-w-[15rem] animate-fade-in rounded-full bg-surface-base/65 px-3 py-1.5 shadow-elev-1 backdrop-blur-md">
       <p className="text-xs leading-snug text-gray-300">
         Step back so your full body is in frame for your{" "}
         <span className="text-white">{meta.label}</span>

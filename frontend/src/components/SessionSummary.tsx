@@ -96,7 +96,7 @@ function RepBars({ values }: { values: readonly number[] }): JSX.Element {
 
 function StatTile({ label, value, color }: { label: string; value: string; color?: string }): JSX.Element {
   return (
-    <div className="rounded-xl border border-surface-hairline bg-surface-overlay p-3 text-center">
+    <div className="rounded-xl bg-surface-overlay p-3 text-center shadow-elev-1">
       <div className="hud-numerals font-display text-2xl font-semibold" style={color ? { color } : undefined}>
         {value}
       </div>
@@ -161,7 +161,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md animate-scale-in rounded-2xl border border-surface-hairline bg-surface-raised p-6 text-white shadow-card"
+        className="w-full max-w-md animate-scale-in rounded-2xl bg-surface-raised p-6 text-white shadow-elev-3"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -206,10 +206,10 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
                   disabled={rated !== null}
                   aria-pressed={rated === value}
                   className={
-                    "flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition disabled:opacity-50 " +
+                    "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-50 " +
                     (rated === value
-                      ? "border-accent bg-accent-soft text-accent disabled:opacity-100"
-                      : "border-surface-hairline bg-surface-overlay text-gray-300 hover:border-accent/50 hover:text-white")
+                      ? "border border-accent bg-accent-soft text-accent disabled:opacity-100"
+                      : "bg-surface-overlay text-gray-300 shadow-elev-1 hover:text-white")
                   }
                 >
                   {rated === value ? (

@@ -43,9 +43,9 @@ export function HowToDrawer({ exercise, onClose }: HowToDrawerProps): JSX.Elemen
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[88vh] w-full max-w-lg animate-scale-in flex-col overflow-hidden rounded-2xl border border-surface-hairline bg-surface-raised shadow-card"
+        className="flex max-h-[88vh] w-full max-w-lg animate-scale-in flex-col overflow-hidden rounded-2xl bg-surface-raised shadow-elev-3"
       >
-        <div className="flex items-center justify-between border-b border-surface-hairline px-5 py-3">
+        <div className="flex items-center justify-between px-5 py-3 shadow-elev-1">
           <div>
             <h2 className="font-display text-lg font-semibold">{meta.label}</h2>
             <p className="text-xs text-gray-500">
@@ -81,7 +81,7 @@ export function HowToDrawer({ exercise, onClose }: HowToDrawerProps): JSX.Elemen
               {meta.primaryMuscles.map((m) => (
                 <span
                   key={m}
-                  className="rounded-full border border-surface-hairline bg-surface-overlay px-2.5 py-1 text-xs text-gray-300"
+                  className="rounded-full bg-surface-overlay px-2.5 py-1 text-xs text-gray-300 shadow-elev-1"
                 >
                   {m}
                 </span>

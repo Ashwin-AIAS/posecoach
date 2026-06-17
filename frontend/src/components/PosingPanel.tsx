@@ -27,7 +27,7 @@ function PosingPanelInner({ result, pose }: PosingPanelProps): JSX.Element {
 
   return (
     <section
-      className="flex flex-col gap-3 rounded-2xl border border-surface-hairline bg-surface-raised/60 p-4"
+      className="flex flex-col gap-3 rounded-2xl bg-surface-raised/60 p-4 shadow-elev-2"
       data-testid="posing-panel"
     >
       <header className="flex items-baseline justify-between gap-2">
