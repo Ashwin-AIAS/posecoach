@@ -114,7 +114,7 @@ function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps
             type="button"
             onClick={() => setExpanded((e) => !e)}
             aria-expanded={expanded}
-            className="mt-2 text-xs font-medium text-gray-500 transition hover:text-accent"
+            className="mt-2 text-xs font-medium text-gray-500 transition hover:text-accent active:opacity-60"
             data-testid="cues-toggle"
           >
             {expanded ? "Show less" : `+${restCues.length} more cue${restCues.length > 1 ? "s" : ""}`}

@@ -99,7 +99,10 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
           data-testid="rep-counter"
         >
           <div className="flex items-baseline gap-1.5">
-            <span className="hud-numerals font-display text-4xl font-semibold leading-none text-white">
+            <span
+              key={reps}
+              className="hud-numerals inline-block animate-number-pop font-display text-4xl font-semibold leading-none text-white"
+            >
               {reps}
             </span>
             <span className="text-[11px] uppercase tracking-wide text-gray-400">reps</span>

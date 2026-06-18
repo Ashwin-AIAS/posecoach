@@ -272,7 +272,7 @@ function MessageActions({
         onClick={() => void handleCopy()}
         title={copied ? "Copied!" : "Copy message"}
         aria-label={copied ? "Copied!" : "Copy message"}
-        className="rounded p-1 text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300"
+        className="rounded p-1 text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300 active:scale-90"
       >
         <Icon icon={copied ? Check : Copy} size={14} />
       </button>
@@ -285,7 +285,7 @@ function MessageActions({
           title={speaking ? "Stop reading" : "Read aloud"}
           aria-label={speaking ? "Stop reading" : "Read aloud"}
           className={
-            "rounded p-1 transition hover:bg-surface-overlay " +
+            "rounded p-1 transition active:scale-90 hover:bg-surface-overlay " +
             (speaking ? "text-accent" : "text-gray-600 hover:text-gray-300")
           }
         >
@@ -301,7 +301,7 @@ function MessageActions({
         aria-label="Good response"
         aria-pressed={message.feedback === "up"}
         className={
-          "rounded p-1 transition hover:bg-surface-overlay " +
+          "rounded p-1 transition active:scale-90 hover:bg-surface-overlay " +
           (message.feedback === "up"
             ? "text-score-good"
             : "text-gray-600 hover:text-gray-300")
@@ -318,7 +318,7 @@ function MessageActions({
         aria-label="Poor response"
         aria-pressed={message.feedback === "down"}
         className={
-          "rounded p-1 transition hover:bg-surface-overlay " +
+          "rounded p-1 transition active:scale-90 hover:bg-surface-overlay " +
           (message.feedback === "down"
             ? "text-score-bad"
             : "text-gray-600 hover:text-gray-300")
@@ -334,7 +334,7 @@ function MessageActions({
           onClick={onRegenerate}
           title="Regenerate response"
           aria-label="Regenerate response"
-          className="rounded p-1 text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300"
+          className="rounded p-1 text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300 active:scale-90"
         >
           <Icon icon={RefreshCw} size={14} />
         </button>
@@ -410,7 +410,7 @@ function ChatMessageInner({
 
         <div
           className={
-            "rounded-2xl px-3.5 py-2.5 text-sm shadow-elev-1 " +
+            "animate-bubble-in rounded-2xl px-3.5 py-2.5 text-sm shadow-elev-1 " +
             (isUser
               ? "rounded-br-sm bg-accent-soft text-white"
               : "rounded-bl-sm bg-surface-overlay text-gray-100")

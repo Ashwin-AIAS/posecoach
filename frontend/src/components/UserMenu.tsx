@@ -23,7 +23,7 @@ function UserMenuInner({ auth, onShowHistory }: UserMenuProps): JSX.Element {
         <button
           type="button"
           onClick={() => setShowAuth(true)}
-          className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-medium text-surface-base transition hover:brightness-110"
+          className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110"
           data-testid="signin-btn"
         >
           Sign in
@@ -38,7 +38,7 @@ function UserMenuInner({ auth, onShowHistory }: UserMenuProps): JSX.Element {
       <button
         type="button"
         onClick={onShowHistory}
-        className="text-gray-400 transition hover:text-white"
+        className="text-gray-400 transition hover:text-white active:opacity-60"
         data-testid="history-btn"
       >
         History
@@ -49,7 +49,7 @@ function UserMenuInner({ auth, onShowHistory }: UserMenuProps): JSX.Element {
       <button
         type="button"
         onClick={() => void auth.logout()}
-        className="rounded-full px-2.5 py-1 text-xs text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white"
+        className="rounded-full px-2.5 py-1 text-xs text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
         data-testid="logout-btn"
       >
         Log out

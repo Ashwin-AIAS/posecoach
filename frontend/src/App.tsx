@@ -198,7 +198,7 @@ export default function App(): JSX.Element {
                   camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
                 }
                 title="Flip camera (front / back)"
-                className="rounded-full bg-surface-raised px-2.5 py-1 text-sm text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-40"
+                className="rounded-full bg-surface-raised px-2.5 py-1 text-sm text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40"
                 data-testid="flip-camera"
               >
                 <Icon icon={RefreshCw} size={16} />
@@ -211,7 +211,7 @@ export default function App(): JSX.Element {
                   aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
                   title="Voice coaching cues"
                   className={
-                    "rounded-full px-2.5 py-1 text-sm transition ease-spring hover:-translate-y-0.5 " +
+                    "rounded-full px-2.5 py-1 text-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
                     (voice
                       ? "bg-accent-soft text-accent shadow-glow-sm"
                       : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")
@@ -246,7 +246,7 @@ export default function App(): JSX.Element {
           onShowHistory={() => setShowHistory(true)}
         />
       ) : (
-        <>
+        <div className="flex min-h-0 flex-1 animate-fade-in flex-col">
           <div className="relative z-20 flex min-w-0 items-center gap-3 bg-surface-base/60 px-4 py-2 shadow-elev-1">
             <ModeToggle value={mode} onChange={setMode} />
             {posing ? (
@@ -313,7 +313,7 @@ export default function App(): JSX.Element {
               aria-selected={mobileTab === "cues"}
               onClick={() => setMobileTab("cues")}
               className={
-                "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 " +
+                "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
                 (mobileTab === "cues"
                   ? "bg-accent-soft text-accent"
                   : "bg-surface-raised text-gray-400 shadow-elev-1")
@@ -328,7 +328,7 @@ export default function App(): JSX.Element {
               aria-selected={mobileTab === "chat"}
               onClick={() => setMobileTab("chat")}
               className={
-                "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 " +
+                "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
                 (mobileTab === "chat"
                   ? "bg-accent-soft text-accent"
                   : "bg-surface-raised text-gray-400 shadow-elev-1")
@@ -368,7 +368,7 @@ export default function App(): JSX.Element {
             type="button"
             onClick={() => setShowPrep(true)}
             title="Contest-prep progress — symmetry & hold trends over your prep"
-            className="rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white"
+            className="rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
             data-testid="prep-btn"
           >
             Prep
@@ -383,7 +383,7 @@ export default function App(): JSX.Element {
             aria-label={recorder.recording ? "Stop recording" : "Record session"}
             title="Record this set (saved on your device only)"
             className={
-              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40 " +
+              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-40 " +
               (recorder.recording
                 ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
                 : "bg-surface-raised text-gray-200 shadow-elev-1 hover:text-white")
@@ -403,13 +403,13 @@ export default function App(): JSX.Element {
           type="button"
           onClick={finishSet}
           disabled={!camera.ready}
-          className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:brightness-110 disabled:translate-y-0 disabled:opacity-40"
+          className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 disabled:translate-y-0 disabled:opacity-40"
           data-testid="finish-set-btn"
         >
           Finish set
         </button>
       </div>
-        </>
+        </div>
       )}
     </div>
   )

@@ -47,7 +47,7 @@ function ReferenceVideoPanelInner({ exercise }: ReferenceVideoPanelProps): JSX.E
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="reference-video-body"
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:opacity-70"
         data-testid="reference-video-toggle"
       >
         <span className="flex items-center gap-2">
@@ -96,7 +96,7 @@ function ReferenceVideoPanelInner({ exercise }: ReferenceVideoPanelProps): JSX.E
                   loading="lazy"
                 />
                 <span className="absolute inset-0 grid place-content-center">
-                  <span className="grid h-14 w-14 place-content-center rounded-full bg-surface-base/70 text-2xl text-white shadow-glow backdrop-blur-sm transition group-hover:scale-105">
+                  <span className="grid h-14 w-14 place-content-center rounded-full bg-surface-base/70 text-2xl text-white shadow-glow backdrop-blur-sm transition group-hover:scale-105 group-active:scale-95">
                     ▶
                   </span>
                 </span>

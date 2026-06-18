@@ -66,6 +66,15 @@ export default {
           "40%": { transform: "scale(1.08)" },
           "100%": { transform: "scale(1)" },
         },
+        "bubble-in": {
+          "0%": { opacity: "0", transform: "scale(0.92) translateY(4px)" },
+          "100%": { opacity: "1", transform: "scale(1) translateY(0)" },
+        },
+        "number-pop": {
+          "0%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.18)" },
+          "100%": { transform: "scale(1)" },
+        },
       },
       animation: {
         "caption-in": "caption-in 0.25s ease-out",
@@ -73,6 +82,8 @@ export default {
         "scale-in": "scale-in 0.18s ease-out",
         "pulse-dot": "pulse-dot 1.2s ease-in-out infinite",
         "ring-celebrate": "ring-celebrate 0.5s ease-out",
+        "bubble-in": "bubble-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "number-pop": "number-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
     },
   },

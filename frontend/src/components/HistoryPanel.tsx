@@ -93,7 +93,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
+            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
             aria-label="Close"
           >
             <Icon icon={X} size={18} />
@@ -127,7 +127,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
               <button
                 type="button"
                 onClick={() => setDetailId(s.id)}
-                className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition hover:text-white"
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition hover:text-white active:opacity-70"
                 data-testid="history-row-open"
               >
                 <div className="min-w-0 flex-1">
@@ -166,7 +166,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
               <button
                 type="button"
                 onClick={() => void remove(s.id)}
-                className="text-xs text-gray-500 transition hover:text-score-bad"
+                className="text-xs text-gray-500 transition hover:text-score-bad active:opacity-60"
               >
                 Delete
               </button>

@@ -46,7 +46,7 @@ function ExerciseCard({
         disabled={disabled}
         onClick={onSelect}
         className={
-          "flex w-full flex-col gap-2 rounded-xl p-3 text-left transition ease-spring hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:translate-y-0 " +
+          "flex w-full flex-col gap-2 rounded-xl p-3 text-left transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:translate-y-0 " +
           (active
             ? "border border-accent bg-accent-soft shadow-glow-sm"
             : "bg-surface-overlay shadow-elev-1 disabled:opacity-50")
@@ -117,7 +117,7 @@ function ExerciseSelectorInner({
           disabled={disabled}
           aria-expanded={open}
           aria-haspopup="true"
-          className="rounded-full bg-surface-raised px-3 py-1 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white disabled:translate-y-0 disabled:opacity-50"
+          className="rounded-full bg-surface-raised px-3 py-1 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-50"
           data-testid="exercise-change-btn"
         >
           Change ▾

@@ -69,7 +69,7 @@ function RecordingPreviewInner({ session, onClose }: RecordingPreviewProps): JSX
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white"
+            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
             aria-label="Close preview"
             data-testid="preview-close-btn"
           >
@@ -105,7 +105,7 @@ function RecordingPreviewInner({ session, onClose }: RecordingPreviewProps): JSX
               type="button"
               onClick={() => void handleShare()}
               disabled={sharing}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-surface-base transition hover:brightness-110 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110 disabled:opacity-50"
               data-testid="share-btn"
             >
               <Icon icon={Share2} size={16} />
@@ -116,7 +116,7 @@ function RecordingPreviewInner({ session, onClose }: RecordingPreviewProps): JSX
             type="button"
             onClick={handleDownload}
             className={
-              "flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 hover:text-white " +
+              "flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white " +
               (shareSupported ? "flex-1" : "w-full")
             }
             data-testid="download-btn"

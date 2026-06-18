@@ -45,13 +45,13 @@ function HistorySessionDetailInner({ sessionId, onBack }: HistorySessionDetailPr
 
   return (
     <div
-      className="absolute inset-0 z-10 flex flex-col rounded-2xl bg-surface-raised p-6 text-white"
+      className="absolute inset-0 z-10 flex animate-scale-in flex-col rounded-2xl bg-surface-raised p-6 text-white"
       data-testid="history-session-detail"
     >
       <button
         type="button"
         onClick={onBack}
-        className="mb-3 inline-flex items-center gap-1 self-start text-xs font-medium text-gray-400 transition hover:text-white"
+        className="mb-3 inline-flex items-center gap-1 self-start text-xs font-medium text-gray-400 transition hover:text-white active:opacity-60"
       >
         <Icon icon={ChevronLeft} size={14} />
         Back to history

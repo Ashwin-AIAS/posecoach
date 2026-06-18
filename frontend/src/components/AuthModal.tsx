@@ -55,7 +55,7 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
+            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
             aria-label="Close"
           >
             <Icon icon={X} size={18} />
@@ -92,7 +92,7 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-accent py-2 font-medium text-surface-base transition hover:brightness-110 disabled:bg-surface-hairline disabled:text-gray-500"
+          className="w-full rounded-lg bg-accent py-2 font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110 disabled:bg-surface-hairline disabled:text-gray-500"
         >
           {submitting ? "…" : mode === "login" ? "Sign in" : "Register"}
         </button>
@@ -102,7 +102,7 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
           <button
             type="button"
             onClick={() => setMode(mode === "login" ? "register" : "login")}
-            className="text-accent underline hover:brightness-110"
+            className="text-accent underline transition hover:brightness-110 active:opacity-70"
           >
             {mode === "login" ? "Register" : "Sign in"}
           </button>

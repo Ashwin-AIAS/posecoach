@@ -65,7 +65,7 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
   const recent = sessions.slice(0, 6)
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6" data-testid="home-view">
+    <div className="flex-1 animate-fade-in overflow-y-auto p-4 sm:p-6" data-testid="home-view">
       <div className="mx-auto max-w-2xl">
         <h2 className="font-display text-xl font-semibold">
           {greeting()}
@@ -92,7 +92,7 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
         <button
           type="button"
           onClick={onStart}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-4 text-base font-semibold text-surface-base shadow-elev-2 transition ease-spring hover:-translate-y-0.5 hover:brightness-110"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-4 text-base font-semibold text-surface-base shadow-elev-2 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110"
           data-testid="start-workout-btn"
         >
           <Icon icon={Play} size={18} />
@@ -108,7 +108,7 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
               <button
                 type="button"
                 onClick={onShowHistory}
-                className="text-xs font-medium text-accent hover:underline"
+                className="text-xs font-medium text-accent transition hover:underline active:opacity-60"
               >
                 See all
               </button>
@@ -126,7 +126,7 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
                   key={s.id}
                   type="button"
                   onClick={onShowHistory}
-                  className="flex w-32 shrink-0 flex-col items-start gap-1 rounded-xl bg-surface-raised p-3 text-left shadow-elev-1 transition ease-spring hover:-translate-y-0.5"
+                  className="flex w-32 shrink-0 flex-col items-start gap-1 rounded-xl bg-surface-raised p-3 text-left shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]"
                   data-testid="recent-strip-item"
                 >
                   <span className="text-xs font-medium capitalize text-gray-200">

@@ -128,7 +128,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-sm text-gray-400 hover:bg-surface-overlay hover:text-white"
+            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
             aria-label="Close"
           >
             <Icon icon={X} size={18} />
@@ -163,7 +163,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
                   disabled={rated !== null}
                   aria-pressed={rated === value}
                   className={
-                    "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-50 " +
+                    "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-50 " +
                     (rated === value
                       ? "border border-accent bg-accent-soft text-accent disabled:opacity-100"
                       : "bg-surface-overlay text-gray-300 shadow-elev-1 hover:text-white")
@@ -215,7 +215,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 w-full rounded-lg bg-accent py-2 font-medium text-surface-base transition hover:brightness-110"
+          className="mt-6 w-full rounded-lg bg-accent py-2 font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110"
         >
           Train again
         </button>
