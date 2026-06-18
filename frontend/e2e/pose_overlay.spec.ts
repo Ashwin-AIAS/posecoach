@@ -75,6 +75,7 @@ test.beforeEach(async ({ page }) => {
 
 test("overlay canvas renders the data-driven skeleton", async ({ page }) => {
   await page.goto("/")
+  await page.getByTestId("start-workout-btn").click()
 
   const canvas = page.getByTestId("pose-overlay")
   await expect(canvas).toBeAttached()

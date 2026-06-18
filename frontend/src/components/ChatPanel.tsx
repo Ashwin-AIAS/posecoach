@@ -103,7 +103,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-xl bg-surface-raised px-3 py-2.5 text-sm font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
+        className="flex min-h-11 items-center rounded-xl bg-surface-raised px-3 text-sm font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
         data-testid="chat-open-btn"
       >
         <span className="inline-flex items-center gap-1.5">
@@ -239,7 +239,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
             }
           }}
           placeholder="Why are my knees caving in?"
-          className="flex-1 rounded-lg border border-surface-hairline bg-surface-base px-3 py-2 text-sm text-white outline-none placeholder:text-gray-600 focus:border-accent"
+          className="min-h-11 flex-1 rounded-lg border border-surface-hairline bg-surface-base px-3 text-sm text-white outline-none placeholder:text-gray-600 focus:border-accent"
           disabled={isBusy}
           data-testid="chat-input"
         />
@@ -253,7 +253,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
             title={voice.isListening ? "Stop recording" : "Voice input"}
             aria-label={voice.isListening ? "Stop recording" : "Voice input"}
             className={
-              "relative rounded-lg px-2.5 transition ease-spring disabled:cursor-not-allowed disabled:opacity-40 " +
+              "relative flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2.5 transition ease-spring disabled:cursor-not-allowed disabled:opacity-40 " +
               (voice.isListening
                 ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
                 : "text-gray-400 shadow-elev-1 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-accent")
@@ -272,7 +272,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
           type="button"
           onClick={() => void submit(false)}
           disabled={isBusy || !input.trim()}
-          className="rounded-lg bg-accent px-3 text-xs font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110 disabled:cursor-not-allowed disabled:bg-surface-hairline disabled:text-gray-500"
+          className="flex min-h-11 items-center justify-center rounded-lg bg-accent px-3 text-xs font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110 disabled:cursor-not-allowed disabled:bg-surface-hairline disabled:text-gray-500"
         >
           Send
         </button>
@@ -282,7 +282,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
           type="button"
           onClick={() => void submit(true)}
           disabled={isBusy || !input.trim()}
-          className="rounded-lg border border-accent/40 px-3 text-xs font-medium text-accent transition active:scale-[0.97] hover:bg-accent-soft disabled:cursor-not-allowed disabled:text-gray-600"
+          className="flex min-h-11 items-center justify-center rounded-lg border border-accent/40 px-3 text-xs font-medium text-accent transition active:scale-[0.97] hover:bg-accent-soft disabled:cursor-not-allowed disabled:text-gray-600"
           title="Send with a snapshot of the current frame"
         >
           + Frame

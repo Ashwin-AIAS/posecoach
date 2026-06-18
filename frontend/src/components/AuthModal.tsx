@@ -1,4 +1,5 @@
 import { memo, useState } from "react"
+import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 
 import type { useAuth } from "../hooks/useAuth"
@@ -35,7 +36,7 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={onClose}
@@ -108,7 +109,8 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
           </button>
         </p>
       </form>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

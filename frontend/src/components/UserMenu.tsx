@@ -23,7 +23,7 @@ function UserMenuInner({ auth, onShowHistory }: UserMenuProps): JSX.Element {
         <button
           type="button"
           onClick={() => setShowAuth(true)}
-          className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110"
+          className="flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-accent px-3.5 text-sm font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110"
           data-testid="signin-btn"
         >
           Sign in
@@ -34,11 +34,11 @@ function UserMenuInner({ auth, onShowHistory }: UserMenuProps): JSX.Element {
   }
 
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="flex shrink-0 items-center gap-2 text-sm sm:gap-3">
       <button
         type="button"
         onClick={onShowHistory}
-        className="text-gray-400 transition hover:text-white active:opacity-60"
+        className="shrink-0 whitespace-nowrap text-gray-400 transition hover:text-white active:opacity-60"
         data-testid="history-btn"
       >
         History
@@ -49,7 +49,7 @@ function UserMenuInner({ auth, onShowHistory }: UserMenuProps): JSX.Element {
       <button
         type="button"
         onClick={() => void auth.logout()}
-        className="rounded-full px-2.5 py-1 text-xs text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
+        className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
         data-testid="logout-btn"
       >
         Log out

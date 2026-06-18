@@ -20,18 +20,20 @@ test.beforeEach(async ({ page }) => {
 
 test("opening the selector reveals the categorized exercise grid", async ({ page }) => {
   await page.goto("/")
+  await page.getByTestId("start-workout-btn").click()
 
   await page.getByTestId("exercise-change-btn").click()
   const group = page.getByRole("radiogroup", { name: "Exercise" })
   await expect(group).toBeVisible()
 
   for (const label of ["Squat", "Deadlift", "Bicep Curl", "Bench Press", "Overhead Press", "Push-Up"]) {
-    await expect(group.getByRole("radio", { name: label })).toHaveCount(1)
+    await expect(group.getByRole("radio", { name: label, exact: true })).toHaveCount(1)
   }
 })
 
 test("selecting an exercise updates the collapsed bar", async ({ page }) => {
   await page.goto("/")
+  await page.getByTestId("start-workout-btn").click()
 
   await page.getByTestId("exercise-change-btn").click()
   const group = page.getByRole("radiogroup", { name: "Exercise" })
@@ -40,11 +42,12 @@ test("selecting an exercise updates the collapsed bar", async ({ page }) => {
   await group.getByRole("radio", { name: "Deadlift" }).click()
   // Sheet closes; the collapsed bar now shows the new selection.
   await expect(page.getByRole("radiogroup", { name: "Exercise" })).toBeHidden()
-  await expect(page.getByText("Deadlift")).toBeVisible()
+  await expect(page.getByTestId("exercise-current-label")).toHaveText("Deadlift")
 })
 
 test("the search box filters the grid", async ({ page }) => {
   await page.goto("/")
+  await page.getByTestId("start-workout-btn").click()
 
   await page.getByTestId("exercise-change-btn").click()
   await page.getByTestId("exercise-search").fill("press")

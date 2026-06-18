@@ -47,7 +47,11 @@ export function InstallBanner(): JSX.Element | null {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4" data-testid="install-banner">
+    <div
+      className="fixed inset-x-0 z-40 flex justify-center px-4"
+      style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      data-testid="install-banner"
+    >
       <div className="flex animate-caption-in items-center gap-3 rounded-full bg-surface-raised/90 px-4 py-2 shadow-elev-2 backdrop-blur-md">
         {installMode === "native" ? (
           <>

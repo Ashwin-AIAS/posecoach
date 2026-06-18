@@ -65,7 +65,11 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
   const recent = sessions.slice(0, 6)
 
   return (
-    <div className="flex-1 animate-fade-in overflow-y-auto p-4 sm:p-6" data-testid="home-view">
+    <div
+      className="flex-1 animate-fade-in overflow-y-auto p-4 sm:p-6"
+      style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      data-testid="home-view"
+    >
       <div className="mx-auto max-w-2xl">
         <h2 className="font-display text-xl font-semibold">
           {greeting()}

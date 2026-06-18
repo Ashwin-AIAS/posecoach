@@ -32,7 +32,7 @@ function ModeToggleInner({ value, onChange, disabled = false }: ModeToggleProps)
             disabled={disabled}
             onClick={() => onChange(m.id)}
             className={
-              "rounded-full px-3 py-1 text-xs font-medium transition active:scale-95 disabled:opacity-50 " +
+              "flex min-h-11 items-center justify-center rounded-full px-3 text-xs font-medium transition active:scale-95 disabled:opacity-50 " +
               (active ? "bg-accent text-surface-base" : "text-gray-400 hover:text-white")
             }
             data-testid={`mode-${m.id}`}

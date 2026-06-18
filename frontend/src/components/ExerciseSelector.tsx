@@ -108,7 +108,9 @@ function ExerciseSelectorInner({
       <div className="flex items-center gap-3">
         <span className="flex items-center gap-2 text-sm">
           <span className={`h-2 w-2 rounded-full ${DIFFICULTY_DOT[active.difficulty]}`} aria-hidden="true" />
-          <span className="font-medium text-white">{active.label}</span>
+          <span className="font-medium text-white" data-testid="exercise-current-label">
+            {active.label}
+          </span>
           <span className="text-gray-500">· {active.category}</span>
         </span>
         <button
@@ -117,7 +119,7 @@ function ExerciseSelectorInner({
           disabled={disabled}
           aria-expanded={open}
           aria-haspopup="true"
-          className="rounded-full bg-surface-raised px-3 py-1 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-50"
+          className="flex min-h-11 items-center justify-center rounded-full bg-surface-raised px-3 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-50"
           data-testid="exercise-change-btn"
         >
           Change ▾
@@ -125,9 +127,17 @@ function ExerciseSelectorInner({
       </div>
 
       {open && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden="true" />
-          <div className="absolute left-0 top-full z-40 mt-2 max-h-[70vh] w-[min(92vw,640px)] overflow-y-auto rounded-2xl bg-surface-raised p-4 shadow-elev-3 animate-scale-in">
+        <div
+          className="fixed inset-0 z-40 flex items-start justify-center bg-black/70 p-4 pt-20 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Choose exercise"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[70vh] w-full max-w-[640px] overflow-y-auto rounded-2xl bg-surface-raised p-4 shadow-elev-3 animate-scale-in"
+          >
             <input
               type="search"
               value={query}
@@ -162,7 +172,7 @@ function ExerciseSelectorInner({
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )

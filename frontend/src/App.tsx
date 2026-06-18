@@ -44,7 +44,7 @@ const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): 
   const dot = ms === null ? "bg-gray-600" : within ? "bg-score-good" : "bg-score-mid"
   return (
     <span
-      className="hud-numerals inline-flex items-center gap-1.5 rounded-full bg-surface-raised/70 px-2.5 py-1 text-[11px] font-medium text-gray-300 shadow-elev-1"
+      className="hud-numerals hidden shrink-0 items-center gap-1.5 rounded-full bg-surface-raised/70 px-2.5 py-1 text-[11px] font-medium text-gray-300 shadow-elev-1 sm:inline-flex"
       title="Live inference latency (target < 100ms)"
       data-testid="latency-badge"
     >
@@ -168,26 +168,29 @@ export default function App(): JSX.Element {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-surface-base font-sans text-gray-100">
-      <header className="relative z-30 flex items-center justify-between gap-4 bg-surface-raised/40 px-4 py-3 shadow-elev-1 backdrop-blur-md">
-        <div className="flex items-center gap-3">
+      <header
+        className="relative z-30 flex items-center justify-between gap-2 bg-surface-raised/40 px-3 py-1.5 shadow-elev-1 backdrop-blur-md sm:gap-4 sm:px-4"
+        style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}
+      >
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
           {view === "live" && (
             <button
               type="button"
               onClick={() => setView("home")}
               aria-label="Back to home"
               title="Back to home"
-              className="rounded-full p-1 text-gray-400 transition hover:bg-surface-overlay hover:text-white"
+              className="grid h-11 w-11 shrink-0 place-content-center rounded-full text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
               data-testid="back-home-btn"
             >
               <Icon icon={ChevronLeft} size={18} />
             </button>
           )}
-          <h1 className="font-display text-lg font-semibold tracking-tight">
+          <h1 className="shrink-0 whitespace-nowrap font-display text-lg font-semibold tracking-tight">
             Pose<span className="text-accent">Coach</span>
           </h1>
           {view === "live" && <LatencyBadge ms={pose.result?.latency_ms ?? null} />}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           {view === "live" && (
             <>
               <button
@@ -198,7 +201,7 @@ export default function App(): JSX.Element {
                   camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
                 }
                 title="Flip camera (front / back)"
-                className="rounded-full bg-surface-raised px-2.5 py-1 text-sm text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40"
+                className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-surface-raised text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40"
                 data-testid="flip-camera"
               >
                 <Icon icon={RefreshCw} size={16} />
@@ -211,7 +214,7 @@ export default function App(): JSX.Element {
                   aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
                   title="Voice coaching cues"
                   className={
-                    "rounded-full px-2.5 py-1 text-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
+                    "grid h-11 w-11 shrink-0 place-content-center rounded-full transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
                     (voice
                       ? "bg-accent-soft text-accent shadow-glow-sm"
                       : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")
@@ -313,7 +316,7 @@ export default function App(): JSX.Element {
               aria-selected={mobileTab === "cues"}
               onClick={() => setMobileTab("cues")}
               className={
-                "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
+                "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
                 (mobileTab === "cues"
                   ? "bg-accent-soft text-accent"
                   : "bg-surface-raised text-gray-400 shadow-elev-1")
@@ -328,7 +331,7 @@ export default function App(): JSX.Element {
               aria-selected={mobileTab === "chat"}
               onClick={() => setMobileTab("chat")}
               className={
-                "flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
+                "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
                 (mobileTab === "chat"
                   ? "bg-accent-soft text-accent"
                   : "bg-surface-raised text-gray-400 shadow-elev-1")
@@ -362,13 +365,16 @@ export default function App(): JSX.Element {
 
       {/* Thumb-reachable action bar — anchored at the bottom of the viewport so
           Record/Finish (the controls used mid-set) never require a reach on phones. */}
-      <div className="relative z-20 flex shrink-0 items-center justify-center gap-2 bg-surface-raised/60 px-4 py-2.5 shadow-elev-1 backdrop-blur-md">
+      <div
+        className="relative z-20 flex shrink-0 items-center justify-center gap-2 bg-surface-raised/60 px-4 py-1.5 shadow-elev-1 backdrop-blur-md"
+        style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
+      >
         {posing && (
           <button
             type="button"
             onClick={() => setShowPrep(true)}
             title="Contest-prep progress — symmetry & hold trends over your prep"
-            className="rounded-full bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
+            className="flex min-h-11 items-center justify-center rounded-full bg-surface-raised px-3.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
             data-testid="prep-btn"
           >
             Prep
@@ -383,7 +389,7 @@ export default function App(): JSX.Element {
             aria-label={recorder.recording ? "Stop recording" : "Record session"}
             title="Record this set (saved on your device only)"
             className={
-              "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-40 " +
+              "flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-40 " +
               (recorder.recording
                 ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
                 : "bg-surface-raised text-gray-200 shadow-elev-1 hover:text-white")
@@ -403,7 +409,7 @@ export default function App(): JSX.Element {
           type="button"
           onClick={finishSet}
           disabled={!camera.ready}
-          className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 disabled:translate-y-0 disabled:opacity-40"
+          className="flex min-h-11 items-center justify-center rounded-full bg-accent px-4 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 disabled:translate-y-0 disabled:opacity-40"
           data-testid="finish-set-btn"
         >
           Finish set
