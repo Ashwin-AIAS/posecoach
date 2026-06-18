@@ -13,14 +13,11 @@ interface UseCameraResult {
   readonly ready: boolean
   readonly error: string | null
   readonly facingMode: FacingMode
+  readonly switching: boolean
   readonly stop: () => void
   readonly start: () => Promise<void>
   readonly flip: () => Promise<void>
 }
-
-// The back camera benefits from a larger source so the 320x240 pipeline
-// downsample is cleaner; the front camera stays at the default request size.
-const ENVIRONMENT_SIZE = { width: 1280, height: 720 } as const
 
 /**
  * Acquires the user's webcam via getUserMedia and attaches the stream to a
@@ -34,6 +31,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraResult {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [facingMode, setFacingMode] = useState<FacingMode>(initialFacingMode)
+  const [switching, setSwitching] = useState(false)
 
   const stop = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -46,10 +44,9 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraResult {
 
   const start = useCallback(async () => {
     if (streamRef.current) return
-    const size = facingMode === "environment" ? ENVIRONMENT_SIZE : { width, height }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { ...size, facingMode },
+        video: { width, height, facingMode },
         audio: false,
       })
       streamRef.current = stream
@@ -76,26 +73,30 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraResult {
     const previous = facingMode
     const next: FacingMode = previous === "user" ? "environment" : "user"
     stop()
-    const size = next === "environment" ? ENVIRONMENT_SIZE : { width, height }
+    setSwitching(true)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { ...size, facingMode: next },
-        audio: false,
-      })
-      streamRef.current = stream
-      const video = videoRef.current
-      if (video) {
-        video.srcObject = stream
-        await video.play()
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width, height, facingMode: next },
+          audio: false,
+        })
+        streamRef.current = stream
+        const video = videoRef.current
+        if (video) {
+          video.srcObject = stream
+          await video.play()
+        }
+        setFacingMode(next)
+        setReady(true)
+        setError(null)
+      } catch {
+        // Requested camera unavailable — restore the previous mode.
+        setFacingMode(previous)
+        streamRef.current = null
+        await start()
       }
-      setFacingMode(next)
-      setReady(true)
-      setError(null)
-    } catch {
-      // Requested camera unavailable — restore the previous mode.
-      setFacingMode(previous)
-      streamRef.current = null
-      await start()
+    } finally {
+      setSwitching(false)
     }
   }, [facingMode, width, height, stop, start])
 
@@ -114,5 +115,5 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraResult {
     }
   }, [start, stop])
 
-  return { videoRef, ready, error, facingMode, stop, start, flip }
+  return { videoRef, ready, error, facingMode, switching, stop, start, flip }
 }

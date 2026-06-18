@@ -61,6 +61,61 @@ describe("useCamera flip", () => {
     await waitFor(() => expect(result.current.facingMode).toBe("environment"))
   })
 
+  it("flip() requests the same resolution for both modes (no 720p)", async () => {
+    const { result } = renderHook(() => useCamera({ width: 640, height: 480, facingMode: "user" }))
+    await act(async () => {
+      await result.current.start()
+    })
+    expect(getUserMedia).toHaveBeenLastCalledWith(
+      expect.objectContaining({ video: expect.objectContaining({ width: 640, height: 480 }) }),
+    )
+
+    await act(async () => {
+      await result.current.flip()
+    })
+    expect(getUserMedia).toHaveBeenLastCalledWith(
+      expect.objectContaining({ video: expect.objectContaining({ width: 640, height: 480 }) }),
+    )
+
+    await act(async () => {
+      await result.current.flip()
+    })
+    expect(getUserMedia).toHaveBeenLastCalledWith(
+      expect.objectContaining({ video: expect.objectContaining({ width: 640, height: 480 }) }),
+    )
+  })
+
+  it("switching is true during flip() and false again after success", async () => {
+    getUserMedia.mockResolvedValueOnce(makeStream().stream)
+    const { result } = renderHook(() => useCamera({ facingMode: "user" }))
+    await act(async () => {
+      await result.current.start()
+    })
+    expect(result.current.switching).toBe(false)
+
+    let resolveFlip: (() => void) | undefined
+    getUserMedia.mockImplementationOnce(
+      async () =>
+        new Promise<MediaStream>((resolve) => {
+          resolveFlip = () => resolve(makeStream().stream)
+        }),
+    )
+
+    let flipPromise: Promise<void> = Promise.resolve()
+    act(() => {
+      flipPromise = result.current.flip()
+    })
+
+    await waitFor(() => expect(result.current.switching).toBe(true))
+
+    await act(async () => {
+      resolveFlip?.()
+      await flipPromise
+    })
+
+    expect(result.current.switching).toBe(false)
+  })
+
   it("falls back to the previous mode when the requested camera is unavailable", async () => {
     getUserMedia.mockResolvedValueOnce(makeStream().stream) // initial start succeeds
     const { result } = renderHook(() => useCamera({ facingMode: "user" }))
@@ -75,5 +130,21 @@ describe("useCamera flip", () => {
     })
 
     await waitFor(() => expect(result.current.facingMode).toBe("user"))
+  })
+
+  it("switching clears on the fallback path too", async () => {
+    getUserMedia.mockResolvedValueOnce(makeStream().stream) // initial start succeeds
+    const { result } = renderHook(() => useCamera({ facingMode: "user" }))
+    await act(async () => {
+      await result.current.start()
+    })
+
+    getUserMedia.mockRejectedValueOnce(new Error("OverconstrainedError")) // flip request fails
+    getUserMedia.mockResolvedValueOnce(makeStream().stream) // fallback start succeeds
+    await act(async () => {
+      await result.current.flip()
+    })
+
+    expect(result.current.switching).toBe(false)
   })
 })

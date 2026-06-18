@@ -274,6 +274,7 @@ export default function App(): JSX.Element {
             ref={camera.videoRef}
             error={camera.error}
             ready={camera.ready}
+            switching={camera.switching}
             mirrored={camera.facingMode === "user"}
           />
           <PoseOverlay

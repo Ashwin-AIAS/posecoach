@@ -8,10 +8,12 @@ interface CameraFeedProps {
   readonly ready: boolean
   /** Mirror the feed (front camera only); the back camera is shown un-mirrored. */
   readonly mirrored: boolean
+  /** True while flip() is acquiring the new camera stream. */
+  readonly switching?: boolean
 }
 
 export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
-  function CameraFeed({ error, ready, mirrored }, ref) {
+  function CameraFeed({ error, ready, mirrored, switching = false }, ref) {
     return (
       <div className="relative h-full w-full bg-surface-base">
         <video
@@ -22,13 +24,15 @@ export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
           muted
         />
 
-        {!ready && error === null && (
+        {(!ready || switching) && error === null && (
           <div className="absolute inset-0 grid place-content-center gap-3 bg-surface-base/80 text-center">
             <span
               className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-surface-hairline border-t-accent"
               aria-hidden="true"
             />
-            <p className="text-sm text-gray-400">Starting camera…</p>
+            <p className="text-sm text-gray-400">
+              {switching ? "Switching camera…" : "Starting camera…"}
+            </p>
           </div>
         )}
 
