@@ -357,6 +357,91 @@ def _score_joint(exercise: str, joint: str, angle: float) -> float:
     return max(0.0, min(100.0, _piecewise(angle, anchors)))
 
 
+def _mover_pair(exercise: str) -> tuple[str, str] | None:
+    """Find an exercise's single symmetric left/right *mover* joint pair, if any.
+
+    A mover joint is any scored joint that is not a posture joint for this
+    exercise (see ``_POSTURE_JOINTS``). Exercises with exactly one such pair
+    (e.g. the elbow in ``curl``, the shoulder in ``lateral_raise``) can have
+    one side working while the other rests — the unilateral case this module
+    detects. Exercises with two or more mover pairs (e.g. ``squat``'s knee
+    and hip both sweep together) are ambiguous and return None, since there
+    is no single side to isolate.
+    """
+    joints = _EXERCISE_JOINTS.get(exercise, [])
+    posture = _POSTURE_JOINTS.get(exercise, frozenset())
+    movers = [j for j in joints if j not in posture]
+    pairs = {
+        (j, f"right_{j[len('left_'):]}")
+        for j in movers
+        if j.startswith("left_") and f"right_{j[len('left_'):]}" in movers
+    }
+    return next(iter(pairs)) if len(pairs) == 1 else None
+
+
+# Exercise -> (left_joint, right_joint) for the single mover pair that can be
+# worked unilaterally. Derived from _EXERCISE_JOINTS/_POSTURE_JOINTS rather
+# than listed per exercise, so any future arm-pair exercise is covered
+# automatically.
+_UNILATERAL_CAPABLE: dict[str, tuple[str, str]] = {
+    exercise: pair for exercise in SUPPORTED_EXERCISES if (pair := _mover_pair(exercise)) is not None
+}
+
+
+# Fraction of a mover joint's working span (p5-p95) treated as its "resting
+# extreme" tail at each end when telling an idle side apart from an active
+# one. Deliberately tighter than the credit curve's own tapering margin in
+# _percentile_anchors (which is generous on purpose, so a real rep's
+# extremes still score well) — a single frame can't tell "bottom of a real
+# rep" from "resting idle" otherwise, since both sit at the same extreme.
+_UNILATERAL_EDGE_FRACTION = 0.1
+
+
+def _is_engaged(angle: float, bounds: tuple[float, float]) -> bool:
+    """Is ``angle`` inside a mover joint's working band, away from its edges?
+
+    True across the inner band of [p5, p95]; False in the outer
+    ``_UNILATERAL_EDGE_FRACTION`` tail at either end (or outside the band
+    entirely). The resting/idle position for these joint conventions is
+    consistently the high-angle "near full extension" tail, so checking both
+    tails the same way keeps the rule symmetric without hardcoding which end
+    is "rest" for a given joint.
+    """
+    lo, hi = bounds
+    span = max(hi - lo, 10.0)
+    edge = _UNILATERAL_EDGE_FRACTION * span
+    return lo + edge <= angle <= hi - edge
+
+
+def _unilateral_active_side(exercise: str, pair: tuple[str, str], angles: Mapping[str, float | None]) -> str | None:
+    """Return "left"/"right" if exactly one side of a mover pair is engaged.
+
+    Each side is judged against its *own* Fit3D range (left/right ranges can
+    differ, e.g. one_arm_row's captured handedness), so this only fires when
+    one side is clearly working its range and the other is clearly not.
+    Returns None — fall back to scoring both sides as today — when either
+    angle is missing (single-side-visible is handled by the normal confidence
+    gate), data is unavailable, or both/neither side reads as engaged (genuine
+    bilateral execution, or too ambiguous to call).
+    """
+    left_joint, right_joint = pair
+    left_angle = angles.get(left_joint)
+    right_angle = angles.get(right_joint)
+    if left_angle is None or right_angle is None:
+        return None
+    left_bounds = _get_range(exercise, left_joint)
+    right_bounds = _get_range(exercise, right_joint)
+    if left_bounds is None or right_bounds is None:
+        return None
+    left_engaged = _is_engaged(left_angle, left_bounds)
+    right_engaged = _is_engaged(right_angle, right_bounds)
+    if left_engaged and not right_engaged:
+        return "left"
+    if right_engaged and not left_engaged:
+        return "right"
+    return None
+
+
 def score_exercise(
     exercise: str,
     kp: npt.NDArray[Any],
@@ -382,6 +467,13 @@ def score_exercise(
 
     angles = compute_angles(kp, kp_conf, conf_threshold)
     target_joints = _EXERCISE_JOINTS[exercise]
+
+    unilateral_pair = _UNILATERAL_CAPABLE.get(exercise)
+    if unilateral_pair is not None:
+        active_side = _unilateral_active_side(exercise, unilateral_pair, angles)
+        if active_side is not None:
+            idle_prefix = "right_" if active_side == "left" else "left_"
+            target_joints = [j for j in target_joints if not j.startswith(idle_prefix)]
 
     joint_scores: dict[str, float] = {}
     measured_angles: dict[str, float] = {}
