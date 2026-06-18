@@ -1,5 +1,6 @@
-import { memo } from "react"
+import { memo, useState } from "react"
 
+import { CollapsibleSelect } from "./CollapsibleSelect"
 import { getPoseMeta } from "../lib/poses"
 import type { PoseName } from "../types"
 
@@ -13,9 +14,28 @@ interface PoseSelectorProps {
 
 /** Pick a mandatory pose to score from the active division's lineup (P17). */
 function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSelectorProps): JSX.Element {
+  const [open, setOpen] = useState(false)
   const active = getPoseMeta(value)
+
+  const select = (id: PoseName): void => {
+    onChange(id)
+    setOpen(false)
+  }
+
   return (
-    <div className="flex flex-col gap-1.5">
+    <CollapsibleSelect
+      open={open}
+      onToggle={() => setOpen((o) => !o)}
+      disabled={disabled}
+      dialogLabel="Choose pose"
+      triggerTestId="pose-change-btn"
+      label={
+        <span className="min-w-0 truncate text-sm font-medium text-white" data-testid="pose-current-label">
+          {active.label}
+        </span>
+      }
+    >
+      <p className="mb-3 text-[11px] text-gray-500">{active.hint}</p>
       <div role="radiogroup" aria-label="Pose" className="flex flex-wrap items-center gap-2">
         {poses.map((id) => {
           const meta = getPoseMeta(id)
@@ -28,7 +48,7 @@ function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSel
               aria-checked={isActive}
               aria-label={meta.label}
               disabled={disabled}
-              onClick={() => onChange(meta.id)}
+              onClick={() => select(meta.id)}
               className={
                 "flex min-h-11 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
                 (isActive
@@ -42,8 +62,7 @@ function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSel
           )
         })}
       </div>
-      <p className="text-[11px] text-gray-500">{active.hint}</p>
-    </div>
+    </CollapsibleSelect>
   )
 }
 

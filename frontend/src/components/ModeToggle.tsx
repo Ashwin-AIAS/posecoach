@@ -19,7 +19,7 @@ function ModeToggleInner({ value, onChange, disabled = false }: ModeToggleProps)
     <div
       role="radiogroup"
       aria-label="Session mode"
-      className="inline-flex rounded-full bg-surface-raised p-0.5 shadow-elev-1"
+      className="inline-flex shrink-0 rounded-full bg-surface-raised p-0.5 shadow-elev-1"
     >
       {MODES.map((m) => {
         const active = m.id === value

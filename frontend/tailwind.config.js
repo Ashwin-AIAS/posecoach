@@ -1,3 +1,5 @@
+import containerQueries from "@tailwindcss/container-queries"
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
@@ -43,6 +45,12 @@ export default {
       },
       fontSize: {
         "display-hero": ["4rem", { lineHeight: "1", letterSpacing: "-0.02em" }],
+        "fluid-sm": "clamp(0.72rem, 0.68rem + 0.3vw, 0.85rem)",
+        "fluid-base": "clamp(0.85rem, 0.80rem + 0.4vw, 1rem)",
+        "fluid-lg": "clamp(1rem, 0.92rem + 0.6vw, 1.35rem)",
+      },
+      spacing: {
+        fluid: "clamp(0.5rem, 0.4rem + 1vw, 1rem)",
       },
       keyframes: {
         "caption-in": {
@@ -87,5 +95,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [containerQueries],
 }

@@ -104,14 +104,17 @@ function ExerciseSelectorInner({
   }
 
   return (
-    <div className="relative">
-      <div className="flex items-center gap-3">
-        <span className="flex items-center gap-2 text-sm">
-          <span className={`h-2 w-2 rounded-full ${DIFFICULTY_DOT[active.difficulty]}`} aria-hidden="true" />
-          <span className="font-medium text-white" data-testid="exercise-current-label">
+    <div className="relative min-w-0">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex min-w-0 items-center gap-2 text-sm">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${DIFFICULTY_DOT[active.difficulty]}`}
+            aria-hidden="true"
+          />
+          <span className="truncate font-medium text-white" data-testid="exercise-current-label">
             {active.label}
           </span>
-          <span className="text-gray-500">· {active.category}</span>
+          <span className="hidden shrink-0 text-gray-500 sm:inline">· {active.category}</span>
         </span>
         <button
           type="button"
@@ -119,7 +122,7 @@ function ExerciseSelectorInner({
           disabled={disabled}
           aria-expanded={open}
           aria-haspopup="true"
-          className="flex min-h-11 items-center justify-center rounded-full bg-surface-raised px-3 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="flex min-h-11 shrink-0 items-center justify-center rounded-full bg-surface-raised px-3 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           data-testid="exercise-change-btn"
         >
           Change ▾

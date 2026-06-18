@@ -167,7 +167,7 @@ export default function App(): JSX.Element {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-surface-base font-sans text-gray-100">
+    <div className="flex h-[100svh] min-h-[100svh] w-screen flex-col bg-surface-base font-sans text-gray-100">
       <header
         className="relative z-30 flex items-center justify-between gap-2 bg-surface-raised/40 px-3 py-1.5 shadow-elev-1 backdrop-blur-md sm:gap-4 sm:px-4"
         style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}
@@ -193,19 +193,6 @@ export default function App(): JSX.Element {
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           {view === "live" && (
             <>
-              <button
-                type="button"
-                onClick={() => void camera.flip()}
-                disabled={!camera.ready}
-                aria-label={
-                  camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
-                }
-                title="Flip camera (front / back)"
-                className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-surface-raised text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                data-testid="flip-camera"
-              >
-                <Icon icon={RefreshCw} size={16} />
-              </button>
               {isSpeechSupported() && (
                 <button
                   type="button"
@@ -250,7 +237,7 @@ export default function App(): JSX.Element {
         />
       ) : (
         <div className="flex min-h-0 flex-1 animate-fade-in flex-col">
-          <div className="relative z-20 flex min-w-0 items-center gap-3 bg-surface-base/60 px-4 py-2 shadow-elev-1">
+          <div className="relative z-20 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 bg-surface-base/60 px-4 py-2 shadow-elev-1">
             <ModeToggle value={mode} onChange={setMode} />
             {posing ? (
               <>
@@ -268,7 +255,7 @@ export default function App(): JSX.Element {
 
           {!posing && <RecommendationCard exercise={exercise} />}
 
-          <main className="grid flex-1 grid-cols-1 grid-rows-[minmax(220px,1fr)_auto] gap-3 overflow-hidden p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1">
+          <main className="grid flex-1 grid-cols-1 grid-rows-[minmax(180px,1fr)_auto] gap-3 overflow-hidden p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1">
         <div className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-black shadow-elev-3">
           <CameraFeed
             ref={camera.videoRef}
@@ -306,6 +293,19 @@ export default function App(): JSX.Element {
             </div>
           )}
           {showHint && <EmptyStageHint exercise={exercise} />}
+          <button
+            type="button"
+            onClick={() => void camera.flip()}
+            disabled={!camera.ready}
+            aria-label={
+              camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
+            }
+            title="Flip camera (front / back)"
+            className="absolute bottom-3 right-3 z-20 grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            data-testid="flip-camera"
+          >
+            <Icon icon={RefreshCw} size={16} />
+          </button>
         </div>
 
         <aside className="flex min-h-0 flex-col gap-2 overflow-hidden lg:gap-4 lg:overflow-y-auto">
