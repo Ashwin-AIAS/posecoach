@@ -128,7 +128,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
+            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Close"
           >
             <Icon icon={X} size={18} />
@@ -163,7 +163,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
                   disabled={rated !== null}
                   aria-pressed={rated === value}
                   className={
-                    "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-50 " +
+                    "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
                     (rated === value
                       ? "border border-accent bg-accent-soft text-accent disabled:opacity-100"
                       : "bg-surface-overlay text-gray-300 shadow-elev-1 hover:text-white")
@@ -204,7 +204,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
           {!authed ? (
             <p className="text-sm text-gray-500">Sign in to track your progress over time.</p>
           ) : trend === null ? (
-            <p className="text-sm text-gray-600">Loading…</p>
+            <p className="text-sm text-gray-500">Loading…</p>
           ) : trend.length < 2 ? (
             <p className="text-sm text-gray-500">Train a few sessions to see your trend.</p>
           ) : (
@@ -215,7 +215,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 w-full rounded-lg bg-accent py-2 font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110"
+          className="mt-6 w-full rounded-lg bg-accent py-2 font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised"
         >
           Train again
         </button>

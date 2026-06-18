@@ -96,7 +96,7 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
         <button
           type="button"
           onClick={onStart}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-4 text-base font-semibold text-surface-base shadow-elev-2 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-4 text-base font-semibold text-surface-base shadow-elev-2 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base"
           data-testid="start-workout-btn"
         >
           <Icon icon={Play} size={18} />
@@ -112,7 +112,7 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
               <button
                 type="button"
                 onClick={onShowHistory}
-                className="text-xs font-medium text-accent transition hover:underline active:opacity-60"
+                className="rounded text-xs font-medium text-accent transition hover:underline active:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 See all
               </button>
@@ -130,7 +130,7 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
                   key={s.id}
                   type="button"
                   onClick={onShowHistory}
-                  className="flex w-32 shrink-0 flex-col items-start gap-1 rounded-xl bg-surface-raised p-3 text-left shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]"
+                  className="flex w-32 shrink-0 flex-col items-start gap-1 rounded-xl bg-surface-raised p-3 text-left shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   data-testid="recent-strip-item"
                 >
                   <span className="text-xs font-medium capitalize text-gray-200">
@@ -139,7 +139,7 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
                   <span className="hud-numerals text-lg font-semibold text-accent">
                     {Math.round(s.avg_form_score)}
                   </span>
-                  <span className="text-[11px] text-gray-600">{formatShortDate(s.started_at)}</span>
+                  <span className="text-[11px] text-gray-500">{formatShortDate(s.started_at)}</span>
                 </button>
               ))}
             </div>

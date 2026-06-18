@@ -51,7 +51,7 @@ function HistorySessionDetailInner({ sessionId, onBack }: HistorySessionDetailPr
       <button
         type="button"
         onClick={onBack}
-        className="mb-3 inline-flex items-center gap-1 self-start text-xs font-medium text-gray-400 transition hover:text-white active:opacity-60"
+        className="mb-3 inline-flex items-center gap-1 self-start rounded text-xs font-medium text-gray-400 transition hover:text-white active:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <Icon icon={ChevronLeft} size={14} />
         Back to history

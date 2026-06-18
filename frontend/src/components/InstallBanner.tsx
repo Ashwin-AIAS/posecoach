@@ -59,7 +59,7 @@ export function InstallBanner(): JSX.Element | null {
             <button
               type="button"
               onClick={() => void promptInstall()}
-              className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110"
+              className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-surface-base transition active:scale-[0.97] hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised"
             >
               Install
             </button>
@@ -91,7 +91,7 @@ export function InstallBanner(): JSX.Element | null {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss install prompt"
-          className="rounded-md p-1 text-gray-400 transition hover:text-white active:scale-90"
+          className="rounded-md p-1 text-gray-400 transition hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <Icon icon={X} size={16} />
         </button>

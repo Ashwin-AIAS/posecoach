@@ -93,7 +93,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
+            className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Close"
           >
             <Icon icon={X} size={18} />
@@ -108,7 +108,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
               <Icon icon={BarChart3} size={22} className="text-gray-400" />
             </div>
             <p className="text-sm text-gray-400">No sessions yet.</p>
-            <p className="text-xs text-gray-600">Sign in and train — your sets will appear here.</p>
+            <p className="text-xs text-gray-500">Sign in and train — your sets will appear here.</p>
           </div>
         )}
 
@@ -127,7 +127,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
               <button
                 type="button"
                 onClick={() => setDetailId(s.id)}
-                className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition hover:text-white active:opacity-70"
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition hover:text-white active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 data-testid="history-row-open"
               >
                 <div className="min-w-0 flex-1">
@@ -138,14 +138,14 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
                         Posing
                       </span>
                     )}
-                    <span className="text-xs text-gray-600">{formatDate(s.started_at)}</span>
+                    <span className="text-xs text-gray-500">{formatDate(s.started_at)}</span>
                   </div>
                   <div className="text-xs text-gray-400">
                     {s.rep_count > 0 && <span>{s.rep_count} reps · </span>}
                     Avg score: {s.avg_form_score.toFixed(1)}
                   </div>
                 </div>
-                <Icon icon={ChevronRight} size={16} className="text-gray-600" />
+                <Icon icon={ChevronRight} size={16} className="text-gray-500" />
               </button>
               {s.session_type === "posing" && preps.length > 0 && (
                 <select
@@ -166,7 +166,7 @@ function HistoryPanelInner({ onClose }: HistoryPanelProps): JSX.Element {
               <button
                 type="button"
                 onClick={() => void remove(s.id)}
-                className="text-xs text-gray-500 transition hover:text-score-bad active:opacity-60"
+                className="rounded text-xs text-gray-500 transition hover:text-score-bad active:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 Delete
               </button>

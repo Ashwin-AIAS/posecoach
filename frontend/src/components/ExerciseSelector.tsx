@@ -119,7 +119,7 @@ function ExerciseSelectorInner({
           disabled={disabled}
           aria-expanded={open}
           aria-haspopup="true"
-          className="flex min-h-11 items-center justify-center rounded-full bg-surface-raised px-3 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-50"
+          className="flex min-h-11 items-center justify-center rounded-full bg-surface-raised px-3 text-xs font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           data-testid="exercise-change-btn"
         >
           Change ▾

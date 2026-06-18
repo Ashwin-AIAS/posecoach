@@ -79,7 +79,7 @@ function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps
         >
           {score === null ? "—" : Math.round(score)}
         </span>
-        <span className="text-sm text-gray-600">/ 100</span>
+        <span className="text-sm text-gray-500">/ 100</span>
         {holdS !== undefined && (
           <span
             className="ml-auto rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent"
@@ -114,7 +114,7 @@ function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps
             type="button"
             onClick={() => setExpanded((e) => !e)}
             aria-expanded={expanded}
-            className="mt-2 text-xs font-medium text-gray-500 transition hover:text-accent active:opacity-60"
+            className="mt-2 rounded text-xs font-medium text-gray-500 transition hover:text-accent active:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             data-testid="cues-toggle"
           >
             {expanded ? "Show less" : `+${restCues.length} more cue${restCues.length > 1 ? "s" : ""}`}
@@ -142,7 +142,7 @@ function CoachingCuesInner({ result, connectionState, error }: CoachingCuesProps
       )}
 
       {latency !== null && (
-        <p className="mt-3 text-[11px] text-gray-600" data-testid="latency-display">
+        <p className="mt-3 text-[11px] text-gray-500" data-testid="latency-display">
           Latency {Math.round(latency)} ms
         </p>
       )}

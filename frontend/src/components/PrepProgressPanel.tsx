@@ -154,7 +154,7 @@ function PrepProgressPanelInner({ onClose }: PrepProgressPanelProps): JSX.Elemen
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
+              className="rounded-md p-1 text-sm text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               aria-label="Close"
             >
               <Icon icon={X} size={18} />
@@ -194,7 +194,7 @@ function PrepProgressPanelInner({ onClose }: PrepProgressPanelProps): JSX.Elemen
               <button
                 type="submit"
                 disabled={!newName.trim()}
-                className="rounded-md bg-surface-overlay px-3 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40"
+                className="rounded-md bg-surface-overlay px-3 py-1.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 Create
               </button>

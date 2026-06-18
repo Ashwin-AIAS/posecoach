@@ -42,7 +42,7 @@ export const CameraFeed = forwardRef<HTMLVideoElement, CameraFeedProps>(
             </div>
             <p className="font-display text-lg font-semibold text-white">Camera unavailable</p>
             <p className="mx-auto max-w-sm text-sm text-gray-400">{error}</p>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-500">
               Allow camera access in your browser settings, then reload.
             </p>
           </div>

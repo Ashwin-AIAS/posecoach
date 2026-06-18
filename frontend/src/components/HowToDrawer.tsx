@@ -55,7 +55,7 @@ export function HowToDrawer({ exercise, onClose }: HowToDrawerProps): JSX.Elemen
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
+            className="rounded-md p-1 text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Close"
           >
             <Icon icon={X} size={18} />

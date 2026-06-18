@@ -179,7 +179,7 @@ export default function App(): JSX.Element {
               onClick={() => setView("home")}
               aria-label="Back to home"
               title="Back to home"
-              className="grid h-11 w-11 shrink-0 place-content-center rounded-full text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90"
+              className="grid h-11 w-11 shrink-0 place-content-center rounded-full text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               data-testid="back-home-btn"
             >
               <Icon icon={ChevronLeft} size={18} />
@@ -201,7 +201,7 @@ export default function App(): JSX.Element {
                   camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
                 }
                 title="Flip camera (front / back)"
-                className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-surface-raised text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40"
+                className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-surface-raised text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 data-testid="flip-camera"
               >
                 <Icon icon={RefreshCw} size={16} />
@@ -214,7 +214,7 @@ export default function App(): JSX.Element {
                   aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
                   title="Voice coaching cues"
                   className={
-                    "grid h-11 w-11 shrink-0 place-content-center rounded-full transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
+                    "grid h-11 w-11 shrink-0 place-content-center rounded-full transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
                     (voice
                       ? "bg-accent-soft text-accent shadow-glow-sm"
                       : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")
@@ -316,7 +316,7 @@ export default function App(): JSX.Element {
               aria-selected={mobileTab === "cues"}
               onClick={() => setMobileTab("cues")}
               className={
-                "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
+                "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
                 (mobileTab === "cues"
                   ? "bg-accent-soft text-accent"
                   : "bg-surface-raised text-gray-400 shadow-elev-1")
@@ -331,7 +331,7 @@ export default function App(): JSX.Element {
               aria-selected={mobileTab === "chat"}
               onClick={() => setMobileTab("chat")}
               className={
-                "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] " +
+                "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
                 (mobileTab === "chat"
                   ? "bg-accent-soft text-accent"
                   : "bg-surface-raised text-gray-400 shadow-elev-1")
@@ -374,7 +374,7 @@ export default function App(): JSX.Element {
             type="button"
             onClick={() => setShowPrep(true)}
             title="Contest-prep progress — symmetry & hold trends over your prep"
-            className="flex min-h-11 items-center justify-center rounded-full bg-surface-raised px-3.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white"
+            className="flex min-h-11 items-center justify-center rounded-full bg-surface-raised px-3.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             data-testid="prep-btn"
           >
             Prep
@@ -389,7 +389,7 @@ export default function App(): JSX.Element {
             aria-label={recorder.recording ? "Stop recording" : "Record session"}
             title="Record this set (saved on your device only)"
             className={
-              "flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-40 " +
+              "flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
               (recorder.recording
                 ? "border border-score-bad/60 bg-score-bad/15 text-score-bad"
                 : "bg-surface-raised text-gray-200 shadow-elev-1 hover:text-white")
@@ -409,7 +409,7 @@ export default function App(): JSX.Element {
           type="button"
           onClick={finishSet}
           disabled={!camera.ready}
-          className="flex min-h-11 items-center justify-center rounded-full bg-accent px-4 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 disabled:translate-y-0 disabled:opacity-40"
+          className="flex min-h-11 items-center justify-center rounded-full bg-accent px-4 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           data-testid="finish-set-btn"
         >
           Finish set

@@ -47,7 +47,7 @@ function ReferenceVideoPanelInner({ exercise }: ReferenceVideoPanelProps): JSX.E
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="reference-video-body"
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:opacity-70"
+        className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         data-testid="reference-video-toggle"
       >
         <span className="flex items-center gap-2">
@@ -85,7 +85,7 @@ function ReferenceVideoPanelInner({ exercise }: ReferenceVideoPanelProps): JSX.E
               <button
                 type="button"
                 onClick={() => setPlaying(true)}
-                className="group relative block h-full w-full"
+                className="group relative block h-full w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 aria-label={`Play ${meta.label} reference video`}
                 data-testid="reference-video-play"
               >
@@ -103,7 +103,7 @@ function ReferenceVideoPanelInner({ exercise }: ReferenceVideoPanelProps): JSX.E
               </button>
             )}
           </div>
-          <p className="mt-2 text-[11px] text-gray-600">
+          <p className="mt-2 text-[11px] text-gray-500">
             Curated demo · opens only when you choose to watch.
           </p>
         </div>

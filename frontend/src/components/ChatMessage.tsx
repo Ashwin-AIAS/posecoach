@@ -171,7 +171,7 @@ function SourcesSection({ raw }: { raw: string }): JSX.Element {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 text-[11px] font-medium text-gray-500 transition hover:text-gray-300"
+        className="flex items-center gap-1 rounded text-[11px] font-medium text-gray-500 transition hover:text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <span
           className="inline-block transition-transform"
@@ -272,7 +272,7 @@ function MessageActions({
         onClick={() => void handleCopy()}
         title={copied ? "Copied!" : "Copy message"}
         aria-label={copied ? "Copied!" : "Copy message"}
-        className="rounded p-1 text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300 active:scale-90"
+        className="rounded p-1 text-gray-500 transition hover:bg-surface-overlay hover:text-gray-300 active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <Icon icon={copied ? Check : Copy} size={14} />
       </button>
@@ -285,8 +285,8 @@ function MessageActions({
           title={speaking ? "Stop reading" : "Read aloud"}
           aria-label={speaking ? "Stop reading" : "Read aloud"}
           className={
-            "rounded p-1 transition active:scale-90 hover:bg-surface-overlay " +
-            (speaking ? "text-accent" : "text-gray-600 hover:text-gray-300")
+            "rounded p-1 transition active:scale-90 hover:bg-surface-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+            (speaking ? "text-accent" : "text-gray-500 hover:text-gray-300")
           }
         >
           <Icon icon={speaking ? Volume2 : VolumeX} size={14} />
@@ -301,10 +301,10 @@ function MessageActions({
         aria-label="Good response"
         aria-pressed={message.feedback === "up"}
         className={
-          "rounded p-1 transition active:scale-90 hover:bg-surface-overlay " +
+          "rounded p-1 transition active:scale-90 hover:bg-surface-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
           (message.feedback === "up"
             ? "text-score-good"
-            : "text-gray-600 hover:text-gray-300")
+            : "text-gray-500 hover:text-gray-300")
         }
       >
         <Icon icon={ThumbsUp} size={14} />
@@ -318,10 +318,10 @@ function MessageActions({
         aria-label="Poor response"
         aria-pressed={message.feedback === "down"}
         className={
-          "rounded p-1 transition active:scale-90 hover:bg-surface-overlay " +
+          "rounded p-1 transition active:scale-90 hover:bg-surface-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
           (message.feedback === "down"
             ? "text-score-bad"
-            : "text-gray-600 hover:text-gray-300")
+            : "text-gray-500 hover:text-gray-300")
         }
       >
         <Icon icon={ThumbsDown} size={14} />
@@ -334,7 +334,7 @@ function MessageActions({
           onClick={onRegenerate}
           title="Regenerate response"
           aria-label="Regenerate response"
-          className="rounded p-1 text-gray-600 transition hover:bg-surface-overlay hover:text-gray-300 active:scale-90"
+          className="rounded p-1 text-gray-500 transition hover:bg-surface-overlay hover:text-gray-300 active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <Icon icon={RefreshCw} size={14} />
         </button>
@@ -442,7 +442,7 @@ function ChatMessageInner({
             />
           )}
           {timestamp && !isThinking && !showStreaming && (
-            <span className="text-[10px] text-gray-600" data-testid="message-timestamp">
+            <span className="text-[10px] text-gray-500" data-testid="message-timestamp">
               {timestamp}
             </span>
           )}
