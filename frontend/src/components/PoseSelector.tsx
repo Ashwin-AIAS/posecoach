@@ -1,4 +1,4 @@
-import { memo, useState } from "react"
+import { memo, useState, type ReactNode } from "react"
 
 import { CollapsibleSelect } from "./CollapsibleSelect"
 import { getPoseMeta } from "../lib/poses"
@@ -10,10 +10,19 @@ interface PoseSelectorProps {
   /** The mandatory poses to choose from (the active division's lineup, P17). */
   readonly poses: readonly PoseName[]
   readonly disabled?: boolean
+  /** Extra control rendered above the pose grid inside the sheet (the DivisionSelector, P21) —
+      kept out of the collapsed row so the row stays one compact line. */
+  readonly extra?: ReactNode
 }
 
 /** Pick a mandatory pose to score from the active division's lineup (P17). */
-function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSelectorProps): JSX.Element {
+function PoseSelectorInner({
+  value,
+  onChange,
+  poses,
+  disabled = false,
+  extra,
+}: PoseSelectorProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const active = getPoseMeta(value)
 
@@ -28,6 +37,7 @@ function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSel
       onToggle={() => setOpen((o) => !o)}
       disabled={disabled}
       dialogLabel="Choose pose"
+      triggerAriaLabel="Change pose"
       triggerTestId="pose-change-btn"
       label={
         <span className="min-w-0 truncate text-sm font-medium text-white" data-testid="pose-current-label">
@@ -35,7 +45,7 @@ function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSel
         </span>
       }
     >
-      <p className="mb-3 text-[11px] text-gray-500">{active.hint}</p>
+      {extra && <div className="mb-3">{extra}</div>}
       <div role="radiogroup" aria-label="Pose" className="flex flex-wrap items-center gap-2">
         {poses.map((id) => {
           const meta = getPoseMeta(id)

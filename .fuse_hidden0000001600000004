@@ -1,0 +1,243 @@
+# IMPROVEMENT_PLAN_P15–P18 — Posing Coach & Contest-Prep Tracking
+
+> Execute strictly in order P15 → P18. Each phase ships independently so the tool
+> is usable (dogfood) from P15 onward, then hardened into a product feature by P18.
+> This extends the existing pose pipeline; it does **not** redesign it.
+
+---
+
+---
+
+## >>> PRIMARY GOAL = P15 <<<
+
+This doc describes the full roadmap (P15-P18) so the direction is clear, but the
+**goal to execute now is P15 only**. P15 delivers a working posing app you can use.
+P16, P17, P18 are LATER follow-on runs, each launched separately after the one
+before it is green and dogfooded. Do not autonomously chase all four at once.
+
+When you hand this to Claude Code, the target is the **P15 completion block in section 9**.
+
+---
+
+## 1. Goal
+
+PoseCoach today scores **exercise form** (dynamic, rep-based, joint angles vs. Fit3D
+templates). This plan adds a second mode that scores **bodybuilding posing** — how
+correctly the user hits a mandatory pose, how symmetric it is, and how steadily they
+hold it — and tracks that across a **contest-prep cycle** so improvement is visible
+week over week.
+
+Two layers:
+1. **Single attempt** — score one held pose against a standard (position + symmetry + hold steadiness).
+2. **Prep cycle** — trend those scores across many rehearsals heading toward a show date.
+
+---
+
+## 2. Honest scope boundary (design the UI around this)
+
+The 17-keypoint COCO skeleton (nose, eyes, ears, shoulders, elbows, wrists, hips,
+knees, ankles) sees **body geometry only**. It CAN judge limb position, alignment,
+symmetry and steadiness. It CANNOT judge:
+
+- **Muscularity / conditioning / separation / flexing quality** — invisible to pose estimation. This is a huge part of real judging; we never claim to score it.
+- **Foot / toe direction** — COCO's lowest point is the ankle; there is no toe keypoint. We can measure stance *width* and *knee-out*, NOT "point toes outward in a V."
+- **Hand / finger placement, grip, fist position** — no hand keypoints.
+- **Fine head tilt** — only coarse yaw/level from nose+ears.
+
+Profile (side) poses occlude ~half the body → keypoint confidence drops and **left/right
+symmetry is meaningless in profile**. Back poses lose facial keypoints but keep all limb
+keypoints, so body geometry still works from behind.
+
+UI copy must state plainly: *"Scores position, symmetry, and hold — not muscle size or conditioning."*
+
+---
+
+## 3. Measurable parameter families
+
+Everything a template can check reduces to these six, all derivable from `.xyn` keypoints:
+
+1. **Joint angle** — elbow flexion (shoulder–elbow–wrist), knee flexion (hip–knee–ankle), shoulder abduction, upper-arm vs. horizontal/vertical.
+2. **Relative position** — elbow-above-shoulder, wrist-near-ear, wrist-near-hip, fists-together (normalized distances).
+3. **Symmetry delta** — left vs. right value of any angle/position. *Valid only in front/rear orientation.*
+4. **Stance / width ratio** — ankle separation ÷ shoulder width; knee separation ÷ hip width.
+5. **Body orientation** — front / left-side / rear / right-side, classified from keypoint geometry. Gates which checks apply AND verifies quarter turns.
+6. **Hold stability** — temporal variance of keypoints over the hold window (lower = steadier).
+
+A `POSE_TEMPLATE` = an orientation + a list of parameter checks (target range + cue
+strings) + symmetry pairs. New poses are **content, not code**.
+
+---
+
+## 4. Posing standards → measurable parameters (from web research)
+
+### Open / Classic mandatories
+
+**Front Double Biceps** — orientation: front.
+- Elbows slightly **above** shoulder line → elbow_y above shoulder_y.
+- Forearms **perpendicular to ground** → elbow→wrist segment ≈ vertical.
+- Fists near shoulders → elbow flexion acute (~30–60°).
+- Stance ~shoulder-width, knees pushed out → ankle-sep ratio + knee-out ratio.
+- Symmetry: L/R elbow height, L/R elbow angle, L/R forearm angle, shoulder line level.
+
+**Front Lat Spread** — orientation: front.
+- Arms extended to sides, **parallel to ground** → upper-arm ≈ horizontal, elbows ≈ shoulder height.
+- Elbows near-straight → elbow flexion ~150–180°.
+- Symmetry: L/R upper-arm angle, elbow height.
+
+**Side Chest** — orientation: side (reduced confidence; skip symmetry).
+- Front leg bent, **front heel raised**, back leg straight → front knee flexion + ankle-height delta.
+- Torso rotated to profile → orientation check confirms side.
+
+**Side Triceps** — orientation: side.
+- Front upper arm against side, back arm reaches small of back → wrist-near-hip (back arm).
+- Front leg flexed, heel lifted, back leg straight → front knee flexion + heel raise.
+
+**Rear Double Biceps** — orientation: rear.
+- Same arm geometry as front double biceps, from behind.
+- One leg back with **heel raised** (rear calf) → ankle-height delta, knee flexion of back leg.
+- Symmetry valid (rear is a frontal-style view of the back).
+
+**Rear Lat Spread** — orientation: rear.
+- Elbows flared forward, hands at lower lats / waist → wrist-near-hip, elbow-out.
+- Stance width; symmetry of elbow position.
+
+**Abdominal & Thigh** — orientation: front.
+- Common variant: **both hands behind head** (wrist-near-ear small), elbows flared.
+- One thigh extended forward → one knee straighter / one ankle forward.
+
+**Most Muscular (crab)** — orientation: front.
+- Hands clasped at center front → fists-together (L/R wrist distance small, near mid-torso).
+- Shoulders hunched/forward → shoulder elevation.
+
+### Men's Physique quarter turns (board-shorts divisions)
+
+- **Front:** feet parallel, symmetry display. **One hand on hip** on side & rear turns (the rule that distinguishes physique from bodybuilding) → wrist-near-hip on the appropriate side.
+- **Quarter turns:** orientation classifier verifies the user actually reaches front → right-side → rear → left-side, fluidly.
+- **Side:** hips face side, head toward judges → orientation=side + head-yaw toward camera.
+- **Rear:** lats spread for V-taper → elbow-out + shoulder-to-hip width ratio.
+
+Women's divisions (Bikini, Wellness, Figure, Women's Physique) reuse the **quarter-turn
+framework**; division-specific templates added in P17 as content.
+
+---
+
+## 5. Data model & architecture impact
+
+The current architecture handles this with **extension, not redesign**:
+
+- `app/models.py` `WorkoutSession`: add `session_type: str` (`"exercise" | "posing"`, default `"exercise"`) and optional `prep_id` FK. Pose scores go into the existing `keypoints_data` JSON column (no new pose table — consistent with current design).
+- New optional `PrepCycle` model (`id, user_id, name, show_date, created_at`) for grouping posing sessions into a contest prep. Alembic migration; never `create_all()`.
+- `app/analysis/posing_scorer.py` — new, mirrors `form_scorer.py` shape. Deterministic, same input → same output.
+- `app/analysis/pose_templates.json` — new, mirrors `angle_ranges.json` role. Keyed `division → pose → template`.
+- `app/analysis/orientation.py` — front/side/rear classifier from keypoints.
+- Reuse existing EMA `smoother.py` (keypoints) and `score_smoother.py` (scalar score) per WS connection.
+- WS handler routes on `mode`: `exercise` → form_scorer, `posing` → posing_scorer.
+- RAG: add posing knowledge docs to ChromaDB so the coach explains *why* a cue fired.
+- Frontend: mode toggle, posing section (division + pose picker from UI — matches `nc=1` philosophy), hold timer, prep timeline. Progress analytics generalizes from the existing premium progress feature.
+
+---
+
+## 6. Phase plan
+
+### P15 — Posing mode + engine skeleton   +++ PRIMARY GOAL (build first -> working app) +++
+Build the loop end-to-end against **3 seed poses** (front double biceps, front lat spread, rear double biceps — all front/rear so symmetry works without the side-view complications).
+- `posing` mode plumbing (frontend toggle + WS `mode` routing).
+- `orientation.py` classifier (front/rear at minimum; side stub).
+- `posing_scorer.py`: pose-match + symmetry + hold-stability → 0–100 + cues (≤8 words, plain English).
+- `pose_templates.json` with the 3 seed poses.
+- **Acceptance:** stand in front of webcam, pick "front double biceps", get a live score + symmetry cue + hold timer. Deterministic scorer unit-tested (same input → same output, <5% variance like form scorer).
+
+### P16 — Scoring hardened + session persistence   [LATER — separate run]
+- Tune thresholds against your own footage; add confidence gating for low-vis joints (reuse <0.5 gate).
+- Add `session_type` + persist posing sessions into `WorkoutSession.keypoints_data`.
+- Side-orientation handling: detect profile, **disable symmetry**, score only profile-valid checks (knee flexion, heel raise).
+- **Acceptance:** every rehearsal is saved and retrievable via history; side poses no longer throw bogus symmetry cues.
+
+### P17 — Full division coverage + prep cycles
+- Encode all mandatories: Open (8), Classic (+ favorite/vacuum framing where measurable), Men's Physique quarter turns, women's divisions (Bikini, Wellness, Figure, Women's Physique). Pure template content.
+- `PrepCycle` model + migration; tag posing sessions to a prep with show-date / weeks-out.
+- Quarter-turn verification flow (orientation sequence front→side→rear→side).
+- **Acceptance:** can run a full mandatory lineup for a chosen division; sessions group under a named prep with a countdown.
+
+### P18 — Polish for product
+- Posing progress analytics: per-pose symmetry & hold trends across the prep (reuse progress-analytics charting).
+- RAG coach posing knowledge base (mandatory descriptions + common faults per division).
+- Dedicated posing UI: per-pose feedback panel, hold timer, prep timeline, "what to fix next."
+- **Acceptance:** open a prep, see symmetry/hold improving per pose over weeks; coach explains each cue.
+
+---
+
+## 7. Files touched (summary)
+
+| File | P15 | P16 | P17 | P18 |
+|------|-----|-----|-----|-----|
+| `app/analysis/posing_scorer.py` | new | tune | — | — |
+| `app/analysis/pose_templates.json` | 3 poses | — | all divisions | — |
+| `app/analysis/orientation.py` | new (front/rear) | + side | + quarter-turn seq | — |
+| `app/models.py` (`session_type`, `PrepCycle`) | — | session_type | PrepCycle | — |
+| `alembic/` migration | — | yes | yes | — |
+| `app/api/v1/ws_inference.py` (mode routing) | yes | — | — | — |
+| frontend posing mode/section | toggle | — | division UI | full UI |
+| RAG ingest (posing docs) | — | — | — | yes |
+| `tests/test_posing_scorer.py` etc. | yes | yes | yes | — |
+
+---
+
+## 8. Open decisions (resolve before P17)
+
+- Auto-detect which mandatory the user is attempting, or keep manual pick from UI? (Manual is simpler and matches `nc=1`; auto is a nicer product later.)
+- Where do template target ranges come from? Plan: derive **numbers only** from reference footage (privacy stance: never store images), seeded from the standards in §4.
+- Side-pose strategy: accept reduced accuracy in profile, or prompt user to a 3/4 angle the keypoints handle better?
+
+---
+
+## 9. `/goal` completion conditions (loop-ready)
+
+> **Autonomous run scope: P15 ONLY.** Hand Claude Code one phase at a time.
+> Run the loop until the P15 block below is fully green, then STOP, dogfood by
+> hand (webcam), then start P16 as a separate run. Do NOT point one `/goal` loop
+> at the whole plan — too broad to verify, drifts on later phases, burns tokens.
+> Every condition below is machine-checkable so the evaluator has a hard stop.
+> "Noiseless" standard: zero ruff errors, zero mypy errors, zero new warnings.
+
+### P15 — completion condition (run this one)
+```
+/goal Implement P15 from IMPROVEMENT_PLAN_P15-P18.md (posing mode + engine,
+3 seed poses: front double biceps, front lat spread, rear double biceps).
+Follow CLAUDE.md and .claude/rules. Done when ALL of the following pass:
+  - pytest tests/test_posing_scorer.py -x --timeout=30           # all green
+  - pytest tests/test_orientation.py -x --timeout=30             # front/rear classify
+  - determinism: 20 identical keypoint inputs -> <5% score variance (test asserts this)
+  - pytest -x --timeout=30 --cov=app/analysis --cov-fail-under=80 # coverage gate holds
+  - ruff check app/        # 0 errors
+  - mypy app/ --strict     # 0 errors
+  - WS posing route returns {score, symmetry, cues, hold} for a synthetic 17-kpt fixture
+Do NOT proceed to P16. Do NOT use end2end=False. Keypoints via .xyn only.
+```
+**Human step after the loop (not for the evaluator):** open the app, toggle posing
+mode, pick "front double biceps", confirm a live score + symmetry cue + hold timer.
+
+### P16 — completion condition (separate run, later)
+```
+Done when: side-orientation detection disables symmetry in profile (test asserts
+no symmetry cue when orientation=side); posing sessions persist with
+session_type="posing" and are retrievable via /history (integration test);
+low-confidence joints (<0.5) skipped (test); all P15 gates still green.
+```
+
+### P17 — completion condition (separate run, later)
+```
+Done when: pose_templates.json contains every mandatory for Open, Classic,
+Men's Physique, and the 4 women's divisions (schema-validation test counts them);
+PrepCycle model + Alembic migration applied (alembic upgrade head succeeds on a
+fresh SQLite test db); sessions tag to a prep_id (test); quarter-turn sequence
+front->side->rear->side verified by orientation classifier (test).
+```
+
+### P18 — completion condition (separate run, later)
+```
+Done when: posing progress endpoint returns per-pose symmetry & hold trends across
+a prep (integration test); RAG ingest includes posing docs (retrieval test returns
+a posing chunk for a mandatory-pose query); frontend posing section + prep timeline
+build with no TS errors (tsc/vitest green).
+```

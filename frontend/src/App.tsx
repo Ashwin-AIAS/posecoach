@@ -169,7 +169,7 @@ export default function App(): JSX.Element {
   return (
     <div className="flex h-[100svh] min-h-[100svh] w-screen flex-col bg-surface-base font-sans text-gray-100">
       <header
-        className="relative z-30 flex items-center justify-between gap-2 bg-surface-raised/40 px-3 py-1.5 shadow-elev-1 backdrop-blur-md sm:gap-4 sm:px-4"
+        className="relative z-30 flex items-center justify-between gap-2 bg-surface-raised/40 px-3 py-1 shadow-elev-1 backdrop-blur-md sm:gap-4 sm:px-4"
         style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}
       >
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
@@ -237,17 +237,15 @@ export default function App(): JSX.Element {
         />
       ) : (
         <div className="flex min-h-0 flex-1 animate-fade-in flex-col">
-          <div className="relative z-20 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 bg-surface-base/60 px-4 py-2 shadow-elev-1">
+          <div className="relative z-20 flex min-w-0 items-start gap-x-2 bg-surface-base/60 px-4 py-0.5 shadow-elev-1">
             <ModeToggle value={mode} onChange={setMode} />
             {posing ? (
-              <>
-                <DivisionSelector value={division} onChange={selectDivision} />
-                <PoseSelector
-                  value={poseName}
-                  onChange={setPoseName}
-                  poses={DIVISIONS[division].mandatories}
-                />
-              </>
+              <PoseSelector
+                value={poseName}
+                onChange={setPoseName}
+                poses={DIVISIONS[division].mandatories}
+                extra={<DivisionSelector value={division} onChange={selectDivision} />}
+              />
             ) : (
               <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
             )}
@@ -255,7 +253,7 @@ export default function App(): JSX.Element {
 
           {!posing && <RecommendationCard exercise={exercise} />}
 
-          <main className="grid flex-1 grid-cols-1 grid-rows-[minmax(180px,1fr)_auto] gap-3 overflow-hidden p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1">
+          <main className="grid flex-1 grid-cols-1 grid-rows-[minmax(180px,1fr)_auto] gap-2 overflow-hidden p-2 lg:gap-4 lg:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1">
         <div className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-black shadow-elev-3">
           <CameraFeed
             ref={camera.videoRef}
@@ -306,9 +304,26 @@ export default function App(): JSX.Element {
           >
             <Icon icon={RefreshCw} size={16} />
           </button>
+          {/* Score detector overlaid on the camera stage on mobile (P21) — keeps
+              it directly on the camera instead of pushing the stage down, so the
+              camera's own box still owns the bulk of the viewport (≥70% rule).
+              Desktop keeps the non-overlaid version in the aside below. */}
+          {posing && (
+            <div className="absolute bottom-3 left-3 right-16 z-10 lg:hidden">
+              <PosingPanel result={pose.result} pose={poseName} compact />
+            </div>
+          )}
         </div>
 
-        <aside className="flex min-h-0 flex-col gap-2 overflow-hidden lg:gap-4 lg:overflow-y-auto">
+        {/* In posing mode the score detector already lives above (pinned to the
+            camera); demote this tray to a thin, scrollable strip on mobile so
+            it never eats the camera's share of the viewport (P21's ≥70% rule). */}
+        <aside
+          className={
+            "flex min-h-0 flex-col gap-2 lg:gap-4 lg:overflow-y-auto " +
+            (posing ? "max-h-12 overflow-y-auto lg:max-h-none" : "overflow-hidden")
+          }
+        >
           {/* Mobile-only tab switcher — on >=lg both panels below are always shown. */}
           <div role="tablist" aria-label="Panels" className="flex shrink-0 gap-1.5 lg:hidden">
             <button
@@ -349,7 +364,11 @@ export default function App(): JSX.Element {
               " min-h-0 flex-col gap-4 overflow-y-auto lg:flex"
             }
           >
-            {posing && <PosingPanel result={pose.result} pose={poseName} />}
+            {posing && (
+              <div className="hidden lg:block">
+                <PosingPanel result={pose.result} pose={poseName} />
+              </div>
+            )}
             <CoachingCues
               result={pose.result}
               connectionState={pose.connectionState}
@@ -367,7 +386,7 @@ export default function App(): JSX.Element {
       {/* Thumb-reachable action bar — anchored at the bottom of the viewport so
           Record/Finish (the controls used mid-set) never require a reach on phones. */}
       <div
-        className="relative z-20 flex shrink-0 items-center justify-center gap-2 bg-surface-raised/60 px-4 py-1.5 shadow-elev-1 backdrop-blur-md"
+        className="relative z-20 flex shrink-0 items-center justify-center gap-2 bg-surface-raised/60 px-4 py-1 shadow-elev-1 backdrop-blur-md"
         style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
       >
         {posing && (

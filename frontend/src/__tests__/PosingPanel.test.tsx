@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { PosingPanel } from "../components/PosingPanel"
-import { POSING_SCOPE_NOTE } from "../lib/poses"
+import { getPoseMeta, POSING_SCOPE_NOTE } from "../lib/poses"
 import type { PoseResult } from "../types"
 
 function poseResult(over: Partial<PoseResult> = {}): PoseResult {
@@ -25,6 +25,11 @@ describe("PosingPanel", () => {
     render(<PosingPanel result={poseResult()} pose="front_double_biceps" />)
     expect(screen.getByText("Front Double Biceps")).toBeInTheDocument()
     expect(screen.getByText(POSING_SCOPE_NOTE)).toBeInTheDocument()
+  })
+
+  it("shows the pose's setup hint (moved here from the now-collapsed PoseSelector, P21)", () => {
+    render(<PosingPanel result={poseResult()} pose="front_double_biceps" />)
+    expect(screen.getByText(getPoseMeta("front_double_biceps").hint)).toBeInTheDocument()
   })
 
   it("shows score, symmetry and hold metrics", () => {

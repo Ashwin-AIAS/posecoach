@@ -67,12 +67,14 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         </div>
       )}
 
-      {/* How-to info button (re-opens the demo for the active exercise) */}
+      {/* How-to info button (re-opens the demo for the active exercise) — kept
+          bottom-left so it never collides with the flip-camera control, which
+          owns bottom-right on the camera stage (P20). */}
       <button
         type="button"
         onClick={() => onShowHowTo(exercise)}
         aria-label="Show how-to demo"
-        className="pointer-events-auto absolute bottom-4 right-4 grid h-9 w-9 place-content-center rounded-full bg-surface-base/55 text-gray-300 shadow-elev-1 backdrop-blur-md transition hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="pointer-events-auto absolute bottom-4 left-4 grid h-9 w-9 place-content-center rounded-full bg-surface-base/55 text-gray-300 shadow-elev-1 backdrop-blur-md transition hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         ?
       </button>

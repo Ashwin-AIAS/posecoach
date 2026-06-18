@@ -6,6 +6,10 @@ import type { PoseName, PoseResult } from "../types"
 interface PosingPanelProps {
   readonly result: PoseResult | null
   readonly pose: PoseName
+  /** Tight variant for the mobile camera overlay (P21) — drops the setup hint
+      and the scope-note footer so it fits in a short strip; both stay on the
+      full desktop card. */
+  readonly compact?: boolean
 }
 
 function metric(value: number | null | undefined, suffix = ""): string {
@@ -13,7 +17,7 @@ function metric(value: number | null | undefined, suffix = ""): string {
 }
 
 /** Posing-mode readout: pose score, symmetry, and live hold timer (P15). */
-function PosingPanelInner({ result, pose }: PosingPanelProps): JSX.Element {
+function PosingPanelInner({ result, pose, compact = false }: PosingPanelProps): JSX.Element {
   const meta = getPoseMeta(pose)
   const status = result?.status
   const hold = result?.hold
@@ -27,28 +31,32 @@ function PosingPanelInner({ result, pose }: PosingPanelProps): JSX.Element {
 
   return (
     <section
-      className="flex flex-col gap-3 rounded-2xl bg-surface-raised/60 p-4 shadow-elev-2"
+      className={
+        "flex flex-col rounded-2xl bg-surface-raised/60 shadow-elev-2 backdrop-blur-md " +
+        (compact ? "gap-1.5 p-2.5" : "gap-3 p-4")
+      }
       data-testid="posing-panel"
     >
       <header className="flex items-baseline justify-between gap-2">
         <h2 className="font-display text-sm font-semibold text-white">{meta.label}</h2>
         <span className="text-[11px] uppercase tracking-[0.16em] text-gray-500">{meta.division}</span>
       </header>
+      {!compact && <p className="-mt-1 text-[11px] text-gray-500">{meta.hint}</p>}
 
       <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-xl bg-surface-overlay p-2.5">
+        <div className={"rounded-xl bg-surface-overlay " + (compact ? "p-1.5" : "p-2.5")}>
           <div className="hud-numerals text-xl font-semibold text-white" data-testid="posing-score">
             {metric(result?.score)}
           </div>
           <div className="text-[10px] uppercase tracking-wider text-gray-500">Pose</div>
         </div>
-        <div className="rounded-xl bg-surface-overlay p-2.5">
+        <div className={"rounded-xl bg-surface-overlay " + (compact ? "p-1.5" : "p-2.5")}>
           <div className="hud-numerals text-xl font-semibold text-white" data-testid="posing-symmetry">
             {meta.orientation === "side" ? "N/A" : metric(result?.symmetry)}
           </div>
           <div className="text-[10px] uppercase tracking-wider text-gray-500">Symmetry</div>
         </div>
-        <div className="rounded-xl bg-surface-overlay p-2.5">
+        <div className={"rounded-xl bg-surface-overlay " + (compact ? "p-1.5" : "p-2.5")}>
           <div className="hud-numerals text-xl font-semibold text-white" data-testid="posing-hold">
             {hold ? `${hold.seconds.toFixed(1)}s` : "—"}
           </div>
@@ -69,7 +77,7 @@ function PosingPanelInner({ result, pose }: PosingPanelProps): JSX.Element {
         </p>
       )}
 
-      <p className="text-[11px] leading-relaxed text-gray-500">{POSING_SCOPE_NOTE}</p>
+      {!compact && <p className="text-[11px] leading-relaxed text-gray-500">{POSING_SCOPE_NOTE}</p>}
     </section>
   )
 }

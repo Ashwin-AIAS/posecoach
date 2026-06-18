@@ -25,12 +25,27 @@ describe("PoseSelector", () => {
     }
   })
 
-  it("marks the active pose and shows its hint once opened", () => {
+  it("marks the active pose once opened (hint now lives in PosingPanel, not here)", () => {
     render(<PoseSelector value="side_chest" poses={OPEN} onChange={vi.fn()} />)
     fireEvent.click(screen.getByTestId("pose-change-btn"))
 
     expect(screen.getByRole("radio", { name: "Side Chest" })).toHaveAttribute("aria-checked", "true")
-    expect(screen.getByText(POSE_META.side_chest.hint)).toBeInTheDocument()
+    expect(screen.queryByText(POSE_META.side_chest.hint)).not.toBeInTheDocument()
+  })
+
+  it("renders the extra control (DivisionSelector) inside the sheet, not the collapsed row", () => {
+    render(
+      <PoseSelector
+        value="front_double_biceps"
+        poses={OPEN}
+        onChange={vi.fn()}
+        extra={<div data-testid="extra-control">division</div>}
+      />,
+    )
+    expect(screen.queryByTestId("extra-control")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId("pose-change-btn"))
+    expect(screen.getByTestId("extra-control")).toBeInTheDocument()
   })
 
   it("invokes onChange and collapses back on selection", () => {
