@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, MessageCircle, RefreshCw, Volume2, VolumeX } from "lucide-react"
+import { ChevronLeft, MessageCircle, PlayCircle, RefreshCw, Volume2, VolumeX } from "lucide-react"
 
 import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
@@ -69,7 +69,11 @@ export default function App(): JSX.Element {
     setPoseName(DIVISIONS[next].mandatories[0])
   }, [])
   const [mobileTab, setMobileTab] = useState<"cues" | "chat">("cues")
-  const [posingTrayOpen, setPosingTrayOpen] = useState(false)
+  // P22 generalizes P21's "tray opens on tap" pattern to every mode, not just
+  // posing — the camera is the hero everywhere, so Coaching/Chat and the
+  // reference video are both on-demand sheets rather than permanent stacks.
+  const [traySheetOpen, setTraySheetOpen] = useState(false)
+  const [referenceOpen, setReferenceOpen] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showPrep, setShowPrep] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
@@ -99,10 +103,13 @@ export default function App(): JSX.Element {
 
   const posing = mode === "posing"
 
-  // Closes the on-tap Coaching/Chat sheet if the user leaves posing mode while it's open.
+  // Closes the on-tap sheets if the user leaves the live view while one is open.
   useEffect(() => {
-    if (!posing) setPosingTrayOpen(false)
-  }, [posing])
+    if (view !== "live") {
+      setTraySheetOpen(false)
+      setReferenceOpen(false)
+    }
+  }, [view])
 
   const stats = useSessionStats(pose.result)
   const topCue = pose.result?.cues?.[0]
@@ -264,18 +271,14 @@ export default function App(): JSX.Element {
 
           <main
             className={
-              "grid flex-1 grid-cols-1 gap-2 overflow-hidden lg:gap-4 lg:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1 " +
-              // Posing mode on mobile drops the tray from the grid template
-              // entirely — the score readout already lives on the camera
-              // overlay, and Coaching/Chat move to an on-tap sheet (below),
-              // so the camera row is the only row and gets the full 1fr
-              // (P21's ≥70% rule, including on the shortest phones). The
-              // padding is trimmed too — every pixel counts on a 568px-tall
+              // P22 generalizes P21's camera-dominance rule to every mode: the
+              // tray never sits in the grid template on mobile (it's an
+              // on-tap sheet below), so the camera row is the only row and
+              // gets the full 1fr, regardless of Exercise vs Posing. Padding
+              // is trimmed on mobile too — every pixel counts on a 568px-tall
               // floor device once the header/selector/action-bar chrome is
-              // accounted for.
-              (posing
-                ? "p-1 grid-rows-[minmax(180px,1fr)]"
-                : "p-2 grid-rows-[minmax(180px,1fr)_auto]")
+              // accounted for. Desktop (lg) is untouched: two columns, one row.
+              "grid flex-1 grid-cols-1 grid-rows-[minmax(180px,1fr)] gap-2 overflow-hidden p-1 lg:gap-4 lg:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1"
             }
           >
         <div
@@ -340,74 +343,43 @@ export default function App(): JSX.Element {
               <PosingPanel result={pose.result} pose={poseName} compact />
             </div>
           )}
-          {/* Coaching/Chat trigger (P21) — in posing mode on mobile the tray is
-              not in the grid flow at all (camera owns the row, ≥70% rule), so
-              it opens as an on-tap sheet instead of a permanent stacked strip. */}
-          {posing && (
+          {/* Floating triggers (P21/P22) — Coaching/Chat (every mode) and the
+              reference video (exercise mode only) open as on-tap sheets rather
+              than a permanent stacked strip, so the camera keeps the full row
+              (≥70% rule) in every mode, not just posing. Stacked below the
+              ScoreRing chip (top-3, ~140px tall) so they never overlap it. */}
+          <div className="absolute right-3 top-40 z-20 flex flex-col gap-2 lg:hidden">
             <button
               type="button"
-              onClick={() => setPosingTrayOpen(true)}
+              onClick={() => setTraySheetOpen(true)}
               aria-label="Open coaching and chat"
               title="Coaching / Chat"
-              className="absolute right-3 top-3 z-20 grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent lg:hidden"
-              data-testid="posing-tray-trigger"
+              className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              data-testid="tray-trigger"
             >
               <Icon icon={MessageCircle} size={16} />
             </button>
-          )}
+            {!posing && (
+              <button
+                type="button"
+                onClick={() => setReferenceOpen(true)}
+                aria-label="Open reference video"
+                title="Reference video"
+                className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                data-testid="reference-trigger"
+              >
+                <Icon icon={PlayCircle} size={16} />
+              </button>
+            )}
+          </div>
         </div>
 
-        <aside
-          className={
-            "min-h-0 flex-col gap-2 lg:gap-4 lg:overflow-y-auto " +
-            (posing ? "hidden lg:flex" : "flex overflow-hidden")
-          }
-        >
-          {/* Mobile-only tab switcher — on >=lg both panels below are always shown. */}
-          <div role="tablist" aria-label="Panels" className="flex shrink-0 gap-1.5 lg:hidden">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mobileTab === "cues"}
-              onClick={() => setMobileTab("cues")}
-              className={
-                "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
-                (mobileTab === "cues"
-                  ? "bg-accent-soft text-accent"
-                  : "bg-surface-raised text-gray-400 shadow-elev-1")
-              }
-              data-testid="mobile-tab-cues"
-            >
-              Coaching
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mobileTab === "chat"}
-              onClick={() => setMobileTab("chat")}
-              className={
-                "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
-                (mobileTab === "chat"
-                  ? "bg-accent-soft text-accent"
-                  : "bg-surface-raised text-gray-400 shadow-elev-1")
-              }
-              data-testid="mobile-tab-chat"
-            >
-              Chat
-            </button>
-          </div>
-
-          <div
-            className={
-              (mobileTab === "cues" ? "flex" : "hidden") +
-              " min-h-0 flex-col gap-4 overflow-y-auto lg:flex"
-            }
-          >
-            {posing && (
-              <div className="hidden lg:block">
-                <PosingPanel result={pose.result} pose={poseName} />
-              </div>
-            )}
+        {/* Desktop-only aside (P22 generalizes P21: every mode now opens
+            Coaching/Chat and the reference video as on-tap sheets on mobile —
+            see the sheets below — so the side column only exists at lg). */}
+        <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto lg:flex">
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+            {posing && <PosingPanel result={pose.result} pose={poseName} />}
             <CoachingCues
               result={pose.result}
               connectionState={pose.connectionState}
@@ -416,19 +388,20 @@ export default function App(): JSX.Element {
             {!posing && <ReferenceVideoPanel exercise={exercise} />}
           </div>
 
-          <div className={(mobileTab === "chat" ? "flex" : "hidden") + " min-h-0 flex-col lg:flex"}>
+          <div className="flex min-h-0 flex-col">
             <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
           </div>
         </aside>
       </main>
 
-      {/* Coaching/Chat sheet (P21, mobile posing only) — same content the aside
-          shows on desktop, opened on tap instead of permanently stacked under
-          the camera so the camera row keeps the full viewport (≥70% rule). */}
-      {posing && posingTrayOpen && (
+      {/* Coaching/Chat sheet (P21 posing-only, generalized to every mode in
+          P22) — same content the aside shows on desktop, opened on tap
+          instead of permanently stacked under the camera so the camera row
+          keeps the full viewport (≥70% rule) everywhere, not just posing. */}
+      {traySheetOpen && (
         <div
           className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 backdrop-blur-sm lg:hidden"
-          onClick={() => setPosingTrayOpen(false)}
+          onClick={() => setTraySheetOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-label="Coaching and chat"
@@ -478,6 +451,27 @@ export default function App(): JSX.Element {
             ) : (
               <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Reference-video sheet (P22, exercise mode only) — reachable in one
+          tap from the camera trigger, opens floating over the camera instead
+          of a permanent stacked row, dismisses on backdrop tap. */}
+      {!posing && referenceOpen && (
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 backdrop-blur-sm lg:hidden"
+          onClick={() => setReferenceOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Reference video"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full rounded-t-2xl bg-surface-raised p-4 shadow-elev-3 animate-scale-in"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <ReferenceVideoPanel exercise={exercise} startOpen />
           </div>
         </div>
       )}

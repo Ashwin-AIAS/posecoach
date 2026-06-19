@@ -6,6 +6,9 @@ import { EXERCISE_META } from "../lib/exercises"
 interface ReferenceVideoPanelProps {
   /** Active exercise — selects which curated reference clip is offered. */
   readonly exercise: Exercise
+  /** Mounts already expanded — used when launched from the P22 floating trigger
+   * (the sheet itself is the disclosure at that point, so don't ask for a second tap). */
+  readonly startOpen?: boolean
 }
 
 /**
@@ -19,8 +22,8 @@ interface ReferenceVideoPanelProps {
  * injected after an explicit play click (thumbnail facade first). This keeps
  * third-party cookies and video bandwidth off the workout path entirely.
  */
-function ReferenceVideoPanelInner({ exercise }: ReferenceVideoPanelProps): JSX.Element {
-  const [open, setOpen] = useState(false)
+function ReferenceVideoPanelInner({ exercise, startOpen = false }: ReferenceVideoPanelProps): JSX.Element {
+  const [open, setOpen] = useState(startOpen)
   const [playing, setPlaying] = useState(false)
   const meta = EXERCISE_META[exercise]
 
