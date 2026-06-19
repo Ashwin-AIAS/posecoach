@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, RefreshCw, Volume2, VolumeX } from "lucide-react"
+import { ChevronLeft, MessageCircle, RefreshCw, Volume2, VolumeX } from "lucide-react"
 
 import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
@@ -69,6 +69,7 @@ export default function App(): JSX.Element {
     setPoseName(DIVISIONS[next].mandatories[0])
   }, [])
   const [mobileTab, setMobileTab] = useState<"cues" | "chat">("cues")
+  const [posingTrayOpen, setPosingTrayOpen] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showPrep, setShowPrep] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
@@ -97,6 +98,11 @@ export default function App(): JSX.Element {
   })
 
   const posing = mode === "posing"
+
+  // Closes the on-tap Coaching/Chat sheet if the user leaves posing mode while it's open.
+  useEffect(() => {
+    if (!posing) setPosingTrayOpen(false)
+  }, [posing])
 
   const stats = useSessionStats(pose.result)
   const topCue = pose.result?.cues?.[0]
@@ -237,7 +243,10 @@ export default function App(): JSX.Element {
         />
       ) : (
         <div className="flex min-h-0 flex-1 animate-fade-in flex-col">
-          <div className="relative z-20 flex min-w-0 items-start gap-x-2 bg-surface-base/60 px-4 py-0.5 shadow-elev-1">
+          <div
+            className="relative z-20 flex min-w-0 items-start gap-x-2 bg-surface-base/60 px-4 py-0.5 shadow-elev-1"
+            data-testid="selector-row"
+          >
             <ModeToggle value={mode} onChange={setMode} />
             {posing ? (
               <PoseSelector
@@ -253,8 +262,26 @@ export default function App(): JSX.Element {
 
           {!posing && <RecommendationCard exercise={exercise} />}
 
-          <main className="grid flex-1 grid-cols-1 grid-rows-[minmax(180px,1fr)_auto] gap-2 overflow-hidden p-2 lg:gap-4 lg:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1">
-        <div className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-black shadow-elev-3">
+          <main
+            className={
+              "grid flex-1 grid-cols-1 gap-2 overflow-hidden lg:gap-4 lg:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1 " +
+              // Posing mode on mobile drops the tray from the grid template
+              // entirely — the score readout already lives on the camera
+              // overlay, and Coaching/Chat move to an on-tap sheet (below),
+              // so the camera row is the only row and gets the full 1fr
+              // (P21's ≥70% rule, including on the shortest phones). The
+              // padding is trimmed too — every pixel counts on a 568px-tall
+              // floor device once the header/selector/action-bar chrome is
+              // accounted for.
+              (posing
+                ? "p-1 grid-rows-[minmax(180px,1fr)]"
+                : "p-2 grid-rows-[minmax(180px,1fr)_auto]")
+            }
+          >
+        <div
+          className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-black shadow-elev-3"
+          data-testid="camera-stage"
+        >
           <CameraFeed
             ref={camera.videoRef}
             error={camera.error}
@@ -313,15 +340,27 @@ export default function App(): JSX.Element {
               <PosingPanel result={pose.result} pose={poseName} compact />
             </div>
           )}
+          {/* Coaching/Chat trigger (P21) — in posing mode on mobile the tray is
+              not in the grid flow at all (camera owns the row, ≥70% rule), so
+              it opens as an on-tap sheet instead of a permanent stacked strip. */}
+          {posing && (
+            <button
+              type="button"
+              onClick={() => setPosingTrayOpen(true)}
+              aria-label="Open coaching and chat"
+              title="Coaching / Chat"
+              className="absolute right-3 top-3 z-20 grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent lg:hidden"
+              data-testid="posing-tray-trigger"
+            >
+              <Icon icon={MessageCircle} size={16} />
+            </button>
+          )}
         </div>
 
-        {/* In posing mode the score detector already lives above (pinned to the
-            camera); demote this tray to a thin, scrollable strip on mobile so
-            it never eats the camera's share of the viewport (P21's ≥70% rule). */}
         <aside
           className={
-            "flex min-h-0 flex-col gap-2 lg:gap-4 lg:overflow-y-auto " +
-            (posing ? "max-h-12 overflow-y-auto lg:max-h-none" : "overflow-hidden")
+            "min-h-0 flex-col gap-2 lg:gap-4 lg:overflow-y-auto " +
+            (posing ? "hidden lg:flex" : "flex overflow-hidden")
           }
         >
           {/* Mobile-only tab switcher — on >=lg both panels below are always shown. */}
@@ -382,6 +421,66 @@ export default function App(): JSX.Element {
           </div>
         </aside>
       </main>
+
+      {/* Coaching/Chat sheet (P21, mobile posing only) — same content the aside
+          shows on desktop, opened on tap instead of permanently stacked under
+          the camera so the camera row keeps the full viewport (≥70% rule). */}
+      {posing && posingTrayOpen && (
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 backdrop-blur-sm lg:hidden"
+          onClick={() => setPosingTrayOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Coaching and chat"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[70vh] w-full flex-col gap-3 overflow-y-auto rounded-t-2xl bg-surface-raised p-4 shadow-elev-3 animate-scale-in"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <div role="tablist" aria-label="Panels" className="flex shrink-0 gap-1.5">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileTab === "cues"}
+                onClick={() => setMobileTab("cues")}
+                className={
+                  "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+                  (mobileTab === "cues"
+                    ? "bg-accent-soft text-accent"
+                    : "bg-surface-base text-gray-400 shadow-elev-1")
+                }
+              >
+                Coaching
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileTab === "chat"}
+                onClick={() => setMobileTab("chat")}
+                className={
+                  "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+                  (mobileTab === "chat"
+                    ? "bg-accent-soft text-accent"
+                    : "bg-surface-base text-gray-400 shadow-elev-1")
+                }
+              >
+                Chat
+              </button>
+            </div>
+
+            {mobileTab === "cues" ? (
+              <CoachingCues
+                result={pose.result}
+                connectionState={pose.connectionState}
+                error={pose.error}
+              />
+            ) : (
+              <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Thumb-reachable action bar — anchored at the bottom of the viewport so
           Record/Finish (the controls used mid-set) never require a reach on phones. */}
