@@ -66,6 +66,32 @@ test("posing mode selector row collapses to a single line, leaving more room for
   await expect(page.getByRole("radiogroup", { name: "Pose" })).toBeVisible()
 })
 
+for (const { width, height, label } of [
+  { width: 375, height: 667, label: "iPhone SE" },
+  { width: 393, height: 852, label: "iPhone 15" },
+]) {
+  test(`P23: division switch is reachable and clickable in the posing pose sheet on ${label}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await page.goto("/")
+    await page.getByTestId("start-workout-btn").click()
+    await page.getByTestId("mode-posing").click()
+
+    await page.getByTestId("pose-change-btn").click()
+    const division = page.getByTestId("division-select")
+    await expect(division).toBeInViewport()
+    // Trial click performs Playwright's actionability hit-test at the
+    // element's center point: it fails if another element (e.g. the header,
+    // painted on top because the sheet was trapped in a losing stacking
+    // context) intercepts the pointer instead.
+    await division.click({ trial: true, timeout: 2000 })
+
+    await division.selectOption("bikini")
+    await expect(division).toHaveValue("bikini")
+  })
+}
+
 for (const mode of ["exercise", "posing"] as const) {
   for (const { width, height, label, minCameraRatio } of [
     { width: 320, height: 568, label: "320 floor", minCameraRatio: 0.7 },

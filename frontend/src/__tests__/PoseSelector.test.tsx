@@ -48,6 +48,20 @@ describe("PoseSelector", () => {
     expect(screen.getByTestId("extra-control")).toBeInTheDocument()
   })
 
+  it("labels the extra control with a 'Division' heading so it reads as the category switch (P23)", () => {
+    render(
+      <PoseSelector
+        value="front_double_biceps"
+        poses={OPEN}
+        onChange={vi.fn()}
+        extra={<div data-testid="extra-control">division</div>}
+      />,
+    )
+    fireEvent.click(screen.getByTestId("pose-change-btn"))
+
+    expect(screen.getByText("Division")).toBeInTheDocument()
+  })
+
   it("invokes onChange and collapses back on selection", () => {
     const onChange = vi.fn()
     render(<PoseSelector value="front_double_biceps" poses={OPEN} onChange={onChange} />)

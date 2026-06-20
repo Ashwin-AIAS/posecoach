@@ -310,7 +310,60 @@ available space instead of sharing it with stacked cards.
 
 ---
 
-## Done = all four green on a real iPhone
+## P23 — Division (category) switch must be visible & reachable in posing  ⟵ ACTIVE GOAL
+
+### Observed on production (posing, iPhone, screenshot 09:04)
+P21 collapsed the pose picker into a `CollapsibleSelect` sheet, with the `DivisionSelector`
+passed in as `extra` and rendered **above** the pose grid inside the sheet. On the phone the
+top of that sheet is **clipped under the app header**, so the division dropdown
+("Men's Open Bodybuilding" → other divisions) is partially hidden and effectively
+unreachable. The user can change the *pose* but cannot find or tap the control to change the
+*division / category*. The control exists in the DOM (`DivisionSelector`) — it is a
+**visibility / placement** bug, not a missing feature.
+
+### Root cause
+- The opened sheet (`CollapsibleSelect`) does not reserve top spacing for the fixed app
+  header / safe-area, so its first child (`extra` = the division control) sits beneath the
+  header and is cut off.
+- The division control also has no visible label in the sheet, so even when partly shown it
+  reads as just another pill rather than "this is how you switch division."
+
+### Changes
+1. **`CollapsibleSelect.tsx`** — when open as a mobile sheet, pad the top so content starts
+   **below** the header + notch: `padding-top: max(<header-height>, env(safe-area-inset-top))`
+   (or anchor the sheet under the header, not under the status bar). Make the sheet body
+   scrollable (`overflow-y-auto`, `max-h`) so nothing is unreachable.
+2. **`PoseSelector.tsx`** — give the `extra` block a clear heading inside the sheet, e.g. a
+   small `Division` label above the dropdown, visually separated from the pose grid
+   (a divider or a sub-section). It must be the first thing the user sees when the sheet
+   opens.
+3. **(Recommended) surface division in the collapsed row too.** Add a compact division chip
+   to the always-visible selector row next to the mode toggle, e.g. `Open ⌄`, so the user
+   can switch category **without** opening the pose sheet at all. Tapping it opens the same
+   division choices. This directly answers "I couldn't find where to switch category."
+4. Keep `selectDivision` behavior (switching division resets pose to that division's first
+   mandatory) and all `data-testid`s (`division-select`, `pose-*`) intact.
+
+### Acceptance
+- In posing mode on iPhone, the **Division control is fully visible and tappable** — either
+  in the collapsed selector row (preferred) or at the top of the opened sheet, never clipped
+  by the header/notch.
+- A first-time user can switch from "Men's Open Bodybuilding" to another division in ≤ 2
+  taps and clearly sees it is the category switch (labeled).
+- Switching division updates the pose lineup and resets to the first mandatory.
+
+### Verify
+- `cd frontend && npx vitest run && npx eslint .` → green. Extend `PoseSelector.test.tsx` /
+  add `CollapsibleSelect.test.tsx`: the division control renders, is labeled, and is not
+  positioned under the header (assert it is inside the scrollable sheet body).
+- Playwright at 375/393 portrait: open posing → assert `[data-testid="division-select"]`
+  (or the new division chip) is in the viewport and clickable.
+- Manual on the actual iPhone (09:04 screenshot device): open Posing, confirm you can find
+  and change the division without hunting.
+
+---
+
+## Done = all five green on a real iPhone
 
 The goal board is complete when, on the actual phone:
 1. **P19** — both action bars reachable, nothing clipped by notch/home-indicator; fluid
@@ -320,7 +373,9 @@ The goal board is complete when, on the actual phone:
    a single chip, no dead space up top.
 4. **P22** — in EVERY mode the camera is the hero (≥ 70%); the "position yourself" cue and
    reference video are floating/on-demand, not stacked blocks.
+5. **P23** — the division / category switch is visible and reachable in posing without
+   hunting; switching it updates the pose lineup.
 
 Keep working this board top-to-bottom until every Acceptance + Verify box above is checked.
-**P21 + P22 are the currently active goals** — they are the issues still live in production
-(see screenshots 22:12 posing and 22:18 exercise).
+**P23 is the currently active goal** — P21/P22 landed; this is the remaining
+in-production issue (see screenshot 09:04: division control clipped under the header).

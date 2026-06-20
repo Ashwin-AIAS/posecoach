@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react"
 import { memo, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 
 import { Icon } from "./ui/Icon"
 
@@ -52,22 +53,37 @@ function CollapsibleSelectInner({
         </button>
       </div>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-black/70 p-4 pt-20 backdrop-blur-sm"
-          onClick={onToggle}
-          role="dialog"
-          aria-modal="true"
-          aria-label={dialogLabel}
-        >
+      {open &&
+        // P23: portal to document.body. The trigger row above is a descendant
+        // of `selector-row`, which is itself `relative z-20` — a positioned
+        // ancestor that creates its own stacking context. A nested `fixed
+        // z-40` cannot escape that local context to out-rank a *sibling*
+        // element like the app header (`z-30` at the document root), so
+        // without the portal this sheet rendered visually under the header on
+        // short phones. Portaling makes it a direct child of <body>, in the
+        // same root stacking context as the header, where z-40 actually wins.
+        createPortal(
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[70vh] w-full max-w-[640px] overflow-y-auto rounded-2xl bg-surface-raised p-4 shadow-elev-3 animate-scale-in"
+            className="fixed inset-0 z-40 flex items-start justify-center bg-black/70 p-4 backdrop-blur-sm"
+            // Clears the app header (its own height = safe-area-inset-top +
+            // ~3.25rem of button row) instead of a flat pt-20, which fell
+            // short on notch/Dynamic-Island phones and let this sheet's first
+            // child render under the header.
+            style={{ paddingTop: "calc(max(0.375rem, env(safe-area-inset-top)) + 3.25rem)" }}
+            onClick={onToggle}
+            role="dialog"
+            aria-modal="true"
+            aria-label={dialogLabel}
           >
-            {children}
-          </div>
-        </div>
-      )}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-[70vh] w-full max-w-[640px] overflow-y-auto rounded-2xl bg-surface-raised p-4 shadow-elev-3 animate-scale-in"
+            >
+              {children}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

@@ -45,7 +45,14 @@ function PoseSelectorInner({
         </span>
       }
     >
-      {extra && <div className="mb-3">{extra}</div>}
+      {extra && (
+        <div className="mb-3 border-b border-surface-hairline pb-3">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Division
+          </span>
+          {extra}
+        </div>
+      )}
       <div role="radiogroup" aria-label="Pose" className="flex flex-wrap items-center gap-2">
         {poses.map((id) => {
           const meta = getPoseMeta(id)
