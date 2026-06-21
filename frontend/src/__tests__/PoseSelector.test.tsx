@@ -33,35 +33,6 @@ describe("PoseSelector", () => {
     expect(screen.queryByText(POSE_META.side_chest.hint)).not.toBeInTheDocument()
   })
 
-  it("renders the extra control (DivisionSelector) inside the sheet, not the collapsed row", () => {
-    render(
-      <PoseSelector
-        value="front_double_biceps"
-        poses={OPEN}
-        onChange={vi.fn()}
-        extra={<div data-testid="extra-control">division</div>}
-      />,
-    )
-    expect(screen.queryByTestId("extra-control")).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByTestId("pose-change-btn"))
-    expect(screen.getByTestId("extra-control")).toBeInTheDocument()
-  })
-
-  it("labels the extra control with a 'Division' heading so it reads as the category switch (P23)", () => {
-    render(
-      <PoseSelector
-        value="front_double_biceps"
-        poses={OPEN}
-        onChange={vi.fn()}
-        extra={<div data-testid="extra-control">division</div>}
-      />,
-    )
-    fireEvent.click(screen.getByTestId("pose-change-btn"))
-
-    expect(screen.getByText("Division")).toBeInTheDocument()
-  })
-
   it("invokes onChange and collapses back on selection", () => {
     const onChange = vi.fn()
     render(<PoseSelector value="front_double_biceps" poses={OPEN} onChange={onChange} />)

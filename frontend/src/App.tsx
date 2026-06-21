@@ -256,12 +256,13 @@ export default function App(): JSX.Element {
           >
             <ModeToggle value={mode} onChange={setMode} />
             {posing ? (
-              <PoseSelector
-                value={poseName}
-                onChange={setPoseName}
-                poses={DIVISIONS[division].mandatories}
-                extra={<DivisionSelector value={division} onChange={selectDivision} />}
-              />
+              <>
+                <DivisionSelector value={division} onChange={selectDivision} />
+                <span className="shrink-0 text-sm text-gray-500" aria-hidden="true">
+                  &middot;
+                </span>
+                <PoseSelector value={poseName} onChange={setPoseName} poses={DIVISIONS[division].mandatories} />
+              </>
             ) : (
               <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
             )}

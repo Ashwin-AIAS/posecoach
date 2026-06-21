@@ -70,7 +70,7 @@ for (const { width, height, label } of [
   { width: 375, height: 667, label: "iPhone SE" },
   { width: 393, height: 852, label: "iPhone 15" },
 ]) {
-  test(`P23: division switch is reachable and clickable in the posing pose sheet on ${label}`, async ({
+  test(`P23: category chip is its own visible, reachable control on the selector row on ${label}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height })
@@ -78,17 +78,25 @@ for (const { width, height, label } of [
     await page.getByTestId("start-workout-btn").click()
     await page.getByTestId("mode-posing").click()
 
-    await page.getByTestId("pose-change-btn").click()
-    const division = page.getByTestId("division-select")
-    await expect(division).toBeInViewport()
+    // The category is visible on the collapsed row before opening anything.
+    const row = page.getByTestId("selector-row")
+    await expect(row).toContainText("Men's Open Bodybuilding")
+
+    const categoryTrigger = page.getByTestId("division-change-btn")
+    await expect(categoryTrigger).toBeInViewport()
     // Trial click performs Playwright's actionability hit-test at the
     // element's center point: it fails if another element (e.g. the header,
     // painted on top because the sheet was trapped in a losing stacking
     // context) intercepts the pointer instead.
-    await division.click({ trial: true, timeout: 2000 })
+    await categoryTrigger.click({ trial: true, timeout: 2000 })
 
-    await division.selectOption("bikini")
-    await expect(division).toHaveValue("bikini")
+    await categoryTrigger.click()
+    const bikiniOption = page.getByRole("radio", { name: "Bikini" })
+    await expect(bikiniOption).toBeInViewport()
+    await bikiniOption.click()
+
+    await expect(row).toContainText("Bikini")
+    await expect(page.getByTestId("pose-current-label")).toHaveText("Front")
   })
 }
 

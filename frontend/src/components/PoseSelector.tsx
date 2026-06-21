@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from "react"
+import { memo, useState } from "react"
 
 import { CollapsibleSelect } from "./CollapsibleSelect"
 import { getPoseMeta } from "../lib/poses"
@@ -10,19 +10,15 @@ interface PoseSelectorProps {
   /** The mandatory poses to choose from (the active division's lineup, P17). */
   readonly poses: readonly PoseName[]
   readonly disabled?: boolean
-  /** Extra control rendered above the pose grid inside the sheet (the DivisionSelector, P21) —
-      kept out of the collapsed row so the row stays one compact line. */
-  readonly extra?: ReactNode
 }
 
-/** Pick a mandatory pose to score from the active division's lineup (P17). */
-function PoseSelectorInner({
-  value,
-  onChange,
-  poses,
-  disabled = false,
-  extra,
-}: PoseSelectorProps): JSX.Element {
+/**
+ * Pick a mandatory pose to score from the active division's lineup (P17).
+ * The division/category lives in its own `DivisionSelector` chip on the
+ * selector row (P23) — it is no longer nested inside this sheet, so the
+ * category is always visible without opening the pose picker first.
+ */
+function PoseSelectorInner({ value, onChange, poses, disabled = false }: PoseSelectorProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const active = getPoseMeta(value)
 
@@ -45,14 +41,6 @@ function PoseSelectorInner({
         </span>
       }
     >
-      {extra && (
-        <div className="mb-3 border-b border-surface-hairline pb-3">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Division
-          </span>
-          {extra}
-        </div>
-      )}
       <div role="radiogroup" aria-label="Pose" className="flex flex-wrap items-center gap-2">
         {poses.map((id) => {
           const meta = getPoseMeta(id)
