@@ -4,6 +4,7 @@ The live counter EMA-smooths each joint angle, so sharp two-frame waves are not
 representative. These tests drive it with gradual (cosine-eased) rep curves like
 a real lifter produces, plus noisy / shallow / double-bounce variants.
 """
+
 from __future__ import annotations
 
 import math
@@ -11,7 +12,7 @@ import math
 import pytest
 
 from app.analysis.form_scorer import joint_range
-from app.analysis.rep_counter import REP_SIGNAL, RepCounter
+from app.analysis.rep_counter import MAX_BRIDGE_FRAMES, REP_SIGNAL, RepCounter
 
 _SQUAT_JOINTS = ["left_knee_angle", "right_knee_angle"]
 
@@ -157,6 +158,73 @@ def test_other_exercises_count_with_their_joints(exercise: str) -> None:
         for frac in [0.5 - 0.5 * math.cos(math.pi * (i / 8)) for i in range(1, 9)]:
             last = counter.update({j: lo + (hi - lo) * frac for j, (lo, hi) in per_joint.items()})
     assert last == 3
+
+
+def test_fast_tempo_reps_no_longer_flattened_by_lag() -> None:
+    # A fast, borderline-deep squat (bottom=95, just past the down threshold of
+    # ~103) at a rushed phase=4 tempo: the old fixed EMA(alpha=0.6) flattens
+    # this enough that the smoothed trough never travels far enough for the
+    # amplitude guard, missing every rep (verified offline: 0/5 with the old
+    # smoother). The speed-adaptive OneEuroFilter (pillar A) tracks the true
+    # trough closely enough that all 5 genuine reps count.
+    counter = RepCounter("squat")
+    assert _feed(counter, _SQUAT_JOINTS, _rep_wave(5, bottom=95.0, phase=4)) == 5
+
+
+def test_mid_rep_dropout_within_bridge_limit_still_counts() -> None:
+    # A dropout of exactly MAX_BRIDGE_FRAMES, landing right at the descent —
+    # pillar C holds the last smoothed value through the gap instead of
+    # silently skipping, so the trough is never lost.
+    counter = RepCounter("squat")
+    down = _ease(178.0, 72.0, 8)
+    up = _ease(72.0, 178.0, 8)
+    last = 0
+    counter.update({j: 178.0 for j in _SQUAT_JOINTS})
+    for a in down[:4]:
+        last = counter.update({j: a for j in _SQUAT_JOINTS})
+    for _ in range(MAX_BRIDGE_FRAMES):
+        last = counter.update({j: None for j in _SQUAT_JOINTS})
+    for a in down[4:]:
+        last = counter.update({j: a for j in _SQUAT_JOINTS})
+    for a in up:
+        last = counter.update({j: a for j in _SQUAT_JOINTS})
+    assert last == 1
+
+
+def test_dropout_longer_than_bridge_does_not_invent_a_rep() -> None:
+    # A dropout well past MAX_BRIDGE_FRAMES, immediately followed by a 2-frame
+    # flick (the same shape rejected in test_micro_bounce_at_top_rejected_by_
+    # cadence). If a long gap were bridged indefinitely it would keep crediting
+    # `_frames_since_rep` for frames that were never actually observed, letting
+    # the flick slip past the cadence guard on a stale hold. Freezing state
+    # beyond the bridge limit means the long gap contributes nothing once it
+    # exceeds MAX_BRIDGE_FRAMES, so the flick is still correctly rejected.
+    counter = RepCounter("squat")
+    last = _feed(counter, _SQUAT_JOINTS, _rep_wave(1))
+    assert last == 1
+    for _ in range(MAX_BRIDGE_FRAMES + 10):
+        last = counter.update({j: None for j in _SQUAT_JOINTS})
+    for a in [72.0, 178.0]:
+        last = counter.update({j: a for j in _SQUAT_JOINTS})
+    assert last == 1
+
+
+def test_reduced_rom_user_counts_after_threshold_calibration() -> None:
+    # Rep 1 dips deep enough (95 deg) to cross the fixed Fit3D-prior down
+    # threshold (~103 deg) and complete normally, which calibrates the
+    # adaptive thresholds (pillar B) onto this user's own observed range.
+    # Reps 2-5 only dip to 110 deg — shallower than the *original* fixed
+    # threshold, which would reject them outright (mirrors
+    # test_shallow_reps_not_counted's 130-deg case) — but the recentred
+    # band, narrowed onto the calibrating rep's actual depth, now accepts
+    # them. A genuine shallow partial that never calibrates (130 deg, the
+    # existing test above) must still count zero.
+    counter = RepCounter("squat")
+    seq = [178.0]
+    seq += _ease(178.0, 95.0, 8) + _ease(95.0, 178.0, 8)
+    for _ in range(4):
+        seq += _ease(178.0, 110.0, 8) + _ease(110.0, 178.0, 8)
+    assert _feed(counter, _SQUAT_JOINTS, seq) == 5
 
 
 @pytest.mark.parametrize("exercise", ["shrug", "front_raise", "overhead_triceps"])
