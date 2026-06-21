@@ -98,8 +98,8 @@ export const CHILD_JOINT_ANGLE: Readonly<Record<number, string>> = {
 export const CONF_HIGH = 0.7
 export const CONF_LOW = 0.4
 
-/** Electric-blue accent — keep in sync with the --accent token in index.css. */
-export const ACCENT_COLOR = "#3D9BFF"
+/** Plasma-violet accent — keep in sync with the --accent token in index.css. */
+export const ACCENT_COLOR = "#8B5CFF"
 
 // Form-score ramp: red → amber → green (matches the `score` tokens in tailwind.config).
 const SCORE_BAD = "#FF4D4D"

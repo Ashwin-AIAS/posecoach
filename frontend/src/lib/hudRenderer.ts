@@ -22,7 +22,7 @@ const HAIRLINE = "rgba(35, 38, 45, 0.85)"
 const TRACK = "#23262D"
 const WHITE = "#F3F4F6"
 const MUTED = "#9CA3AF"
-const ACCENT = "#3D9BFF"
+const ACCENT = "#8B5CFF"
 const BAD = "#FF4D4D"
 const BAD_TINT = "rgba(255, 77, 77, 0.15)"
 
