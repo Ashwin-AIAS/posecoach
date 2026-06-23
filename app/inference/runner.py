@@ -54,15 +54,62 @@ def _model_input_size(model: object) -> int:
     return _PT_INFERENCE_SIZE
 
 
-def _decode_frame(frame_b64: str, size: int) -> npt.NDArray[np.uint8]:
-    """Base64 JPEG → (size, size, 3) uint8 RGB array, resized to the model size."""
+@dataclass(frozen=True)
+class LetterboxMeta:
+    """Inverse-transform parameters for one letterboxed decode.
+
+    Lets ``run_inference`` map model-space (square, padded) keypoints back to
+    the original sent frame's aspect, instead of the old square-stretch which
+    distorted non-4:3 (e.g. 16:9 back-camera) frames before the model ever
+    saw them.
+    """
+
+    size: int  # square side fed to the model
+    scale: float  # min(size/w0, size/h0)
+    pad_x: int  # left pad (px, in the square)
+    pad_y: int  # top pad
+    new_w: int  # resized content width  (w0*scale)
+    new_h: int  # resized content height (h0*scale)
+    src_w: int  # original sent-frame width  w0
+    src_h: int  # original sent-frame height h0
+
+
+# YOLO's standard letterbox pad color.
+_LETTERBOX_PAD = (114, 114, 114)
+
+
+def _decode_frame(frame_b64: str, size: int) -> tuple[npt.NDArray[np.uint8], LetterboxMeta]:
+    """Base64 JPEG → (size, size, 3) uint8 RGB array, letterboxed (aspect-preserved + padded).
+
+    Replaces the old non-aspect-preserving square stretch, which squished
+    non-square frames (e.g. a 16:9 back camera) before inference, degrading
+    keypoint confidence. The returned :class:`LetterboxMeta` lets the caller
+    invert the transform on the model's output keypoints.
+    """
     raw = base64.b64decode(frame_b64)
-    img = (
-        Image.open(BytesIO(raw))
-        .convert("RGB")
-        .resize((size, size), Image.Resampling.BILINEAR)
-    )
-    return np.array(img, dtype=np.uint8)
+    img = Image.open(BytesIO(raw)).convert("RGB")
+    w0, h0 = img.size
+    scale = min(size / w0, size / h0)
+    new_w, new_h = max(1, round(w0 * scale)), max(1, round(h0 * scale))
+    resized = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
+    canvas = Image.new("RGB", (size, size), _LETTERBOX_PAD)
+    pad_x, pad_y = (size - new_w) // 2, (size - new_h) // 2
+    canvas.paste(resized, (pad_x, pad_y))
+    meta = LetterboxMeta(size, scale, pad_x, pad_y, new_w, new_h, w0, h0)
+    return np.array(canvas, dtype=np.uint8), meta
+
+
+def _unletterbox_xyn(kp_xyn: npt.NDArray[Any], meta: LetterboxMeta) -> npt.NDArray[Any]:
+    """Map square-normalized keypoints back to the original sent frame's aspect.
+
+    square-normalized -> square px -> remove pad -> normalize to original frame.
+    """
+    px = kp_xyn[:, 0] * meta.size - meta.pad_x
+    py = kp_xyn[:, 1] * meta.size - meta.pad_y
+    out = np.empty_like(kp_xyn)
+    out[:, 0] = np.clip(px / meta.new_w, 0.0, 1.0)
+    out[:, 1] = np.clip(py / meta.new_h, 0.0, 1.0)
+    return out
 
 
 def _predict(
@@ -122,7 +169,7 @@ async def run_inference(
     t0 = time.perf_counter()
 
     try:
-        frame = await loop.run_in_executor(executor, _decode_frame, frame_b64, size)
+        frame, meta = await loop.run_in_executor(executor, _decode_frame, frame_b64, size)
         decode_done = time.perf_counter()
         prediction = await loop.run_in_executor(executor, lambda: _predict(model, frame))
     except Exception as exc:
@@ -139,7 +186,11 @@ async def run_inference(
         logger.info("no_person_detected", latency_ms=round(latency_ms, 1))
         return None
 
-    kp_xyn, kp_conf = prediction
+    kp_xyn_square, kp_conf = prediction
+    # Both the PyTorch and ONNX paths return keypoints normalized to the square
+    # model input (post-letterbox); invert the pad/scale so the contract at the
+    # WS boundary is unchanged — keypoints normalized to the original sent frame.
+    kp_xyn = _unletterbox_xyn(kp_xyn_square, meta)
     logger.info(
         "inference_complete",
         latency_ms=round(latency_ms, 1),

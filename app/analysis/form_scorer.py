@@ -383,6 +383,14 @@ def _mover_pair(exercise: str) -> tuple[str, str] | None:
 # worked unilaterally. Derived from _EXERCISE_JOINTS/_POSTURE_JOINTS rather
 # than listed per exercise, so any future arm-pair exercise is covered
 # automatically.
+#
+# Mirror caveat: in the mirror-based capture workflow (back camera facing a
+# gym mirror — see docs/enhancements/FIX_BACK_CAMERA_POSE_QUALITY.md §5),
+# the reflection swaps left and right, so YOLO's "left_*" keypoints are the
+# lifter's anatomical right side. Harmless here since left/right are scored
+# symmetrically and pooled by mover-pair detection, not by anatomical side —
+# but a future per-side feature (e.g. flagging "your right arm is lagging")
+# would silently mislabel sides for mirror users without correcting for this.
 _UNILATERAL_CAPABLE: dict[str, tuple[str, str]] = {
     exercise: pair for exercise in SUPPORTED_EXERCISES if (pair := _mover_pair(exercise)) is not None
 }

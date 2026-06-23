@@ -55,8 +55,42 @@ const SPOTLIGHT_FORM_THRESHOLD = 70 // pulse only when form is poor
 
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x))
 
-function screenX(nx: number, width: number, mirrored: boolean): number {
-  return (mirrored ? 1 - nx : nx) * width
+/**
+ * The CSS `object-cover` transform the live `<video>` uses: the source is
+ * scaled up to fully cover the stage and centered, cropping the overflow.
+ * Keypoints are normalized to the *full* video frame, so projecting them with
+ * plain `nx*W, ny*H` drifts off the body whenever the video's aspect ratio
+ * differs from the stage's (always true for a 16:9 back camera in a portrait
+ * stage) — see docs/enhancements/FIX_BACK_CAMERA_POSE_QUALITY.md §2E/§5 Phase 3.
+ */
+export interface CoverProjection {
+  readonly dispW: number
+  readonly dispH: number
+  readonly offX: number
+  readonly offY: number
+}
+
+export function computeCoverProjection(
+  width: number,
+  height: number,
+  videoWidth: number,
+  videoHeight: number,
+): CoverProjection {
+  if (width <= 0 || height <= 0 || videoWidth <= 0 || videoHeight <= 0) {
+    return { dispW: width, dispH: height, offX: 0, offY: 0 }
+  }
+  const coverScale = Math.max(width / videoWidth, height / videoHeight)
+  const dispW = videoWidth * coverScale
+  const dispH = videoHeight * coverScale
+  return { dispW, dispH, offX: (dispW - width) / 2, offY: (dispH - height) / 2 }
+}
+
+export function screenX(nx: number, proj: CoverProjection, mirrored: boolean): number {
+  return (mirrored ? 1 - nx : nx) * proj.dispW - proj.offX
+}
+
+export function screenY(ny: number, proj: CoverProjection): number {
+  return ny * proj.dispH - proj.offY
 }
 
 /**
@@ -66,8 +100,7 @@ function screenX(nx: number, width: number, mirrored: boolean): number {
 export function drawTrail(
   ctx: AnyCtx,
   frames: readonly TrailFrame[],
-  width: number,
-  height: number,
+  proj: CoverProjection,
   mirrored: boolean,
 ): void {
   for (let i = 0; i < frames.length; i++) {
@@ -80,7 +113,7 @@ export function drawTrail(
       ctx.globalAlpha = opacity
       ctx.fillStyle = desaturate(confColor(frame.conf[j]), 0.5)
       ctx.beginPath()
-      ctx.arc(screenX(nx, width, mirrored), ny * height, 2, 0, Math.PI * 2)
+      ctx.arc(screenX(nx, proj, mirrored), screenY(ny, proj), 2, 0, Math.PI * 2)
       ctx.fill()
       ctx.restore()
     }

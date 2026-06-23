@@ -11,11 +11,16 @@ import { useWebSocket } from "./useWebSocket"
 const FPS_CAP = 15
 const MIN_FRAME_INTERVAL_MS = 1000 / FPS_CAP // ~66ms
 
-// Capture profiles. The base frame is intentionally small (well under the
-// 640×480 cap) to keep per-frame latency low; under a high round-trip we degrade
-// further to 256×192 / q0.5 to claw back responsiveness.
-const NORMAL_PROFILE = { width: 320, height: 240, quality: 0.65 } as const
-const DEGRADED_PROFILE = { width: 256, height: 192, quality: 0.5 } as const
+// Capture profiles. The long side is intentionally small to keep per-frame
+// latency low; under a high round-trip we degrade further to claw back
+// responsiveness. Sized by long side (not fixed width×height) so the capture
+// canvas matches the video's true aspect instead of squishing a 16:9 back
+// camera into a hardcoded 4:3 box — see
+// docs/enhancements/FIX_BACK_CAMERA_POSE_QUALITY.md §2A/§5 Phase 2.
+const LONG_SIDE_NORMAL = 384 // ~44% more linear resolution than the old 320-wide 4:3 capture
+const LONG_SIDE_DEGRADED = 288
+const QUALITY_NORMAL = 0.65
+const QUALITY_DEGRADED = 0.5
 const RTT_DEGRADE_MS = 80 // switch to the degraded profile above this smoothed RTT
 const RTT_ALPHA = 0.3 // EMA factor for the measured round-trip
 
@@ -108,20 +113,30 @@ export function usePoseStream(opts: UsePoseStreamOptions): UsePoseStreamResult {
     if (inFlightRef.current) return
 
     // Adaptive quality: drop resolution + JPEG quality when the round-trip is high.
-    const profile = rttEmaRef.current > RTT_DEGRADE_MS ? DEGRADED_PROFILE : NORMAL_PROFILE
+    const degraded = rttEmaRef.current > RTT_DEGRADE_MS
+    const longSide = degraded ? LONG_SIDE_DEGRADED : LONG_SIDE_NORMAL
+    const quality = degraded ? QUALITY_DEGRADED : QUALITY_NORMAL
+
+    // Size the canvas to the video's true aspect ratio, capping the long side —
+    // no more stretching a 16:9 source into a fixed 4:3 box.
+    const vw = video.videoWidth || 640
+    const vh = video.videoHeight || 480
+    const scale = longSide / Math.max(vw, vh)
+    const cw = Math.max(1, Math.round(vw * scale))
+    const ch = Math.max(1, Math.round(vh * scale))
 
     let canvas = captureCanvasRef.current
     if (!canvas) {
       canvas = document.createElement("canvas")
       captureCanvasRef.current = canvas
     }
-    if (canvas.width !== profile.width) canvas.width = profile.width
-    if (canvas.height !== profile.height) canvas.height = profile.height
+    if (canvas.width !== cw) canvas.width = cw
+    if (canvas.height !== ch) canvas.height = ch
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    ctx.drawImage(video, 0, 0, profile.width, profile.height)
-    const dataUrl = canvas.toDataURL("image/jpeg", profile.quality)
+    ctx.drawImage(video, 0, 0, cw, ch) // aspect preserved — no squish
+    const dataUrl = canvas.toDataURL("image/jpeg", quality)
     const base64 = dataUrl.split(",", 2)[1] ?? ""
 
     const payload =

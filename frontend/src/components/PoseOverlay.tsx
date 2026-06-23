@@ -6,7 +6,7 @@ import { usePoseVelocity } from "../hooks/usePoseVelocity"
 import { JOINT_INFO } from "../lib/joints"
 import { createPoseInterpolator } from "../lib/poseInterpolator"
 import type { OverlayState, ScreenPoint } from "../lib/poseRenderer"
-import { drawArcs, drawBones, drawJoints, drawParticles, drawTrail } from "../lib/poseRenderer"
+import { computeCoverProjection, drawArcs, drawBones, drawJoints, drawParticles, drawTrail } from "../lib/poseRenderer"
 import { KEYPOINT_COUNT, KP } from "../lib/skeleton"
 import type { PoseResult, RepState } from "../types"
 import type { WorstJoint } from "../lib/joints"
@@ -27,6 +27,13 @@ interface PoseOverlayProps {
   readonly worst?: WorstJoint | null
   /** Hands the live overlay canvas to the session recorder's compositor (§3.3). */
   readonly onCanvasReady?: (canvas: HTMLCanvasElement | null) => void
+  /**
+   * The displayed `<video>`'s ref. Its `videoWidth`/`videoHeight` are read each
+   * draw to project keypoints through the same `object-cover` transform the
+   * video itself is displayed with, so the skeleton stays on the body even
+   * when the camera's aspect ratio differs from the stage's (back camera).
+   */
+  readonly videoRef?: React.RefObject<HTMLVideoElement>
 }
 
 function median(values: readonly number[]): number {
@@ -36,7 +43,7 @@ function median(values: readonly number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
 }
 
-function PoseOverlayInner({ result, mirrored, onCanvasReady }: PoseOverlayProps): JSX.Element {
+function PoseOverlayInner({ result, mirrored, onCanvasReady, videoRef }: PoseOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const trail = usePoseTrail()
   const velocity = usePoseVelocity()
@@ -51,12 +58,18 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady }: PoseOverlayProps)
   // Latest props mirrored into refs so the rAF loop never re-subscribes.
   const resultRef = useRef<PoseResult | null>(result)
   const mirroredRef = useRef(mirrored)
+  // The video ref *object* itself is stable (created once by useCamera), so it's
+  // safe to mirror the prop and read `.current` fresh on every draw below.
+  const videoRefPropRef = useRef(videoRef)
   useEffect(() => {
     resultRef.current = result
   }, [result])
   useEffect(() => {
     mirroredRef.current = mirrored
   }, [mirrored])
+  useEffect(() => {
+    videoRefPropRef.current = videoRef
+  }, [videoRef])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -127,9 +140,12 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady }: PoseOverlayProps)
       const sampled = interp.sample(now)
       const renderKp = sampled ? sampled.keypoints : res.keypoints
 
+      const videoEl = videoRefPropRef.current?.current ?? null
+      const proj = computeCoverProjection(W, H, videoEl?.videoWidth ?? W, videoEl?.videoHeight ?? H)
+
       const pts: ScreenPoint[] = renderKp.map(([x, y]) => ({
-        x: (mir ? 1 - x : x) * W,
-        y: y * H,
+        x: (mir ? 1 - x : x) * proj.dispW - proj.offX,
+        y: y * proj.dispH - proj.offY,
       }))
 
       // Process side effects only when a genuinely new frame arrives (identity
@@ -196,7 +212,7 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady }: PoseOverlayProps)
         const tctx = getTrailCtx()
         if (tctx) {
           tctx.clearRect(0, 0, W, H)
-          drawTrail(tctx, frames, W, H, mir)
+          drawTrail(tctx, frames, proj, mir)
           ctx.drawImage(trailBuf, 0, 0)
         }
       }

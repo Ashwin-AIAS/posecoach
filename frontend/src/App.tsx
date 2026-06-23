@@ -297,6 +297,7 @@ export default function App(): JSX.Element {
             result={pose.result}
             mirrored={camera.facingMode === "user"}
             worst={worst}
+            videoRef={camera.videoRef}
             onCanvasReady={(c) => {
               overlayCanvasRef.current = c
             }}

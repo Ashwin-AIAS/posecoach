@@ -174,7 +174,19 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
         ctx.translate(w, 0)
         ctx.scale(-1, 1)
       }
-      ctx.drawImage(video, 0, 0, w, h)
+      // object-cover crop: the compositor canvas is sized to the overlay's
+      // on-screen (stage) aspect, not the video's intrinsic aspect, so draw
+      // the video the same way the live <video class="object-cover"> does —
+      // otherwise the recording stretches the full uncropped frame into the
+      // stage's box while the overlay (already cover-projected for the live
+      // view) assumes a crop, and the skeleton drifts in the recorded clip.
+      // See docs/enhancements/FIX_BACK_CAMERA_POSE_QUALITY.md §2E/§5 Phase 3.
+      const vw = video.videoWidth || w
+      const vh = video.videoHeight || h
+      const coverScale = Math.max(w / vw, h / vh)
+      const dw = vw * coverScale
+      const dh = vh * coverScale
+      ctx.drawImage(video, (w - dw) / 2, (h - dh) / 2, dw, dh)
       ctx.restore()
     }
     const overlay = overlayCanvas()
@@ -229,8 +241,13 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
       setError("recording_unsupported")
       return
     }
-    const w = video.videoWidth || video.clientWidth || 640
-    const h = video.videoHeight || video.clientHeight || 480
+    // Match the overlay canvas's on-screen (stage) size when available, so the
+    // overlay's already cover-projected pixels paste onto the compositor 1:1
+    // instead of being stretched into the video's (possibly different-aspect)
+    // intrinsic resolution.
+    const overlay = optsRef.current.overlayCanvas()
+    const w = overlay?.width || video.videoWidth || video.clientWidth || 640
+    const h = overlay?.height || video.videoHeight || video.clientHeight || 480
     const canvas = document.createElement("canvas")
     canvas.width = w
     canvas.height = h
