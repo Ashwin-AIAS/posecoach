@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { computeCoverProjection, screenX, screenY } from "../poseRenderer"
+import { computeCoverProjection, holdOpacity, screenX, screenY } from "../poseRenderer"
 
 /**
  * Guards docs/enhancements/FIX_BACK_CAMERA_POSE_QUALITY.md Phase 3: keypoints
@@ -49,5 +49,45 @@ describe("computeCoverProjection / screenX / screenY", () => {
   it("falls back to no crop when video dimensions are unknown (zero)", () => {
     const proj = computeCoverProjection(390, 700, 0, 0)
     expect(proj).toEqual({ dispW: 390, dispH: 700, offX: 0, offY: 0 })
+  })
+
+  it("keeps a mid-body keypoint on the body for a 9:16 portrait camera (Phase 6 regression)", () => {
+    // A portrait phone camera (9:16) on a portrait stage: a mid-body keypoint at
+    // (0.5, 0.5) must land at the stage center within a few px, not drift off the
+    // body — the property a future projection re-break would violate.
+    const W = 390
+    const H = 700
+    const proj = computeCoverProjection(W, H, 1080, 1920)
+    expect(screenX(0.5, proj, false)).toBeCloseTo(W / 2, 0)
+    expect(screenY(0.5, proj)).toBeCloseTo(H / 2, 0)
+    // No NaN/Infinity leaks through the transform.
+    expect(Number.isFinite(screenX(0.5, proj, false))).toBe(true)
+    expect(Number.isFinite(screenY(0.5, proj))).toBe(true)
+  })
+})
+
+describe("holdOpacity (hold-last-pose hysteresis, Phase 3)", () => {
+  const HOLD = 400
+
+  it("is full opacity at the instant of the gap", () => {
+    expect(holdOpacity(0, HOLD)).toBe(1)
+  })
+
+  it("a single dropped frame (small elapsed) still draws the skeleton", () => {
+    // ~one 30fps frame (33ms) into a gap — must stay clearly visible, not blank.
+    expect(holdOpacity(33, HOLD)).toBeGreaterThan(0.9)
+  })
+
+  it("fades linearly across the hold window", () => {
+    expect(holdOpacity(200, HOLD)).toBeCloseTo(0.5)
+  })
+
+  it("blanks once the hold window has fully elapsed", () => {
+    expect(holdOpacity(400, HOLD)).toBe(0)
+    expect(holdOpacity(500, HOLD)).toBe(0)
+  })
+
+  it("is 0 for a non-positive hold window", () => {
+    expect(holdOpacity(10, 0)).toBe(0)
   })
 })

@@ -35,10 +35,12 @@ class InferenceOutcome:
     predict_ms: float
 
 
-# PyTorch fallback inference size. The ONNX path uses the size baked into the
-# graph (``OnnxPoseSession.imgsz``). Both decode straight to the inference size
-# — no more decode-to-640-then-let-YOLO-downscale-to-320 double resize, which was
-# ~78 ms p95 of pure waste in production.
+# PyTorch fallback inference size (dev/local convenience only). The production
+# ONNX path uses the size baked into the graph (``OnnxPoseSession.imgsz`` — 640
+# for the deployed model). Both decode straight to the inference size, so there
+# is no decode-to-640-then-downscale double resize. The PT fallback stays at 320
+# because it is only a local sanity path; production accuracy comes from the 640
+# ONNX (docs/enhancements/FIX_POSE_TRACKING_QUALITY.md).
 _PT_INFERENCE_SIZE = 320
 # conf=0.10: the fine-tuned model trained on Vicon/Fit3D (studio); webcam input
 # has a different distribution, so the default 0.25 threshold filters everything.

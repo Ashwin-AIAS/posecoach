@@ -99,10 +99,13 @@ SNAPSHOT_INTERVAL_S = 5.0
 WS_CONN_TTL_S = 120
 
 # Reject oversized frames before they reach the base64 decoder / inference
-# executor. The frontend's capture profiles (320x240-256x192 JPEG) base64-encode
-# to ~15-40 KB; 256 KB is generous headroom for any legitimate frame while
-# stopping a single multi-MB payload from stalling the shared worker.
-MAX_FRAME_BYTES = 256 * 1024
+# executor. The frontend's capture profiles (512/384 long-side JPEG at q0.6)
+# base64-encode to ~40-130 KB; 512 KB is generous headroom for any legitimate
+# frame while stopping a single multi-MB payload from stalling the shared worker.
+# Raised 256→512 KB for the larger capture that feeds the 640 model
+# (docs/enhancements/FIX_POSE_TRACKING_QUALITY.md Phase 2); the 15-FPS +
+# single-in-flight guards keep total pressure low regardless.
+MAX_FRAME_BYTES = 512 * 1024
 
 # Connection ceilings (process-local DoS guards). The per-user Redis guard above
 # dedups one authenticated user's tabs; these cap raw socket pressure regardless

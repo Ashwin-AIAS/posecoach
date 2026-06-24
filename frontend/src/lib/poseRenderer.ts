@@ -85,6 +85,20 @@ export function computeCoverProjection(
   return { dispW, dispH, offX: (dispW - width) / 2, offY: (dispH - height) / 2 }
 }
 
+/**
+ * Hold-last-pose opacity for the steadiness hysteresis (§3C/Phase 3 of
+ * docs/enhancements/FIX_POSE_TRACKING_QUALITY.md). During a brief detection gap
+ * the overlay keeps blitting the last good skeleton, fading linearly from full
+ * to transparent over `holdMs`, so a single dropped frame doesn't flash the
+ * skeleton off and on. Returns 1 at the instant of the gap, 0 once the hold
+ * window has fully elapsed (or for any non-positive `holdMs`).
+ */
+export function holdOpacity(elapsedMs: number, holdMs: number): number {
+  if (holdMs <= 0 || elapsedMs >= holdMs) return 0
+  if (elapsedMs <= 0) return 1
+  return clamp(1 - elapsedMs / holdMs, 0, 1)
+}
+
 export function screenX(nx: number, proj: CoverProjection, mirrored: boolean): number {
   return (mirrored ? 1 - nx : nx) * proj.dispW - proj.offX
 }

@@ -51,6 +51,7 @@ pytest==8.3.3
 pytest-asyncio==0.24.0
 pytest-cov==5.0.0
 pytest-timeout==2.3.1
+respx==0.22.0                    # httpx request mocking (tests/test_web_search.py); 0.22 fixes httpx 0.28 route matching
 httpx==0.28.1                    # AsyncClient for FastAPI testing (kept in sync with above)
 
 # ── Linting & Type Checking ────────────────────────────────

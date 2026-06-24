@@ -72,11 +72,14 @@ describe("usePoseStream aspect-correct capture", () => {
 
     flushRaf() // run one capture loop tick
 
+    // Exactly one main-canvas draw: the low-light luma probe (FIX_POSE_TRACKING
+    // Phase 5) skips itself when getImageData is unavailable (jsdom), so it never
+    // adds a phantom drawImage here.
     expect(drawImageSpy).toHaveBeenCalledTimes(1)
     const [, , , cw, ch] = drawImageSpy.mock.calls[0] as [unknown, number, number, number, number]
-    // Long side capped at 384, aspect preserved: 1280x720 -> 384x216.
-    expect(cw).toBe(384)
-    expect(ch).toBe(216)
+    // Long side raised 384 -> 512 (Phase 2), aspect preserved: 1280x720 -> 512x288.
+    expect(cw).toBe(512)
+    expect(ch).toBe(288)
   })
 
   it("sizes the capture canvas to a 4:3 video's true aspect", () => {
@@ -86,7 +89,8 @@ describe("usePoseStream aspect-correct capture", () => {
     flushRaf()
 
     const [, , , cw, ch] = drawImageSpy.mock.calls[0] as [unknown, number, number, number, number]
-    expect(cw).toBe(384)
-    expect(ch).toBe(288)
+    // 640x480 at long-side 512, aspect preserved -> 512x384.
+    expect(cw).toBe(512)
+    expect(ch).toBe(384)
   })
 })

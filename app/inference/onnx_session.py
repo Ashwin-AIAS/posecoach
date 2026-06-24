@@ -45,12 +45,16 @@ class OnnxPoseSession:
     :mod:`app.inference.runner` and the form scorer expect.
     """
 
-    def __init__(self, model_path: str, imgsz: int = 320, intra_op_threads: int = 2) -> None:
+    def __init__(self, model_path: str, imgsz: int = 640, intra_op_threads: int = 2) -> None:
         """Create the inference session.
 
         Args:
             model_path: Path to the ``.onnx`` model (static shape, imgsz square).
             imgsz: Fallback square input size if the graph shape is dynamic.
+                Defaults to 640 to match the production model — a 320 input lost
+                too much keypoint accuracy / small-subject detection at mirror
+                distance (docs/enhancements/FIX_POSE_TRACKING_QUALITY.md). The
+                actual size is read from the static graph shape when present.
             intra_op_threads: ONNX Runtime intra-op thread count. Tune to the
                 deployment's vCPU count (2 on the free tier).
         """

@@ -6,13 +6,19 @@ import { usePoseVelocity } from "../hooks/usePoseVelocity"
 import { JOINT_INFO } from "../lib/joints"
 import { createPoseInterpolator } from "../lib/poseInterpolator"
 import type { OverlayState, ScreenPoint } from "../lib/poseRenderer"
-import { computeCoverProjection, drawArcs, drawBones, drawJoints, drawParticles, drawTrail } from "../lib/poseRenderer"
+import { computeCoverProjection, drawArcs, drawBones, drawJoints, drawParticles, drawTrail, holdOpacity } from "../lib/poseRenderer"
 import { KEYPOINT_COUNT, KP } from "../lib/skeleton"
 import type { PoseResult, RepState } from "../types"
 import type { WorstJoint } from "../lib/joints"
 
 /** 30fps cap — skip a rAF tick if the previous draw was < this many ms ago. */
 const FRAME_MS = 1000 / 30
+/**
+ * Hold the last good skeleton on screen this long (ms) through a detection gap,
+ * fading to transparent, before blanking (§3C/Phase 3). ~400 ms bridges the
+ * brief 1–2 frame dropouts that used to flicker the overlay off and on.
+ */
+const HOLD_LAST_POSE_MS = 400
 /** Torso-width samples kept for the fake-depth median (deliverable #9). */
 const DEPTH_WINDOW = 30
 const DEPTH_MIN = 0.7
@@ -90,6 +96,22 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady, videoRef }: PoseOve
       getTrailCtx = () => buf.getContext("2d")
     }
 
+    // Hold-last-pose layer (§3C/Phase 3): snapshot of the last good skeleton,
+    // re-blitted with a fading alpha to bridge brief detection gaps.
+    let holdBuf: OffscreenCanvas | HTMLCanvasElement
+    let getHoldCtx: () => CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null
+    if (typeof OffscreenCanvas !== "undefined") {
+      const buf = new OffscreenCanvas(1, 1)
+      holdBuf = buf
+      getHoldCtx = () => buf.getContext("2d")
+    } else {
+      const buf = document.createElement("canvas")
+      holdBuf = buf
+      getHoldCtx = () => buf.getContext("2d")
+    }
+    let lastGoodAt = 0 // performance.now() of the last good skeleton snapshot
+    let hasLastGood = false
+
     let raf = 0
     let lastDraw = 0
     let lastTick = performance.now()
@@ -125,7 +147,21 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady, videoRef }: PoseOve
       const res = resultRef.current
       const mir = mirroredRef.current
       if (res === null || res.keypoints.length !== KEYPOINT_COUNT) {
-        interp.reset() // don't interpolate across a person-absent gap
+        // Hold-last-pose hysteresis (§3C/Phase 3): a single dropped/again-detected
+        // frame must NOT blank the skeleton. Keep blitting the last good snapshot,
+        // fading to 0 over HOLD_LAST_POSE_MS, before clearing — and defer
+        // interp.reset() until the hold expires so a quick re-detection resumes
+        // smoothly instead of snapping across the gap.
+        const opacity = hasLastGood ? holdOpacity(now - lastGoodAt, HOLD_LAST_POSE_MS) : 0
+        if (opacity > 0 && holdBuf.width === W && holdBuf.height === H) {
+          ctx.save()
+          ctx.globalAlpha = opacity
+          ctx.drawImage(holdBuf, 0, 0)
+          ctx.restore()
+        } else if (hasLastGood) {
+          hasLastGood = false
+          interp.reset() // gap outlived the hold — stop interpolating across it
+        }
         drawParticles(ctx, liveParticles)
         return
       }
@@ -220,6 +256,20 @@ function PoseOverlayInner({ result, mirrored, onCanvasReady, videoRef }: PoseOve
       drawBones(ctx, state)
       drawArcs(ctx, state)
       drawJoints(ctx, state)
+
+      // Snapshot this good skeleton (trail+bones+arcs+joints, no live particles)
+      // so a brief detection gap can hold it on screen, fading, instead of
+      // flickering to black (§3C/Phase 3).
+      if (holdBuf.width !== W) holdBuf.width = W
+      if (holdBuf.height !== H) holdBuf.height = H
+      const hctx = getHoldCtx()
+      if (hctx) {
+        hctx.clearRect(0, 0, W, H)
+        hctx.drawImage(canvas, 0, 0)
+        lastGoodAt = now
+        hasLastGood = true
+      }
+
       drawParticles(ctx, liveParticles)
     }
 

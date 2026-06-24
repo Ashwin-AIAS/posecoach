@@ -183,7 +183,10 @@ async def get_recommendation(
     name = exercise.lower().strip()
     if name not in SUPPORTED_EXERCISES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            # HTTP_422_UNPROCESSABLE_ENTITY (== 422); the newer _CONTENT alias does
+            # not exist in the pinned starlette 0.38.6, so referencing it raised
+            # AttributeError → an unhandled 500 instead of a clean 422.
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"unsupported exercise '{exercise}'",
         )
     stmt = (

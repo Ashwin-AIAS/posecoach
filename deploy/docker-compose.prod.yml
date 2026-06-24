@@ -44,7 +44,11 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>=32 chars)}
       METRICS_TOKEN: ${METRICS_TOKEN:?set METRICS_TOKEN}
-      MODEL_PATH: models/yolo_posecoach_v1_320.onnx
+      # 640 ONNX (direct OnnxPoseSession path) — restores keypoint accuracy /
+      # small-subject detection at mirror distance that the 320 model lost
+      # (docs/enhancements/FIX_POSE_TRACKING_QUALITY.md §3A). Stays under the
+      # 100 ms p95 gate; never fall back to 320 to claw back latency.
+      MODEL_PATH: models/yolo_posecoach_v1.onnx
       CHROMA_PATH: data/chroma
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?set ALLOWED_ORIGINS}
       ENVIRONMENT: production

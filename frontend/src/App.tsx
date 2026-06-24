@@ -30,6 +30,7 @@ import { usePoseStream } from "./hooks/usePoseStream"
 import { useSessionRecorder } from "./hooks/useSessionRecorder"
 import { useSessionStats } from "./hooks/useSessionStats"
 import type { SessionStats } from "./hooks/useSessionStats"
+import { isFarSubject } from "./lib/framing"
 import type { HudScene } from "./lib/hudRenderer"
 import { renderHud } from "./lib/hudRenderer"
 import { worstJoint } from "./lib/joints"
@@ -154,6 +155,12 @@ export default function App(): JSX.Element {
 
   const detected = pose.result !== null && pose.result.score !== null
   const showHint = camera.ready && !detected && summary === null
+  // Far-subject nudge (§3E/Phase 5): a person is tracked but fills too little of
+  // the frame (deep in the mirror), so even the 640 model tracks weakly — gently
+  // suggest moving closer through the same unobtrusive hint pill.
+  const farSubject =
+    detected && pose.result !== null && isFarSubject(pose.result.keypoints, pose.result.confidence)
+  const showFarHint = camera.ready && farSubject && summary === null
 
   // A new exercise, pose, or mode is a new set — reset the accumulated stats.
   useEffect(() => {
@@ -323,6 +330,9 @@ export default function App(): JSX.Element {
             </div>
           )}
           {showHint && <EmptyStageHint exercise={exercise} />}
+          {showFarHint && (
+            <EmptyStageHint exercise={exercise} message="Move closer or fill more of the mirror" />
+          )}
           <button
             type="button"
             onClick={() => void camera.flip()}
