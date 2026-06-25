@@ -1,10 +1,20 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, MessageCircle, PlayCircle, RefreshCw, Volume2, VolumeX } from "lucide-react"
+import {
+  ChevronLeft,
+  ClipboardList,
+  Flame,
+  MessageCircle,
+  PlayCircle,
+  RefreshCw,
+  Volume2,
+  VolumeX,
+} from "lucide-react"
 
 import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
 import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
+import { ComingSoon } from "./components/ComingSoon"
 import { EmptyStageHint } from "./components/EmptyStageHint"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
@@ -21,6 +31,9 @@ import { RecommendationCard } from "./components/RecommendationCard"
 import { RecordingPreview } from "./components/RecordingPreview"
 import { ReferenceVideoPanel } from "./components/ReferenceVideoPanel"
 import { SessionSummary } from "./components/SessionSummary"
+import { SettingsPanel } from "./components/SettingsPanel"
+import { TabBar } from "./components/TabBar"
+import type { TabKey } from "./components/TabBar"
 import { UserMenu } from "./components/UserMenu"
 import { Icon } from "./components/ui/Icon"
 import { useAuth } from "./hooks/useAuth"
@@ -59,6 +72,9 @@ export default function App(): JSX.Element {
   // Home is the entry hub (UI-07); the live workout flow is unchanged — it's
   // just one tap away, and back again via the header's back button.
   const [view, setView] = useState<"home" | "live">("home")
+  // P23 navigation shell: top-level tab. Coach is today's experience, wrapped
+  // (not altered) below; Workouts/Calories/Settings are new additive tabs.
+  const [tab, setTab] = useState<TabKey>("coach")
   const [exercise, setExercise] = useState<Exercise>("squat")
   const [mode, setMode] = useState<SessionMode>("exercise")
   const [division, setDivision] = useState<Division>("open")
@@ -188,6 +204,11 @@ export default function App(): JSX.Element {
 
   return (
     <div className="flex h-[100svh] min-h-[100svh] w-screen flex-col bg-surface-base font-sans text-gray-100">
+      {/* P23: the Coach tab is today's experience — header, overlays, and the
+          home/live flow — wrapped here, byte-for-byte unchanged. The other tabs
+          are new, additive surfaces rendered in its place. */}
+      {tab === "coach" && (
+        <>
       <header
         className="relative z-30 flex items-center justify-between gap-2 bg-surface-raised/40 px-3 py-1 shadow-elev-1 backdrop-blur-md sm:gap-4 sm:px-4"
         style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}
@@ -542,6 +563,30 @@ export default function App(): JSX.Element {
       </div>
         </div>
       )}
+        </>
+      )}
+
+      {tab === "workouts" && (
+        <ComingSoon
+          title="Workouts"
+          subtitle="Log sets, reps, and weight — soon enriched with auto rep-counts and form scores straight from the live coach."
+          icon={ClipboardList}
+        />
+      )}
+
+      {tab === "calories" && (
+        <ComingSoon
+          title="Calories"
+          subtitle="Scan a barcode to see calories and macros, then track them in a simple daily diary."
+          icon={Flame}
+        />
+      )}
+
+      {tab === "settings" && (
+        <SettingsPanel auth={auth} onNavigateCoach={() => setTab("coach")} />
+      )}
+
+      <TabBar active={tab} onChange={setTab} hidden={view === "live"} />
     </div>
   )
 }

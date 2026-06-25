@@ -49,7 +49,10 @@ export function InstallBanner(): JSX.Element | null {
   return (
     <div
       className="fixed inset-x-0 z-40 flex justify-center px-4"
-      style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      // Sits above the bottom tab bar when it is visible (TabBar publishes its
+      // height to --tabbar-h); when the bar is hidden (live set) the var is 0px,
+      // so this collapses to the original "clear the home indicator" spacing.
+      style={{ bottom: "max(calc(var(--tabbar-h, 0px) + 0.5rem), env(safe-area-inset-bottom), 1rem)" }}
       data-testid="install-banner"
     >
       <div className="flex animate-caption-in items-center gap-3 rounded-full bg-surface-raised/90 px-4 py-2 shadow-elev-2 backdrop-blur-md">
