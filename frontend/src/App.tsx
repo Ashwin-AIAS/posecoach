@@ -6,7 +6,6 @@ import {
   MessageCircle,
   PlayCircle,
   RefreshCw,
-  Settings as SettingsIcon,
   Volume2,
   VolumeX,
 } from "lucide-react"
@@ -32,6 +31,7 @@ import { RecommendationCard } from "./components/RecommendationCard"
 import { RecordingPreview } from "./components/RecordingPreview"
 import { ReferenceVideoPanel } from "./components/ReferenceVideoPanel"
 import { SessionSummary } from "./components/SessionSummary"
+import { SettingsPanel } from "./components/SettingsPanel"
 import { TabBar } from "./components/TabBar"
 import type { TabKey } from "./components/TabBar"
 import { UserMenu } from "./components/UserMenu"
@@ -583,11 +583,7 @@ export default function App(): JSX.Element {
       )}
 
       {tab === "settings" && (
-        <ComingSoon
-          title="Settings"
-          subtitle="Profile, units, and account preferences are arriving here shortly."
-          icon={SettingsIcon}
-        />
+        <SettingsPanel auth={auth} onNavigateCoach={() => setTab("coach")} />
       )}
 
       <TabBar active={tab} onChange={setTab} hidden={view === "live"} />
