@@ -54,11 +54,20 @@ function TabBarInner({ active, onChange, hidden }: TabBarProps): JSX.Element | n
             aria-label={label}
             onClick={() => onChange(key)}
             className={
-              "flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium transition ease-spring active:scale-[0.94] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent motion-reduce:transition-none motion-reduce:active:scale-100 " +
+              "relative flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium transition ease-spring active:scale-[0.94] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent motion-reduce:transition-none motion-reduce:active:scale-100 " +
               (selected ? "text-accent" : "text-gray-500 hover:text-gray-200")
             }
             data-testid={`tab-${key}`}
           >
+            {/* Smooth active indicator — fades rather than mount/unmounts so the
+                transition reads as movement between tabs. */}
+            <span
+              aria-hidden="true"
+              className={
+                "absolute inset-x-5 top-0 h-0.5 rounded-full bg-accent transition-opacity ease-spring motion-reduce:transition-none " +
+                (selected ? "opacity-100" : "opacity-0")
+              }
+            />
             <Icon
               icon={icon}
               size={20}
