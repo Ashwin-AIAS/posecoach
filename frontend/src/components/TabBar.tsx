@@ -1,4 +1,4 @@
-import { memo } from "react"
+import { memo, useEffect, useRef } from "react"
 import { Activity, ClipboardList, Flame, Settings } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -6,6 +6,13 @@ import { Icon } from "./ui/Icon"
 
 /** Top-level app tab (P23 navigation shell). Coach is today's experience. */
 export type TabKey = "coach" | "workouts" | "calories" | "settings"
+
+/** CSS var (on :root) carrying the live tab-bar height; 0px while hidden. Other
+ *  fixed bottom chrome (e.g. InstallBanner) reads it to sit above the bar. */
+const TABBAR_H_VAR = "--tabbar-h"
+/** Sensible default when the bar can't be measured yet (e.g. jsdom has no
+ *  layout) — roughly icon+label+padding, so the banner still clears the bar. */
+const FALLBACK_TABBAR_PX = 52
 
 interface TabBarProps {
   readonly active: TabKey
@@ -33,10 +40,40 @@ const TABS: readonly TabDef[] = [
  * space during the immersive live-camera experience.
  */
 function TabBarInner({ active, onChange, hidden }: TabBarProps): JSX.Element | null {
+  const navRef = useRef<HTMLElement>(null)
+
+  // Publish the bar's height (incl. safe-area padding) so other fixed bottom
+  // chrome can offset above it; reset to 0 while hidden / on unmount so that
+  // chrome falls back to its own bottom spacing during a live set.
+  useEffect(() => {
+    const root = document.documentElement
+    if (hidden) {
+      root.style.setProperty(TABBAR_H_VAR, "0px")
+      return
+    }
+    const el = navRef.current
+    if (el === null) return
+    const publish = (): void => {
+      const px = Math.max(el.offsetHeight, FALLBACK_TABBAR_PX)
+      root.style.setProperty(TABBAR_H_VAR, `${px}px`)
+    }
+    publish()
+    let observer: ResizeObserver | undefined
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(publish)
+      observer.observe(el)
+    }
+    return () => {
+      observer?.disconnect()
+      root.style.setProperty(TABBAR_H_VAR, "0px")
+    }
+  }, [hidden])
+
   if (hidden) return null
 
   return (
     <nav
+      ref={navRef}
       role="tablist"
       aria-label="Main navigation"
       className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-surface-hairline bg-surface-raised/80 shadow-elev-2 backdrop-blur-md"

@@ -30,6 +30,14 @@ describe("InstallBanner", () => {
     expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument()
   })
 
+  it("offsets its bottom by the tab-bar height so it clears the bottom tab bar", () => {
+    mockIphoneUserAgent()
+    render(<InstallBanner />)
+    // Wired to the TabBar's published height; the var falls back to 0px when no
+    // bar is present, so this never regresses the live-set (no-bar) spacing.
+    expect(screen.getByTestId("install-banner").getAttribute("style")).toContain("--tabbar-h")
+  })
+
   it("hides after dismissal and persists it across remounts", () => {
     mockIphoneUserAgent()
     const { unmount } = render(<InstallBanner />)
