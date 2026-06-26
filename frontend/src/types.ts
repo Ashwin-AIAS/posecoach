@@ -207,6 +207,88 @@ export interface PrepProgress {
   readonly poses: readonly PoseProgress[]
 }
 
+// ── P25: Workout Logger types (additive — do not change anything above) ───────
+
+/** Lightweight catalog row used in browse/search lists. */
+export interface ExerciseSummary {
+  readonly id: string
+  readonly slug: string
+  readonly name: string
+  readonly category: string | null
+  readonly equipment: string | null
+  readonly primary_muscles: readonly string[]
+  readonly secondary_muscles: readonly string[]
+  /** Only first image URL (for list thumbnails); full list in ExerciseDetail. */
+  readonly image_urls: readonly string[]
+  readonly youtube_id: string | null
+  readonly is_cv_supported: boolean
+}
+
+/** Full exercise detail (same shape as ExerciseSummary but explicit for type safety). */
+export interface ExerciseDetail extends ExerciseSummary {
+  readonly instructions: readonly string[]
+}
+
+/** One set's history entry returned from GET /exercises/:slug/history. */
+export interface SetHistoryEntry {
+  readonly workout_id: string
+  readonly performed_at: string
+  readonly weight_kg: number
+  readonly reps: number
+  readonly est_one_rep_max: number
+}
+
+/** Aggregate history for one exercise (volume + best 1RM + set list). */
+export interface ExerciseHistoryOut {
+  readonly slug: string
+  readonly name: string
+  readonly total_sets: number
+  readonly total_volume_kg: number
+  readonly best_one_rep_max: number
+  readonly entries: readonly SetHistoryEntry[]
+}
+
+/** A logged set row (as returned by the API). */
+export interface LoggedSetOut {
+  readonly id: string
+  readonly set_number: number
+  readonly weight_kg: number
+  readonly reps: number
+  readonly rpe: number | null
+  readonly is_warmup: boolean
+  readonly completed: boolean
+  readonly form_score: number | null
+  readonly source_session_id: string | null
+}
+
+/** A logged exercise row (exercise reference + its sets). */
+export interface LoggedExerciseOut {
+  readonly id: string
+  readonly exercise_id: string
+  readonly order: number
+  readonly exercise: ExerciseDetail
+  readonly sets: readonly LoggedSetOut[]
+}
+
+/** Full workout with exercises eagerly loaded. */
+export interface WorkoutLog {
+  readonly id: string
+  readonly title: string | null
+  readonly notes: string | null
+  readonly started_at: string
+  readonly ended_at: string | null
+  readonly exercises: readonly LoggedExerciseOut[]
+}
+
+/** Lightweight workout row for the recent-workouts list. */
+export interface WorkoutSummary {
+  readonly id: string
+  readonly title: string | null
+  readonly notes: string | null
+  readonly started_at: string
+  readonly ended_at: string | null
+}
+
 /** Next-session recommendation from the adaptive coach (P16). */
 export interface Recommendation {
   readonly exercise: string
