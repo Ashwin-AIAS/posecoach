@@ -1,0 +1,67 @@
+import { render, screen, fireEvent } from "@testing-library/react"
+import { describe, expect, it, vi } from "vitest"
+
+import { SetRow } from "../components/SetRow"
+
+describe("SetRow (input mode)", () => {
+  it("renders the set number input row", () => {
+    render(<SetRow setNumber={1} onLog={vi.fn()} />)
+    expect(screen.getByTestId("set-input-row-1")).toBeInTheDocument()
+  })
+
+  it("log button is disabled when weight or reps are empty", () => {
+    render(<SetRow setNumber={1} onLog={vi.fn()} />)
+    expect(screen.getByTestId("log-set-btn-1")).toBeDisabled()
+  })
+
+  it("calls onLog with canonical kg when weight and reps are filled", () => {
+    const onLog = vi.fn()
+    render(<SetRow setNumber={1} onLog={onLog} />)
+
+    fireEvent.change(screen.getByTestId("weight-input-1"), { target: { value: "100" } })
+    fireEvent.change(screen.getByTestId("reps-input-1"), { target: { value: "8" } })
+    fireEvent.click(screen.getByTestId("log-set-btn-1"))
+
+    expect(onLog).toHaveBeenCalledWith(100, 8, undefined)
+  })
+
+  it("passes RPE when filled in", () => {
+    const onLog = vi.fn()
+    render(<SetRow setNumber={1} onLog={onLog} />)
+
+    fireEvent.change(screen.getByTestId("weight-input-1"), { target: { value: "80" } })
+    fireEvent.change(screen.getByTestId("reps-input-1"), { target: { value: "5" } })
+    fireEvent.change(screen.getByTestId("rpe-input-1"), { target: { value: "8" } })
+    fireEvent.click(screen.getByTestId("log-set-btn-1"))
+
+    expect(onLog).toHaveBeenCalledWith(80, 5, { rpe: 8 })
+  })
+
+  it("RPE is optional — no error when not filled in", () => {
+    const onLog = vi.fn()
+    render(<SetRow setNumber={1} onLog={onLog} />)
+
+    fireEvent.change(screen.getByTestId("weight-input-1"), { target: { value: "70" } })
+    fireEvent.change(screen.getByTestId("reps-input-1"), { target: { value: "10" } })
+    fireEvent.click(screen.getByTestId("log-set-btn-1"))
+
+    expect(onLog).toHaveBeenCalledWith(70, 10, undefined)
+  })
+
+  it("shows last entry hint when provided", () => {
+    render(
+      <SetRow
+        setNumber={2}
+        onLog={vi.fn()}
+        lastEntry={{
+          workout_id: "w1",
+          performed_at: "2025-01-01T00:00:00Z",
+          weight_kg: 100,
+          reps: 8,
+          est_one_rep_max: 133,
+        }}
+      />,
+    )
+    expect(screen.getByText(/Last:/)).toBeInTheDocument()
+  })
+})
