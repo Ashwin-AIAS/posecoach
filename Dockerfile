@@ -28,6 +28,9 @@ RUN pip install --no-cache-dir --timeout=300 --retries=10 \
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
+# scripts/ is needed at runtime: the startup hook imports scripts.seed_exercises
+# to populate the exercise catalog on first boot (see lifespan).
+COPY scripts/ ./scripts/
 
 # Models and data directories
 COPY models/ ./models/
