@@ -25,7 +25,7 @@ function ExerciseDetailInner({ exercise, onBack }: ExerciseDetailProps): JSX.Ele
           type="button"
           onClick={onBack}
           aria-label="Back to library"
-          className="grid h-9 w-9 shrink-0 place-content-center rounded-full text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="grid h-11 w-11 shrink-0 place-content-center rounded-full text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           data-testid="exercise-detail-back"
         >
           <Icon icon={ChevronLeft} size={16} />

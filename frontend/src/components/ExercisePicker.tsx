@@ -47,7 +47,7 @@ function ExercisePickerInner({ onPick, onClose }: ExercisePickerProps): JSX.Elem
             type="button"
             onClick={onClose}
             aria-label="Close picker"
-            className="grid h-8 w-8 place-content-center rounded-full text-gray-400 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="grid h-11 w-11 place-content-center rounded-full text-gray-400 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             data-testid="exercise-picker-close"
           >
             <Icon icon={X} size={16} />

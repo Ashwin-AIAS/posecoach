@@ -91,7 +91,7 @@ function RestTimerInner({ autoStart = false, defaultSeconds = 90 }: RestTimerPro
             onClick={() => reset(s)}
             aria-pressed={duration === s && !running}
             className={
-              "min-h-[28px] rounded-full px-2.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+              "min-h-[44px] rounded-full px-2.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
               (duration === s
                 ? "bg-accent-soft text-accent"
                 : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")
@@ -108,7 +108,7 @@ function RestTimerInner({ autoStart = false, defaultSeconds = 90 }: RestTimerPro
           type="button"
           onClick={() => reset()}
           aria-label="Reset timer"
-          className="grid h-9 w-9 place-content-center rounded-full bg-surface-raised text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="grid h-11 w-11 place-content-center rounded-full bg-surface-raised text-gray-400 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           data-testid="rest-timer-reset"
         >
           <Icon icon={RotateCcw} size={14} />

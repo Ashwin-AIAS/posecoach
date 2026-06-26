@@ -86,7 +86,7 @@ function SetRowInner({
             onClick={() => onComplete(committedSet.id, !committedSet.completed)}
             aria-label={committedSet.completed ? "Unmark set complete" : "Mark set complete"}
             className={
-              "grid h-7 w-7 shrink-0 place-content-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+              "grid h-11 w-11 shrink-0 place-content-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
               (committedSet.completed
                 ? "bg-accent text-surface-base"
                 : "bg-surface-overlay text-gray-500 hover:text-white")
@@ -101,7 +101,7 @@ function SetRowInner({
             type="button"
             onClick={() => onRemove(committedSet.id)}
             aria-label="Remove set"
-            className="grid h-7 w-7 shrink-0 place-content-center rounded-full text-gray-600 transition hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="grid h-11 w-11 shrink-0 place-content-center rounded-full text-gray-600 transition hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             data-testid={`remove-set-${committedSet.id}`}
           >
             <Icon icon={Trash2} size={12} />

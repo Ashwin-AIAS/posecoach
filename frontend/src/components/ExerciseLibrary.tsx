@@ -51,7 +51,7 @@ function FilterChips({ label, options, value, onChange }: FilterChipsProps): JSX
           onClick={() => onChange(value === opt ? "" : opt)}
           aria-pressed={value === opt}
           className={
-            "min-h-[28px] shrink-0 rounded-full px-2.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+            "min-h-[44px] shrink-0 rounded-full px-2.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
             (value === opt
               ? "bg-accent-soft text-accent"
               : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")

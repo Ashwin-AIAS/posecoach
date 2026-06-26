@@ -16,7 +16,11 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
 }
 
-function WorkoutPanelInner(): JSX.Element {
+interface WorkoutPanelProps {
+  readonly onActiveWorkout?: (active: boolean) => void
+}
+
+function WorkoutPanelInner({ onActiveWorkout }: WorkoutPanelProps): JSX.Element {
   const [subView, setSubView] = useState<SubView>("landing")
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutSummary[]>([])
   const [loadingRecent, setLoadingRecent] = useState(true)
@@ -47,6 +51,7 @@ function WorkoutPanelInner(): JSX.Element {
       const w = await createWorkout()
       workoutLog.setWorkout(w)
       setSubView("active-workout")
+      onActiveWorkout?.(true)
     } catch {
       // Surface to user? For now silently fail — button re-enabled.
     } finally {
@@ -78,8 +83,9 @@ function WorkoutPanelInner(): JSX.Element {
     }
     workoutLog.setWorkout(null)
     setSubView("landing")
+    onActiveWorkout?.(false)
     void loadRecent()
-  }, [workoutLog, loadRecent])
+  }, [workoutLog, loadRecent, onActiveWorkout])
 
   if (subView === "active-workout" && workoutLog.workout) {
     return (
@@ -192,4 +198,4 @@ function WorkoutPanelInner(): JSX.Element {
   )
 }
 
-export const WorkoutPanel = memo(WorkoutPanelInner)
+export const WorkoutPanel = memo<WorkoutPanelProps>(WorkoutPanelInner)
