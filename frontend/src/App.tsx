@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ChevronLeft,
-  ClipboardList,
   Flame,
   MessageCircle,
   PlayCircle,
@@ -15,6 +14,7 @@ import { CameraHud } from "./components/CameraHud"
 import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
 import { ComingSoon } from "./components/ComingSoon"
+import { WorkoutPanel } from "./components/WorkoutPanel"
 import { EmptyStageHint } from "./components/EmptyStageHint"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
@@ -75,6 +75,8 @@ export default function App(): JSX.Element {
   // P23 navigation shell: top-level tab. Coach is today's experience, wrapped
   // (not altered) below; Workouts/Calories/Settings are new additive tabs.
   const [tab, setTab] = useState<TabKey>("coach")
+  // True while an active workout is in progress — hides the tab bar (immersive).
+  const [workoutActive, setWorkoutActive] = useState(false)
   const [exercise, setExercise] = useState<Exercise>("squat")
   const [mode, setMode] = useState<SessionMode>("exercise")
   const [division, setDivision] = useState<Division>("open")
@@ -566,13 +568,7 @@ export default function App(): JSX.Element {
         </>
       )}
 
-      {tab === "workouts" && (
-        <ComingSoon
-          title="Workouts"
-          subtitle="Log sets, reps, and weight — soon enriched with auto rep-counts and form scores straight from the live coach."
-          icon={ClipboardList}
-        />
-      )}
+      {tab === "workouts" && <WorkoutPanel onActiveWorkout={setWorkoutActive} />}
 
       {tab === "calories" && (
         <ComingSoon
@@ -586,7 +582,7 @@ export default function App(): JSX.Element {
         <SettingsPanel auth={auth} onNavigateCoach={() => setTab("coach")} />
       )}
 
-      <TabBar active={tab} onChange={setTab} hidden={view === "live"} />
+      <TabBar active={tab} onChange={setTab} hidden={view === "live" || workoutActive} />
     </div>
   )
 }

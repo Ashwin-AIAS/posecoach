@@ -1,0 +1,213 @@
+import { memo, useCallback, useEffect, useState } from "react"
+import { ChevronDown, ChevronUp, Plus } from "lucide-react"
+
+import type { LocalWorkout, UseWorkoutLogResult } from "../hooks/useWorkoutLog"
+import type { ExerciseSummary, ExerciseHistoryOut } from "../types"
+import { addExercise, getExerciseHistory } from "../lib/workoutsApi"
+import { ExercisePicker } from "./ExercisePicker"
+import { PlateCalculator } from "./PlateCalculator"
+import { RestTimer } from "./RestTimer"
+import { SetRow } from "./SetRow"
+import { Icon } from "./ui/Icon"
+
+interface ActiveWorkoutProps {
+  readonly workout: LocalWorkout
+  readonly workoutLog: UseWorkoutLogResult
+  readonly onFinish: () => void
+}
+
+function ActiveWorkoutInner({ workout, workoutLog, onFinish }: ActiveWorkoutProps): JSX.Element {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [expandedExercise, setExpandedExercise] = useState<string | null>(null)
+  const [history, setHistory] = useState<Record<string, ExerciseHistoryOut>>({})
+  const [timerKey, setTimerKey] = useState(0)
+  const [autoStartTimer, setAutoStartTimer] = useState(false)
+  const [showPlates, setShowPlates] = useState(false)
+
+  // Load history for each exercise when first expanded.
+  useEffect(() => {
+    const slugs = workout.exercises.map((le) => le.exercise.slug)
+    for (const slug of slugs) {
+      if (history[slug]) continue
+      void getExerciseHistory(slug)
+        .then((h) => setHistory((prev) => ({ ...prev, [slug]: h })))
+        .catch(() => {
+          /* best-effort — history hint simply won't show */
+        })
+    }
+  }, [workout.exercises, history])
+
+  const handlePickExercise = useCallback(
+    async (ex: ExerciseSummary): Promise<void> => {
+      try {
+        const le = await addExercise(workout.id, ex.id)
+        // Reload the workout by setting it with the new exercise appended locally.
+        workoutLog.setWorkout({
+          ...workout,
+          exercises: [...workout.exercises, le],
+        })
+        setExpandedExercise(le.id)
+      } catch {
+        // silently ignore — picker closes regardless
+      }
+    },
+    [workout, workoutLog],
+  )
+
+  const handleLog = useCallback(
+    (
+      loggedExerciseId: string,
+      weightKg: number,
+      reps: number,
+      opts?: { rpe?: number },
+    ): void => {
+      workoutLog.logSet(loggedExerciseId, weightKg, reps, opts)
+      // Auto-start rest timer after each logged set.
+      setTimerKey((k) => k + 1)
+      setAutoStartTimer(true)
+      setTimeout(() => setAutoStartTimer(false), 200)
+    },
+    [workoutLog],
+  )
+
+  const toggleExpanded = useCallback((id: string): void => {
+    setExpandedExercise((prev) => (prev === id ? null : id))
+  }, [])
+
+  return (
+    <div className="flex h-full flex-col" data-testid="active-workout">
+      {/* Header */}
+      <div className="flex shrink-0 items-center justify-between border-b border-white/5 px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="font-display text-base font-semibold text-gray-100">
+            {workout.title ?? "Workout"}
+          </h2>
+          <p className="text-[11px] text-gray-500">
+            {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onFinish}
+          className="flex min-h-9 items-center rounded-full bg-accent px-4 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          data-testid="finish-workout-btn"
+        >
+          Finish
+        </button>
+      </div>
+
+      {/* Exercises + sets */}
+      <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex flex-col gap-3">
+          {workout.exercises.length === 0 && (
+            <p className="py-4 text-center text-sm text-gray-500">
+              Add your first exercise to get started.
+            </p>
+          )}
+
+          {workout.exercises.map((le) => {
+            const isExpanded = expandedExercise === le.id
+            const hist = history[le.exercise.slug]
+            const lastEntry = hist?.entries[0]
+
+            return (
+              <div key={le.id} className="rounded-2xl bg-surface-raised shadow-elev-1">
+                {/* Exercise header row */}
+                <button
+                  type="button"
+                  onClick={() => toggleExpanded(le.id)}
+                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-left transition hover:bg-surface-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  aria-expanded={isExpanded}
+                  data-testid={`exercise-section-${le.id}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-100">
+                      {le.exercise.name}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      {le.sets.length} set{le.sets.length !== 1 ? "s" : ""}
+                      {lastEntry
+                        ? ` · last: ${Math.round(lastEntry.weight_kg)}kg × ${lastEntry.reps}`
+                        : ""}
+                    </p>
+                  </div>
+                  <Icon
+                    icon={isExpanded ? ChevronUp : ChevronDown}
+                    size={14}
+                    className="shrink-0 text-gray-500"
+                  />
+                </button>
+
+                {isExpanded && (
+                  <div className="flex flex-col gap-2 px-3 pb-3">
+                    {/* Committed sets */}
+                    {le.sets.map((s) => (
+                      <SetRow
+                        key={s.id}
+                        setNumber={s.set_number || le.sets.indexOf(s) + 1}
+                        committedSet={s}
+                        onComplete={workoutLog.completeSet}
+                        onRemove={workoutLog.removeSet}
+                        onLog={() => {
+                          /* no-op: committed rows don't call onLog */
+                        }}
+                      />
+                    ))}
+
+                    {/* New set input row */}
+                    <SetRow
+                      setNumber={le.sets.length + 1}
+                      lastEntry={lastEntry}
+                      onLog={(wKg, reps, opts) => handleLog(le.id, wKg, reps, opts)}
+                    />
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Add exercise button */}
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-700 text-sm font-medium text-gray-500 transition hover:border-gray-500 hover:text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            data-testid="add-exercise-btn"
+          >
+            <Icon icon={Plus} size={14} />
+            Add exercise
+          </button>
+        </div>
+
+        {/* Rest timer */}
+        <div className="mt-4 flex flex-col items-center">
+          <RestTimer key={timerKey} autoStart={autoStartTimer} />
+        </div>
+
+        {/* Plate calculator */}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowPlates((s) => !s)}
+            className="text-xs text-gray-500 underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {showPlates ? "Hide" : "Show"} plate calculator
+          </button>
+          {showPlates && (
+            <div className="mt-2">
+              <PlateCalculator />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {pickerOpen && (
+        <ExercisePicker
+          onPick={(ex) => void handlePickExercise(ex)}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+export const ActiveWorkout = memo(ActiveWorkoutInner)

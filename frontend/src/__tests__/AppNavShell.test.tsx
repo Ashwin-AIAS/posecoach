@@ -16,6 +16,19 @@ vi.mock("../lib/api", () => ({
   fetchRecommendation: vi.fn(async () => null),
 }))
 
+// Stub the workouts API so WorkoutPanel doesn't try to hit the network.
+vi.mock("../lib/workoutsApi", () => ({
+  listWorkouts: vi.fn(async () => []),
+  createWorkout: vi.fn(async () => ({ id: "w1", exercises: [], started_at: new Date().toISOString(), ended_at: null, title: null, notes: null })),
+  listExercises: vi.fn(async () => []),
+  getExercise: vi.fn(async () => null),
+  updateWorkout: vi.fn(async () => ({})),
+  addExercise: vi.fn(async () => ({})),
+  addSet: vi.fn(async () => ({})),
+  updateSet: vi.fn(async () => ({})),
+  deleteSet: vi.fn(async () => undefined),
+}))
+
 vi.mock("../hooks/useCamera", () => ({
   useCamera: () => ({
     videoRef: { current: null },
@@ -48,7 +61,7 @@ describe("App (P23 navigation shell)", () => {
     fireEvent.click(screen.getByTestId("tab-workouts"))
 
     expect(screen.queryByTestId("home-view")).not.toBeInTheDocument()
-    expect(screen.getByTestId("coming-soon")).toBeInTheDocument()
+    expect(screen.getByTestId("workout-panel")).toBeInTheDocument()
     expect(screen.getByTestId("tab-workouts")).toHaveAttribute("aria-selected", "true")
 
     // Returning to Coach restores the unchanged Home experience.
