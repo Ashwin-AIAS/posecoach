@@ -26,7 +26,7 @@ from typing import Any
 
 import httpx
 import structlog
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import AsyncSessionLocal
@@ -163,6 +163,29 @@ async def fetch_catalog(url: str = FREE_EXERCISE_DB_URL) -> list[dict[str, Any]]
         response.raise_for_status()
         data: list[dict[str, Any]] = response.json()
     return data
+
+
+async def seed_if_empty(session: AsyncSession) -> SeedSummary | None:
+    """Seed the catalog only when the ``exercises`` table is empty (idempotent).
+
+    Drives the app's startup hook: a cheap ``COUNT`` gate means an already-seeded
+    deployment skips instantly and — importantly — never hits the network. Only
+    when the table is empty does it fetch from the CDN and upsert.
+
+    Args:
+        session: Async DB session (the ``exercises`` table must already exist).
+
+    Returns:
+        The :class:`SeedSummary` when it seeded, or ``None`` when it skipped
+        because the catalog was already populated.
+    """
+    existing = (await session.execute(select(func.count()).select_from(Exercise))).scalar_one()
+    if existing:
+        logger.info("seed_exercises_skip_nonempty", existing=existing)
+        return None
+    raw_exercises = await fetch_catalog()
+    logger.info("seed_exercises_fetched", count=len(raw_exercises))
+    return await upsert_exercises(session, raw_exercises)
 
 
 async def main() -> None:

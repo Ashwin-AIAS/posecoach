@@ -74,6 +74,30 @@ async def _ensure_rag_index(application: FastAPI) -> None:
         log.error("rag_index_build_failed", error=repr(exc))
 
 
+async def _ensure_exercise_catalog() -> None:
+    """Seed the exercise catalog at startup if it is empty (non-fatal).
+
+    A separate, idempotent step from the pose-model load: it writes Postgres at
+    runtime (never at Docker build time), runs only when the ``exercises`` table
+    is empty (a cheap COUNT, so subsequent boots skip and never hit the network),
+    and is wrapped so a failed jsDelivr fetch is logged via structlog and never
+    blocks or crashes startup. Scheduled as a background task so it does not
+    delay startup or health checks.
+    """
+    log = structlog.get_logger(__name__)
+    try:
+        from scripts.seed_exercises import seed_if_empty
+
+        async with db.AsyncSessionLocal() as session:
+            summary = await seed_if_empty(session)
+        if summary is None:
+            log.info("exercise_catalog_present")
+        else:
+            log.info("exercise_catalog_seeded", total=summary.total, cv_flagged=summary.cv_flagged)
+    except Exception as exc:  # noqa: BLE001 — never crash startup over the catalog
+        log.error("exercise_catalog_seed_failed", error=repr(exc))
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
@@ -110,6 +134,10 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     # Build the RAG index in the background (non-blocking) if it is empty.
     application.state.rag_task = asyncio.create_task(_ensure_rag_index(application))
 
+    # Seed the exercise catalog in the background (non-blocking) if it is empty.
+    # Separate, non-fatal step — never touches the pose model/executor above.
+    application.state.catalog_task = asyncio.create_task(_ensure_exercise_catalog())
+
     log.info("startup_complete")
     yield
 
@@ -117,6 +145,9 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     rag_task = getattr(application.state, "rag_task", None)
     if rag_task is not None and not rag_task.done():
         rag_task.cancel()
+    catalog_task = getattr(application.state, "catalog_task", None)
+    if catalog_task is not None and not catalog_task.done():
+        catalog_task.cancel()
     application.state.executor.shutdown(wait=True)
     await db.engine.dispose()
     await application.state.redis.aclose()
