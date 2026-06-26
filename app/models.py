@@ -92,3 +92,144 @@ class RefreshToken(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+
+
+# ── P24: workout logger (additive; WorkoutSession above is untouched) ─────────
+#
+# A normalized gym-log schema separate from the CV ``WorkoutSession`` record:
+#   Exercise (shared catalog) ← LoggedExercise → WorkoutLog (per user)
+#                                     ↓
+#                                  LoggedSet  ── optional CV link → workout_sessions
+# Routine / RoutineExercise are reusable templates. Every per-user query filters
+# by ``user_id`` (IDOR rule). CV-link columns on LoggedSet are nullable now and
+# get wired up in P26.
+
+
+class Exercise(Base):
+    """Exercise-catalog row sourced from free-exercise-db (P24).
+
+    Shared across all users (not per-user). ``slug`` is the stable business key
+    used by the API and the bundled client search index.
+    """
+
+    __tablename__ = "exercises"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    category: Mapped[str | None] = mapped_column(String, nullable=True)
+    equipment: Mapped[str | None] = mapped_column(String, nullable=True)
+    primary_muscles: Mapped[list[str]] = mapped_column(JSON, default=list)
+    secondary_muscles: Mapped[list[str]] = mapped_column(JSON, default=list)
+    instructions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    image_urls: Mapped[list[str]] = mapped_column(JSON, default=list)
+    youtube_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_cv_supported: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class WorkoutLog(Base):
+    """A logged gym workout (P24) — owns its exercises and their sets."""
+
+    __tablename__ = "workout_logs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    exercises: Mapped[list["LoggedExercise"]] = relationship(
+        back_populates="workout_log",
+        cascade="all, delete-orphan",
+        order_by="LoggedExercise.order",
+    )
+
+
+class LoggedExercise(Base):
+    """One exercise slot inside a :class:`WorkoutLog`, ordered within the workout."""
+
+    __tablename__ = "logged_exercises"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workout_log_id: Mapped[str] = mapped_column(
+        String, ForeignKey("workout_logs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    exercise_id: Mapped[str] = mapped_column(String, ForeignKey("exercises.id"), nullable=False)
+    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    workout_log: Mapped["WorkoutLog"] = relationship(back_populates="exercises")
+    exercise: Mapped["Exercise"] = relationship()
+    sets: Mapped[list["LoggedSet"]] = relationship(
+        back_populates="logged_exercise",
+        cascade="all, delete-orphan",
+        order_by="LoggedSet.set_number",
+    )
+
+
+class LoggedSet(Base):
+    """One set: weight (canonical kg) × reps, with optional RPE and CV linkage."""
+
+    __tablename__ = "logged_sets"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    logged_exercise_id: Mapped[str] = mapped_column(
+        String, ForeignKey("logged_exercises.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    set_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    weight_kg: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    reps: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rpe: Mapped[float | None] = mapped_column(Float, nullable=True)
+    is_warmup: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # CV link columns — nullable now; the wiring that fills them is P26.
+    form_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    source_session_id: Mapped[str | None] = mapped_column(
+        String,
+        ForeignKey("workout_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    logged_exercise: Mapped["LoggedExercise"] = relationship(back_populates="sets")
+
+
+class Routine(Base):
+    """A reusable workout template (P24) — an ordered list of catalog exercises."""
+
+    __tablename__ = "routines"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+    exercises: Mapped[list["RoutineExercise"]] = relationship(
+        back_populates="routine",
+        cascade="all, delete-orphan",
+        order_by="RoutineExercise.order",
+    )
+
+
+class RoutineExercise(Base):
+    """One ordered exercise slot inside a :class:`Routine` template."""
+
+    __tablename__ = "routine_exercises"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    routine_id: Mapped[str] = mapped_column(
+        String, ForeignKey("routines.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    exercise_id: Mapped[str] = mapped_column(String, ForeignKey("exercises.id"), nullable=False)
+    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    routine: Mapped["Routine"] = relationship(back_populates="exercises")
+    exercise: Mapped["Exercise"] = relationship()
