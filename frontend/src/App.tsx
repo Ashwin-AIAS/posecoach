@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ChevronLeft,
-  ClipboardList,
   Flame,
   MessageCircle,
   PlayCircle,
@@ -15,6 +14,7 @@ import { CameraHud } from "./components/CameraHud"
 import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
 import { ComingSoon } from "./components/ComingSoon"
+import { WorkoutPanel } from "./components/WorkoutPanel"
 import { EmptyStageHint } from "./components/EmptyStageHint"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
@@ -566,13 +566,7 @@ export default function App(): JSX.Element {
         </>
       )}
 
-      {tab === "workouts" && (
-        <ComingSoon
-          title="Workouts"
-          subtitle="Log sets, reps, and weight — soon enriched with auto rep-counts and form scores straight from the live coach."
-          icon={ClipboardList}
-        />
-      )}
+      {tab === "workouts" && <WorkoutPanel />}
 
       {tab === "calories" && (
         <ComingSoon

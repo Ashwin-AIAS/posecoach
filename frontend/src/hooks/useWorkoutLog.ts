@@ -36,7 +36,7 @@ export interface LocalWorkout extends Omit<WorkoutLog, "exercises"> {
   exercises: LocalExercise[]
 }
 
-interface UseWorkoutLogResult {
+export interface UseWorkoutLogResult {
   /** Current in-flight workout (null when no active session). */
   readonly workout: LocalWorkout | null
   /** Replace the whole workout (call after API create/load). */
