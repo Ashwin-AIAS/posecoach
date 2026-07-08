@@ -1,6 +1,18 @@
-import { render, screen, fireEvent } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
+vi.mock("../lib/workoutsApi", () => ({
+  getExerciseHistory: vi.fn(async () => ({
+    slug: "barbell-squat",
+    name: "Barbell Squat",
+    total_sets: 0,
+    total_volume_kg: 0,
+    best_one_rep_max: 0,
+    entries: [],
+  })),
+}))
+
+import { getExerciseHistory } from "../lib/workoutsApi"
 import { ExerciseDetail } from "../components/ExerciseDetail"
 import type { ExerciseDetail as ExerciseDetailType } from "../types"
 
@@ -26,7 +38,59 @@ const NO_CV: ExerciseDetailType = {
   is_cv_supported: false,
 }
 
+beforeEach(() => {
+  vi.clearAllMocks()
+  window.localStorage.removeItem("pc.units")
+})
+
 describe("ExerciseDetail", () => {
+  it("hides the Progress section when the exercise has no history", async () => {
+    render(<ExerciseDetail exercise={BASE} onBack={vi.fn()} />)
+    await waitFor(() => expect(vi.mocked(getExerciseHistory)).toHaveBeenCalledWith("barbell-squat"))
+    expect(screen.queryByTestId("progress-section")).not.toBeInTheDocument()
+  })
+
+  it("shows the Progress chart and PR line once history loads", async () => {
+    vi.mocked(getExerciseHistory).mockResolvedValueOnce({
+      slug: "barbell-squat",
+      name: "Barbell Squat",
+      total_sets: 3,
+      total_volume_kg: 1500,
+      best_one_rep_max: 116.7,
+      entries: [
+        // Newest first, as the API returns them.
+        {
+          workout_id: "w2",
+          performed_at: "2026-07-02T10:00:00Z",
+          weight_kg: 105,
+          reps: 3,
+          est_one_rep_max: 115.5,
+        },
+        {
+          workout_id: "w1",
+          performed_at: "2026-07-01T10:00:00Z",
+          weight_kg: 100,
+          reps: 5,
+          est_one_rep_max: 116.7,
+        },
+        {
+          workout_id: "w1",
+          performed_at: "2026-07-01T10:00:00Z",
+          weight_kg: 100,
+          reps: 4,
+          est_one_rep_max: 113.3,
+        },
+      ],
+    })
+    render(<ExerciseDetail exercise={BASE} onBack={vi.fn()} />)
+
+    expect(await screen.findByTestId("progress-section")).toBeInTheDocument()
+    expect(screen.getByTestId("progression-chart")).toBeInTheDocument()
+    // The PR is the highest-e1RM set: 100 kg × 5 → 116.7.
+    expect(screen.getByTestId("pr-line")).toHaveTextContent("100 kg × 5")
+    expect(screen.getByTestId("pr-line")).toHaveTextContent("116.7 kg")
+  })
+
   it("renders the exercise name", () => {
     render(<ExerciseDetail exercise={BASE} onBack={vi.fn()} />)
     expect(screen.getByText("Barbell Squat")).toBeInTheDocument()

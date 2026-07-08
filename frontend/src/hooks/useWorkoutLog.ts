@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 
-import { addSet, updateSet, deleteSet } from "../lib/workoutsApi"
+import { addSet, cvLink, updateSet, deleteSet } from "../lib/workoutsApi"
 import type { WorkoutLog, LoggedExerciseOut, LoggedSetOut } from "../types"
 
 const RETRY_DELAYS = [1000, 2000, 4000]
@@ -44,12 +44,15 @@ export interface UseWorkoutLogResult {
   /**
    * Optimistically log a set: adds it immediately to local state and then
    * POSTs to the API (with retry). The row shows `pending=true` until settled.
+   * With `linkSessionId`, the committed set is then CV-linked (P26): the
+   * server copies the session's form score onto it — never on the temp id,
+   * and a failed link degrades to a plain set (fail open).
    */
   readonly logSet: (
     loggedExerciseId: string,
     weightKg: number,
     reps: number,
-    opts?: { rpe?: number; isWarmup?: boolean },
+    opts?: { rpe?: number; isWarmup?: boolean; linkSessionId?: string },
   ) => void
   /** Mark a set complete (optimistic patch). */
   readonly completeSet: (setId: string, complete: boolean) => void
@@ -113,7 +116,7 @@ export function useWorkoutLog(): UseWorkoutLogResult {
       loggedExerciseId: string,
       weightKg: number,
       reps: number,
-      opts: { rpe?: number; isWarmup?: boolean } = {},
+      opts: { rpe?: number; isWarmup?: boolean; linkSessionId?: string } = {},
     ): void => {
       const optimisticId = tempId()
       const optimistic: LocalSet = {
@@ -166,6 +169,20 @@ export function useWorkoutLog(): UseWorkoutLogResult {
               })),
             }
           })
+          // CV link runs on the committed id only — the endpoint copies the
+          // form score server-side; a failed link leaves a plain set.
+          if (opts.linkSessionId !== undefined) {
+            void withRetry(() => cvLink(real.id, opts.linkSessionId ?? null))
+              .then((linked) => {
+                patchSet(real.id, {
+                  form_score: linked.form_score,
+                  source_session_id: linked.source_session_id,
+                })
+              })
+              .catch(() => {
+                /* fail open */
+              })
+          }
         })
         .catch((err: unknown) => {
           patchSet(optimisticId, {

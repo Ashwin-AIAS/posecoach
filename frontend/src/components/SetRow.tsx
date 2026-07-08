@@ -1,5 +1,5 @@
 import { memo, useId, useState } from "react"
-import { Check, Trash2 } from "lucide-react"
+import { Check, Sparkles, Trash2 } from "lucide-react"
 
 import type { LocalSet } from "../hooks/useWorkoutLog"
 import type { SetHistoryEntry } from "../types"
@@ -9,6 +9,13 @@ import { Icon } from "./ui/Icon"
 
 const KG_PER_LB = 0.453592
 
+/** Score → tone classes, mirroring the score-good/mid/bad palette. */
+function scoreTone(score: number): string {
+  if (score >= 80) return "bg-score-good/15 text-score-good"
+  if (score >= 60) return "bg-score-mid/15 text-score-mid"
+  return "bg-score-bad/15 text-score-bad"
+}
+
 interface SetRowProps {
   readonly setNumber: number
   readonly lastEntry?: SetHistoryEntry
@@ -16,6 +23,8 @@ interface SetRowProps {
   readonly onComplete?: (setId: string, complete: boolean) => void
   readonly onRemove?: (setId: string) => void
   readonly committedSet?: LocalSet
+  /** Pre-filled reps from a just-finished CV form-check (P26). */
+  readonly cvPrefillReps?: number
 }
 
 function SetRowInner({
@@ -25,6 +34,7 @@ function SetRowInner({
   onComplete,
   onRemove,
   committedSet,
+  cvPrefillReps,
 }: SetRowProps): JSX.Element {
   const { unit } = useUnitPref()
   const toKg = (v: number): number => (unit === "lb" ? v * KG_PER_LB : v)
@@ -32,7 +42,13 @@ function SetRowInner({
 
   const lastWeightDisplay = lastEntry ? Math.round(fromKg(lastEntry.weight_kg) * 10) / 10 : null
   const [weight, setWeight] = useState(lastWeightDisplay !== null ? String(lastWeightDisplay) : "")
-  const [reps, setReps] = useState(lastEntry ? String(lastEntry.reps) : "")
+  const [reps, setReps] = useState(
+    cvPrefillReps !== undefined && cvPrefillReps > 0
+      ? String(cvPrefillReps)
+      : lastEntry
+        ? String(lastEntry.reps)
+        : "",
+  )
   const [rpe, setRpe] = useState("")
 
   const weightId = useId()
@@ -74,6 +90,16 @@ function SetRowInner({
           e1RM {Math.round(fromKg(orm))}
           {unit}
         </span>
+        {committedSet.form_score !== null && (
+          <span
+            className={`hud-numerals flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${scoreTone(committedSet.form_score)}`}
+            title="Scored live by PoseCoach"
+            data-testid={`form-badge-${committedSet.id}`}
+          >
+            <Icon icon={Sparkles} size={10} />
+            {Math.round(committedSet.form_score)}
+          </span>
+        )}
         {committedSet.pending && (
           <span className="text-[11px] text-gray-500">saving…</span>
         )}
@@ -187,6 +213,12 @@ function SetRowInner({
       </div>
 
       <div className="flex gap-4 px-6">
+        {cvPrefillReps !== undefined && cvPrefillReps > 0 && (
+          <p className="flex items-center gap-1 text-[11px] font-medium text-accent" data-testid="cv-prefill-hint">
+            <Icon icon={Sparkles} size={10} />
+            Form-check counted {cvPrefillReps} reps
+          </p>
+        )}
         {lastEntry && (
           <p className="text-[11px] text-gray-500">
             Last: {lastWeightDisplay}

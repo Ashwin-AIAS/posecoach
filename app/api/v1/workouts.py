@@ -27,9 +27,12 @@ from app.models import (
     RoutineExercise,
     User,
     WorkoutLog,
+    WorkoutSession,
 )
 from app.workouts.schemas import (
     AddExerciseRequest,
+    CvLinkOut,
+    CvLinkRequest,
     ExerciseHistoryOut,
     ExerciseOut,
     LoggedExerciseOut,
@@ -451,6 +454,54 @@ async def delete_set(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post("/sets/{set_id}/cv-link", response_model=CvLinkOut)
+async def cv_link_set(
+    set_id: str,
+    body: CvLinkRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CvLinkOut:
+    """Attach a live CV session's form score to an owned set — or detach (P26).
+
+    The score is copied server-side from the session's stored
+    ``avg_form_score`` — the client never supplies it. Both the set and the
+    session must belong to the caller; a foreign id returns 404 exactly like a
+    missing one (IDOR rule). Posing sessions carry no exercise form score and
+    are rejected with 422.
+    """
+    s = await _load_owned_set(db, set_id, user.id)
+    if s is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="set not found")
+
+    if body.session_id is None:
+        s.source_session_id = None
+        s.form_score = None
+        await db.flush()
+        logger.info("set_cv_unlinked", user_id=user.id, set_id=set_id)
+        return CvLinkOut(**_set_out(s).model_dump(), session_rep_count=None)
+
+    session = (
+        await db.execute(
+            select(WorkoutSession).where(
+                WorkoutSession.id == body.session_id, WorkoutSession.user_id == user.id
+            )
+        )
+    ).scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+    if session.session_type != "exercise":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="only exercise sessions carry a form score",
+        )
+
+    s.source_session_id = session.id
+    s.form_score = session.avg_form_score
+    await db.flush()
+    logger.info("set_cv_linked", user_id=user.id, set_id=set_id, session_id=session.id)
+    return CvLinkOut(**_set_out(s).model_dump(), session_rep_count=session.rep_count)
+
+
 # ── Routines ──────────────────────────────────────────────────────────────────
 
 
@@ -495,6 +546,24 @@ async def create_routine(
     assert loaded is not None  # just created above
     logger.info("routine_created", user_id=user.id, routine_id=r.id, exercises=len(body.exercise_ids))
     return _routine_out(loaded)
+
+
+@router.delete("/routines/{routine_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_routine(
+    routine_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    # Load with children so the ORM delete-orphan cascade removes the
+    # routine_exercises rows (the in-memory SQLite test engine does not
+    # enforce FK ON DELETE CASCADE) — mirrors delete_workout.
+    r = await _load_routine(db, routine_id, user.id)
+    if r is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="routine not found")
+    await db.delete(r)
+    await db.flush()
+    logger.info("routine_deleted", user_id=user.id, routine_id=routine_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

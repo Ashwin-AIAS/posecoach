@@ -5,9 +5,11 @@
 
 import { apiJson } from "./api"
 import type {
+  CvLinkOut,
   ExerciseSummary,
   ExerciseDetail,
   ExerciseHistoryOut,
+  RoutineOut,
   WorkoutLog,
   WorkoutSummary,
   LoggedExerciseOut,
@@ -61,10 +63,16 @@ export async function listWorkouts(params: ListWorkoutsParams = {}): Promise<Wor
 }
 
 export async function createWorkout(title?: string): Promise<WorkoutLog> {
+  // The API requires a non-empty title (WorkoutCreate min_length=1) — a null
+  // title 422s, so default it client-side.
   return apiJson<WorkoutLog>("/api/v1/workouts/workouts", {
     method: "POST",
-    body: JSON.stringify({ title: title ?? null }),
+    body: JSON.stringify({ title: title ?? "Workout" }),
   })
+}
+
+export async function getWorkout(id: string): Promise<WorkoutLog> {
+  return apiJson<WorkoutLog>(`/api/v1/workouts/workouts/${id}`)
 }
 
 export async function updateWorkout(
@@ -115,4 +123,39 @@ export async function updateSet(id: string, body: Partial<SetBody>): Promise<Log
 
 export async function deleteSet(id: string): Promise<void> {
   await apiJson<unknown>(`/api/v1/workouts/sets/${id}`, { method: "DELETE" })
+}
+
+/**
+ * Attach a live CV session to a set (or detach with `sessionId: null`).
+ * The form score is copied server-side from the session — never sent here.
+ */
+export async function cvLink(setId: string, sessionId: string | null): Promise<CvLinkOut> {
+  return apiJson<CvLinkOut>(`/api/v1/workouts/sets/${setId}/cv-link`, {
+    method: "POST",
+    body: JSON.stringify({ session_id: sessionId }),
+  })
+}
+
+// ── Routines ──────────────────────────────────────────────────────────────────
+
+export async function listRoutines(): Promise<RoutineOut[]> {
+  return apiJson<RoutineOut[]>("/api/v1/workouts/routines")
+}
+
+export async function createRoutine(name: string, exerciseIds: string[]): Promise<RoutineOut> {
+  return apiJson<RoutineOut>("/api/v1/workouts/routines", {
+    method: "POST",
+    body: JSON.stringify({ name, exercise_ids: exerciseIds }),
+  })
+}
+
+export async function deleteRoutine(id: string): Promise<void> {
+  await apiJson<unknown>(`/api/v1/workouts/routines/${id}`, { method: "DELETE" })
+}
+
+/** Start a new workout pre-populated with a routine's exercises. */
+export async function startFromRoutine(routineId: string): Promise<WorkoutLog> {
+  return apiJson<WorkoutLog>(`/api/v1/workouts/workouts/from-routine/${routineId}`, {
+    method: "POST",
+  })
 }

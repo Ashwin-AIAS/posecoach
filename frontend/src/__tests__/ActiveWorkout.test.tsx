@@ -158,3 +158,107 @@ describe("ActiveWorkout", () => {
     expect(mockLog.logSet).toHaveBeenCalledWith("le1", 100, 8, undefined)
   })
 })
+
+describe("ActiveWorkout (P26 CV form-check)", () => {
+  const cvWorkout: LocalWorkout = {
+    ...EMPTY_WORKOUT,
+    exercises: [
+      {
+        id: "le-squat",
+        exercise_id: "ex1",
+        order: 0,
+        exercise: {
+          id: "ex1",
+          slug: "barbell-squat",
+          name: "Barbell Squat",
+          category: "strength",
+          equipment: "barbell",
+          primary_muscles: ["quadriceps"],
+          secondary_muscles: [],
+          instructions: [],
+          image_urls: [],
+          youtube_id: null,
+          is_cv_supported: true,
+        },
+        sets: [],
+      },
+      {
+        id: "le-fly",
+        exercise_id: "ex2",
+        order: 1,
+        exercise: {
+          id: "ex2",
+          slug: "cable-fly",
+          name: "Cable Fly",
+          category: "strength",
+          equipment: "cable",
+          primary_muscles: ["chest"],
+          secondary_muscles: [],
+          instructions: [],
+          image_urls: [],
+          youtube_id: null,
+          is_cv_supported: false,
+        },
+        sets: [],
+      },
+    ],
+  }
+
+  it("shows the Form-check button only for CV-supported exercises", () => {
+    render(
+      <ActiveWorkout
+        workout={cvWorkout}
+        workoutLog={mockWorkoutLog}
+        onFinish={vi.fn()}
+        onFormCheck={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByTestId("exercise-section-le-squat"))
+    expect(screen.getByTestId("form-check-btn-le-squat")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId("exercise-section-le-fly"))
+    expect(screen.queryByTestId("form-check-btn-le-fly")).not.toBeInTheDocument()
+  })
+
+  it("launches the form-check with the logged-exercise id and CV exercise", () => {
+    const onFormCheck = vi.fn()
+    render(
+      <ActiveWorkout
+        workout={cvWorkout}
+        workoutLog={mockWorkoutLog}
+        onFinish={vi.fn()}
+        onFormCheck={onFormCheck}
+      />,
+    )
+    fireEvent.click(screen.getByTestId("exercise-section-le-squat"))
+    fireEvent.click(screen.getByTestId("form-check-btn-le-squat"))
+    expect(onFormCheck).toHaveBeenCalledWith("le-squat", "squat")
+  })
+
+  it("pre-fills reps from a returned form-check and links the session on log", () => {
+    const onConsumed = vi.fn()
+    const mockLog = { ...mockWorkoutLog }
+    render(
+      <ActiveWorkout
+        workout={cvWorkout}
+        workoutLog={mockLog}
+        onFinish={vi.fn()}
+        onFormCheck={vi.fn()}
+        formCheckResult={{ loggedExerciseId: "le-squat", sessionId: "sess-9", repCount: 8 }}
+        onFormCheckConsumed={onConsumed}
+      />,
+    )
+
+    // The target exercise auto-expands and the reps come pre-filled.
+    expect(screen.getByTestId("reps-input-1")).toHaveValue(8)
+    expect(screen.getByTestId("cv-prefill-hint")).toBeInTheDocument()
+
+    fireEvent.change(screen.getByTestId("weight-input-1"), { target: { value: "100" } })
+    fireEvent.click(screen.getByTestId("log-set-btn-1"))
+
+    expect(mockLog.logSet).toHaveBeenCalledWith("le-squat", 100, 8, {
+      linkSessionId: "sess-9",
+    })
+    expect(onConsumed).toHaveBeenCalledOnce()
+  })
+})

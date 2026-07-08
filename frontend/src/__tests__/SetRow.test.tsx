@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { SetRow } from "../components/SetRow"
+import type { LocalSet } from "../hooks/useWorkoutLog"
 
 describe("SetRow (input mode)", () => {
   it("renders the set number input row", () => {
@@ -63,5 +64,50 @@ describe("SetRow (input mode)", () => {
       />,
     )
     expect(screen.getByText(/Last:/)).toBeInTheDocument()
+  })
+})
+
+describe("SetRow (P26 CV form-check)", () => {
+  const COMMITTED: LocalSet = {
+    id: "s1",
+    set_number: 1,
+    weight_kg: 100,
+    reps: 8,
+    rpe: null,
+    is_warmup: false,
+    completed: true,
+    form_score: 87.4,
+    source_session_id: "sess-1",
+    pending: false,
+    error: null,
+  }
+
+  it("pre-fills the reps input from a form-check rep count", () => {
+    render(<SetRow setNumber={1} onLog={vi.fn()} cvPrefillReps={8} />)
+    expect(screen.getByTestId("reps-input-1")).toHaveValue(8)
+    expect(screen.getByTestId("cv-prefill-hint")).toHaveTextContent("Form-check counted 8 reps")
+  })
+
+  it("shows no prefill hint on a plain input row", () => {
+    render(<SetRow setNumber={1} onLog={vi.fn()} />)
+    expect(screen.queryByTestId("cv-prefill-hint")).not.toBeInTheDocument()
+  })
+
+  it("renders a form-score badge on a CV-linked committed set", () => {
+    render(<SetRow setNumber={1} onLog={vi.fn()} committedSet={COMMITTED} />)
+    const badge = screen.getByTestId("form-badge-s1")
+    expect(badge).toHaveTextContent("87")
+    expect(badge).toHaveAttribute("title", "Scored live by PoseCoach")
+  })
+
+  it("shows no badge when the committed set has no form score", () => {
+    render(
+      <SetRow
+        setNumber={1}
+        onLog={vi.fn()}
+        committedSet={{ ...COMMITTED, form_score: null, source_session_id: null }}
+      />,
+    )
+    expect(screen.queryByTestId("form-badge-s1")).not.toBeInTheDocument()
   })
 })

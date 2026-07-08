@@ -15,6 +15,7 @@ import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
 import { ComingSoon } from "./components/ComingSoon"
 import { WorkoutPanel } from "./components/WorkoutPanel"
+import type { PendingFormCheck } from "./components/WorkoutPanel"
 import { EmptyStageHint } from "./components/EmptyStageHint"
 import { ExerciseSelector } from "./components/ExerciseSelector"
 import { HistoryPanel } from "./components/HistoryPanel"
@@ -77,6 +78,9 @@ export default function App(): JSX.Element {
   const [tab, setTab] = useState<TabKey>("coach")
   // True while an active workout is in progress — hides the tab bar (immersive).
   const [workoutActive, setWorkoutActive] = useState(false)
+  // A live form-check launched from the workout logger (P26): remembers which
+  // logged exercise to land the CV session on, across the tab switch and back.
+  const [pendingFormCheck, setPendingFormCheck] = useState<PendingFormCheck | null>(null)
   const [exercise, setExercise] = useState<Exercise>("squat")
   const [mode, setMode] = useState<SessionMode>("exercise")
   const [division, setDivision] = useState<Division>("open")
@@ -201,8 +205,30 @@ export default function App(): JSX.Element {
   const closeSummary = (): void => {
     setSummary(null)
     stats.reset()
+    if (pendingFormCheck !== null) {
+      // A form-check set just finished — hand control back to the workout
+      // logger (the panel resolves the session and pre-fills the set row).
+      setView("home")
+      setTab("workouts")
+      return
+    }
     void camera.start()
   }
+
+  // Launch a live form-check from the workout logger: preselect the movement
+  // and enter the (unchanged) Coach live flow. The pending target survives
+  // the round-trip in App state; the panel consumes it on return.
+  const handleFormCheck = useCallback((loggedExerciseId: string, cv: Exercise): void => {
+    setPendingFormCheck({
+      loggedExerciseId,
+      cvExercise: cv,
+      startedAt: new Date().toISOString(),
+    })
+    setExercise(cv)
+    setMode("exercise")
+    setTab("coach")
+    setView("live")
+  }, [])
 
   return (
     <div className="flex h-[100svh] min-h-[100svh] w-screen flex-col bg-surface-base font-sans text-gray-100">
@@ -568,7 +594,14 @@ export default function App(): JSX.Element {
         </>
       )}
 
-      {tab === "workouts" && <WorkoutPanel onActiveWorkout={setWorkoutActive} />}
+      {tab === "workouts" && (
+        <WorkoutPanel
+          onActiveWorkout={setWorkoutActive}
+          onFormCheck={handleFormCheck}
+          pendingFormCheck={pendingFormCheck}
+          onFormCheckHandled={() => setPendingFormCheck(null)}
+        />
+      )}
 
       {tab === "calories" && (
         <ComingSoon

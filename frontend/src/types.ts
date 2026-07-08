@@ -289,6 +289,28 @@ export interface WorkoutSummary {
   readonly ended_at: string | null
 }
 
+// ── P26: routines + CV linkage (additive — do not change anything above) ──────
+
+/** One ordered exercise slot in a routine template. */
+export interface RoutineExerciseOut {
+  readonly exercise_id: string
+  readonly order: number
+  readonly exercise: ExerciseDetail
+}
+
+/** A reusable routine template ("Push Day"). */
+export interface RoutineOut {
+  readonly id: string
+  readonly name: string
+  readonly created_at: string
+  readonly exercises: readonly RoutineExerciseOut[]
+}
+
+/** cv-link response: the updated set plus the session's CV rep count (null on detach). */
+export interface CvLinkOut extends LoggedSetOut {
+  readonly session_rep_count: number | null
+}
+
 /** Next-session recommendation from the adaptive coach (P16). */
 export interface Recommendation {
   readonly exercise: string

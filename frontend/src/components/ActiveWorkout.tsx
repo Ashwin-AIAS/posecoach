@@ -1,22 +1,43 @@
 import { memo, useCallback, useEffect, useState } from "react"
-import { ChevronDown, ChevronUp, Plus } from "lucide-react"
+import { ChevronDown, ChevronUp, Plus, Video } from "lucide-react"
 
 import type { LocalWorkout, UseWorkoutLogResult } from "../hooks/useWorkoutLog"
-import type { ExerciseSummary, ExerciseHistoryOut } from "../types"
+import type { Exercise, ExerciseSummary, ExerciseHistoryOut } from "../types"
 import { addExercise, getExerciseHistory } from "../lib/workoutsApi"
+import { cvExerciseForSlug } from "../lib/cvExercises"
 import { ExercisePicker } from "./ExercisePicker"
 import { PlateCalculator } from "./PlateCalculator"
 import { RestTimer } from "./RestTimer"
 import { SetRow } from "./SetRow"
 import { Icon } from "./ui/Icon"
 
+/** A finished form-check waiting to land on the next logged set (P26). */
+export interface FormCheckResult {
+  readonly loggedExerciseId: string
+  readonly sessionId: string
+  readonly repCount: number
+}
+
 interface ActiveWorkoutProps {
   readonly workout: LocalWorkout
   readonly workoutLog: UseWorkoutLogResult
   readonly onFinish: () => void
+  /** Launch a live form-check for a CV-supported exercise (switches to Coach). */
+  readonly onFormCheck?: (loggedExerciseId: string, cvExercise: Exercise) => void
+  /** A just-finished form-check: pre-fills the target exercise's next set. */
+  readonly formCheckResult?: FormCheckResult | null
+  /** Called once the form-check result has been logged (or dismissed). */
+  readonly onFormCheckConsumed?: () => void
 }
 
-function ActiveWorkoutInner({ workout, workoutLog, onFinish }: ActiveWorkoutProps): JSX.Element {
+function ActiveWorkoutInner({
+  workout,
+  workoutLog,
+  onFinish,
+  onFormCheck,
+  formCheckResult = null,
+  onFormCheckConsumed,
+}: ActiveWorkoutProps): JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [expandedExercise, setExpandedExercise] = useState<string | null>(null)
   const [history, setHistory] = useState<Record<string, ExerciseHistoryOut>>({})
@@ -59,7 +80,7 @@ function ActiveWorkoutInner({ workout, workoutLog, onFinish }: ActiveWorkoutProp
       loggedExerciseId: string,
       weightKg: number,
       reps: number,
-      opts?: { rpe?: number },
+      opts?: { rpe?: number; linkSessionId?: string },
     ): void => {
       workoutLog.logSet(loggedExerciseId, weightKg, reps, opts)
       // Auto-start rest timer after each logged set.
@@ -73,6 +94,11 @@ function ActiveWorkoutInner({ workout, workoutLog, onFinish }: ActiveWorkoutProp
   const toggleExpanded = useCallback((id: string): void => {
     setExpandedExercise((prev) => (prev === id ? null : id))
   }, [])
+
+  // A returning form-check opens its exercise so the pre-filled row is visible.
+  useEffect(() => {
+    if (formCheckResult !== null) setExpandedExercise(formCheckResult.loggedExerciseId)
+  }, [formCheckResult])
 
   return (
     <div className="flex h-full flex-col" data-testid="active-workout">
@@ -109,6 +135,11 @@ function ActiveWorkoutInner({ workout, workoutLog, onFinish }: ActiveWorkoutProp
             const isExpanded = expandedExercise === le.id
             const hist = history[le.exercise.slug]
             const lastEntry = hist?.entries[0]
+            const cvExercise = cvExerciseForSlug(le.exercise.slug)
+            const pendingCheck =
+              formCheckResult !== null && formCheckResult.loggedExerciseId === le.id
+                ? formCheckResult
+                : null
 
             return (
               <div key={le.id} className="rounded-2xl bg-surface-raised shadow-elev-1">
@@ -154,12 +185,39 @@ function ActiveWorkoutInner({ workout, workoutLog, onFinish }: ActiveWorkoutProp
                       />
                     ))}
 
-                    {/* New set input row */}
+                    {/* New set input row — a returning form-check pre-fills the
+                        CV rep count and links the session on log (P26). */}
                     <SetRow
+                      key={pendingCheck !== null ? pendingCheck.sessionId : "plain"}
                       setNumber={le.sets.length + 1}
                       lastEntry={lastEntry}
-                      onLog={(wKg, reps, opts) => handleLog(le.id, wKg, reps, opts)}
+                      cvPrefillReps={pendingCheck?.repCount}
+                      onLog={(wKg, reps, opts) => {
+                        handleLog(
+                          le.id,
+                          wKg,
+                          reps,
+                          pendingCheck !== null
+                            ? { ...opts, linkSessionId: pendingCheck.sessionId }
+                            : opts,
+                        )
+                        if (pendingCheck !== null) onFormCheckConsumed?.()
+                      }}
                     />
+
+                    {/* Live form-check launcher for CV-supported movements */}
+                    {cvExercise !== null && onFormCheck && pendingCheck === null && (
+                      <button
+                        type="button"
+                        onClick={() => onFormCheck(le.id, cvExercise)}
+                        className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-dashed border-accent/40 text-xs font-medium text-accent transition hover:border-accent hover:bg-accent-soft/30 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        data-testid={`form-check-btn-${le.id}`}
+                        title="Do this set on camera — reps and form score land here"
+                      >
+                        <Icon icon={Video} size={13} />
+                        Form-check this set
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

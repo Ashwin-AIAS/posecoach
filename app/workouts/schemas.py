@@ -62,6 +62,22 @@ class SetUpdate(BaseModel):
     set_number: int | None = Field(default=None, ge=1)
 
 
+class CvLinkRequest(BaseModel):
+    """Attach a live CV session to a set — or detach with ``session_id: null``.
+
+    Only the session id crosses the wire: the form score is copied
+    server-side from the owned session row, never supplied by the client.
+    """
+
+    session_id: str | None
+
+
+class CvLinkOut(SetOut):
+    """The updated set plus the linked session's CV rep count (null on detach)."""
+
+    session_rep_count: int | None
+
+
 class LoggedExerciseOut(BaseModel):
     """An exercise slot within a workout, with its catalog detail and sets."""
 
