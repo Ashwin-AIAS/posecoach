@@ -7,10 +7,7 @@ import redis.asyncio as redis
 
 async def create_redis_client() -> redis.Redis:
     """Create and verify a Redis connection on startup."""
-    # redis-py 5.x ships py.typed but annotates ``from_url`` with untyped
-    # ``**kwargs``, so mypy --strict flags the call as untyped. The return is a
-    # ``Redis`` — annotate it explicitly and silence the one no-untyped-call.
-    client: redis.Redis = redis.from_url(  # type: ignore[no-untyped-call]
+    client: redis.Redis = redis.from_url(
         os.environ["REDIS_URL"],
         encoding="utf-8",
         decode_responses=True,
