@@ -10,7 +10,13 @@ import { apiJson } from "../lib/api"
 import {
   listExercises,
   getExercise,
+  getWorkout,
   createWorkout,
+  createRoutine,
+  cvLink,
+  deleteRoutine,
+  listRoutines,
+  startFromRoutine,
   addSet,
 } from "../lib/workoutsApi"
 
@@ -49,6 +55,78 @@ describe("createWorkout", () => {
     await createWorkout("Push Day")
     expect(mockApiJson).toHaveBeenCalledWith(
       "/api/v1/workouts/workouts",
+      expect.objectContaining({ method: "POST" }),
+    )
+  })
+
+  it("defaults the title — the API rejects a null title with 422", async () => {
+    mockApiJson.mockResolvedValueOnce({ id: "w1", exercises: [] })
+    await createWorkout()
+    const body = JSON.parse(
+      (mockApiJson.mock.calls[0][1] as RequestInit).body as string,
+    ) as Record<string, unknown>
+    expect(typeof body.title).toBe("string")
+    expect((body.title as string).length).toBeGreaterThan(0)
+  })
+})
+
+describe("getWorkout", () => {
+  it("GETs one workout by id", async () => {
+    mockApiJson.mockResolvedValueOnce({ id: "w1", exercises: [] })
+    await getWorkout("w1")
+    expect(mockApiJson).toHaveBeenCalledWith("/api/v1/workouts/workouts/w1")
+  })
+})
+
+describe("cvLink", () => {
+  it("POSTs only the session id — the score is server-side", async () => {
+    mockApiJson.mockResolvedValueOnce({ id: "s1", session_rep_count: 8 })
+    await cvLink("s1", "sess-9")
+    expect(mockApiJson).toHaveBeenCalledWith(
+      "/api/v1/workouts/sets/s1/cv-link",
+      expect.objectContaining({ method: "POST" }),
+    )
+    const body = JSON.parse(
+      (mockApiJson.mock.calls[0][1] as RequestInit).body as string,
+    ) as Record<string, unknown>
+    expect(body).toEqual({ session_id: "sess-9" })
+  })
+
+  it("detaches with a null session id", async () => {
+    mockApiJson.mockResolvedValueOnce({ id: "s1", session_rep_count: null })
+    await cvLink("s1", null)
+    const body = JSON.parse(
+      (mockApiJson.mock.calls[0][1] as RequestInit).body as string,
+    ) as Record<string, unknown>
+    expect(body).toEqual({ session_id: null })
+  })
+})
+
+describe("routines", () => {
+  it("lists, creates, deletes, and starts from a routine", async () => {
+    mockApiJson.mockResolvedValue({})
+    await listRoutines()
+    expect(mockApiJson).toHaveBeenCalledWith("/api/v1/workouts/routines")
+
+    await createRoutine("Push Day", ["e1", "e2"])
+    expect(mockApiJson).toHaveBeenCalledWith(
+      "/api/v1/workouts/routines",
+      expect.objectContaining({ method: "POST" }),
+    )
+    const body = JSON.parse(
+      (mockApiJson.mock.calls[1][1] as RequestInit).body as string,
+    ) as Record<string, unknown>
+    expect(body).toEqual({ name: "Push Day", exercise_ids: ["e1", "e2"] })
+
+    await deleteRoutine("r1")
+    expect(mockApiJson).toHaveBeenCalledWith(
+      "/api/v1/workouts/routines/r1",
+      expect.objectContaining({ method: "DELETE" }),
+    )
+
+    await startFromRoutine("r1")
+    expect(mockApiJson).toHaveBeenCalledWith(
+      "/api/v1/workouts/workouts/from-routine/r1",
       expect.objectContaining({ method: "POST" }),
     )
   })

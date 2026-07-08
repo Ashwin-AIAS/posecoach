@@ -27,6 +27,13 @@ vi.mock("../lib/workoutsApi", () => ({
   addSet: vi.fn(async () => ({})),
   updateSet: vi.fn(async () => ({})),
   deleteSet: vi.fn(async () => undefined),
+  getWorkout: vi.fn(async () => ({})),
+  listRoutines: vi.fn(async () => []),
+  createRoutine: vi.fn(async () => ({})),
+  deleteRoutine: vi.fn(async () => undefined),
+  startFromRoutine: vi.fn(async () => ({})),
+  cvLink: vi.fn(async () => ({})),
+  getExerciseHistory: vi.fn(async () => ({ entries: [] })),
 }))
 
 vi.mock("../hooks/useCamera", () => ({
