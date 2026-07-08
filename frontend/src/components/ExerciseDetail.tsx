@@ -1,8 +1,14 @@
-import { memo, useState } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 import { ChevronLeft, Dumbbell, Play, Star } from "lucide-react"
 
-import type { ExerciseDetail as ExerciseDetailType } from "../types"
+import type { ExerciseDetail as ExerciseDetailType, ExerciseHistoryOut } from "../types"
+import { getExerciseHistory } from "../lib/workoutsApi"
+import { personalRecord, sessionSeries } from "../lib/progression"
+import { useUnitPref } from "../hooks/useUnitPref"
 import { Icon } from "./ui/Icon"
+import { ProgressionChart } from "./ProgressionChart"
+
+const KG_PER_LB = 0.453592
 
 interface ExerciseDetailProps {
   readonly exercise: ExerciseDetailType
@@ -12,10 +18,32 @@ interface ExerciseDetailProps {
 function ExerciseDetailInner({ exercise, onBack }: ExerciseDetailProps): JSX.Element {
   const [imgIndex, setImgIndex] = useState(0)
   const [videoLoaded, setVideoLoaded] = useState(false)
+  const [history, setHistory] = useState<ExerciseHistoryOut | null>(null)
+  const { unit } = useUnitPref()
 
   const img = exercise.image_urls[imgIndex] ?? null
   const hasImages = exercise.image_urls.length > 0
   const hasVideo = exercise.youtube_id !== null
+
+  // Lazy-load this user's history when the detail opens; the Progress section
+  // simply stays hidden for exercises never logged (or when unauthenticated).
+  useEffect(() => {
+    let cancelled = false
+    void getExerciseHistory(exercise.slug)
+      .then((h) => {
+        if (!cancelled) setHistory(h)
+      })
+      .catch(() => {
+        /* best-effort */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [exercise.slug])
+
+  const series = useMemo(() => (history ? sessionSeries(history) : []), [history])
+  const pr = useMemo(() => (history ? personalRecord(history) : null), [history])
+  const fromKg = (v: number): number => (unit === "lb" ? v / KG_PER_LB : v)
 
   return (
     <div className="flex flex-col gap-0 overflow-y-auto" data-testid="exercise-detail">
@@ -73,6 +101,30 @@ function ExerciseDetailInner({ exercise, onBack }: ExerciseDetailProps): JSX.Ele
       )}
 
       <div className="flex flex-col gap-4 p-4">
+        {/* Progress — only for exercises this user has actually logged (P26) */}
+        {series.length > 0 && (
+          <div className="flex flex-col gap-2" data-testid="progress-section">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+              Progress
+            </h3>
+            <div className="rounded-xl bg-surface-raised p-3 shadow-elev-1">
+              <ProgressionChart points={series} unit={unit} />
+              {pr !== null && (
+                <p className="mt-2 text-[11px] text-gray-500" data-testid="pr-line">
+                  Best:{" "}
+                  <span className="hud-numerals text-gray-300">
+                    {Math.round(fromKg(pr.weight_kg) * 10) / 10} {unit} × {pr.reps}
+                  </span>{" "}
+                  — e1RM{" "}
+                  <span className="hud-numerals text-accent">
+                    {Math.round(fromKg(pr.est_one_rep_max) * 10) / 10} {unit}
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Meta chips */}
         <div className="flex flex-wrap gap-2">
           {exercise.equipment && (
