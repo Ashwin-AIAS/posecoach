@@ -1,9 +1,13 @@
-import { memo, useCallback, useEffect, useState } from "react"
+import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { BookOpen, ClipboardList, Play, Plus } from "lucide-react"
 
-import type { ExerciseSummary, ExerciseDetail, WorkoutLog, WorkoutSummary } from "../types"
+import type { Exercise, ExerciseSummary, ExerciseDetail, WorkoutLog, WorkoutSummary } from "../types"
+import { apiJson } from "../lib/api"
 import { createWorkout, createRoutine, getExercise, getWorkout, listWorkouts } from "../lib/workoutsApi"
+import { findFormCheckSession } from "../lib/cvExercises"
+import type { CvSessionCandidate } from "../lib/cvExercises"
 import { ActiveWorkout } from "./ActiveWorkout"
+import type { FormCheckResult } from "./ActiveWorkout"
 import { ExerciseDetail as ExerciseDetailView } from "./ExerciseDetail"
 import { ExerciseLibrary } from "./ExerciseLibrary"
 import { RoutineList } from "./RoutineList"
@@ -12,6 +16,14 @@ import { Icon } from "./ui/Icon"
 import { useWorkoutLog } from "../hooks/useWorkoutLog"
 
 type SubView = "landing" | "library" | "exercise-detail" | "active-workout" | "workout-detail"
+
+/** A form-check in flight: set by App when launching, consumed on return (P26). */
+export interface PendingFormCheck {
+  readonly loggedExerciseId: string
+  readonly cvExercise: Exercise
+  /** ISO timestamp of the launch — the session match must not predate it. */
+  readonly startedAt: string
+}
 
 /**
  * The active workout's id, persisted so the session survives tab switches
@@ -50,9 +62,20 @@ interface RoutineDraft {
 
 interface WorkoutPanelProps {
   readonly onActiveWorkout?: (active: boolean) => void
+  /** Launch a live form-check (App switches to the Coach live flow). */
+  readonly onFormCheck?: (loggedExerciseId: string, cvExercise: Exercise) => void
+  /** A form-check the user just returned from — resolve it to a session. */
+  readonly pendingFormCheck?: PendingFormCheck | null
+  /** Called once the pending form-check has been resolved (match or not). */
+  readonly onFormCheckHandled?: () => void
 }
 
-function WorkoutPanelInner({ onActiveWorkout }: WorkoutPanelProps): JSX.Element {
+function WorkoutPanelInner({
+  onActiveWorkout,
+  onFormCheck,
+  pendingFormCheck = null,
+  onFormCheckHandled,
+}: WorkoutPanelProps): JSX.Element {
   const [subView, setSubView] = useState<SubView>("landing")
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutSummary[]>([])
   const [loadingRecent, setLoadingRecent] = useState(true)
@@ -62,6 +85,9 @@ function WorkoutPanelInner({ onActiveWorkout }: WorkoutPanelProps): JSX.Element 
   const [resumableId, setResumableId] = useState<string | null>(() => readActiveId())
   const [routineDraft, setRoutineDraft] = useState<RoutineDraft | null>(null)
   const [routinesRefresh, setRoutinesRefresh] = useState(0)
+  const [formCheckResult, setFormCheckResult] = useState<FormCheckResult | null>(null)
+  // One resolution per launch — guards effect re-runs (deps change, StrictMode).
+  const handledFormCheckRef = useRef<string | null>(null)
 
   const workoutLog = useWorkoutLog()
 
@@ -91,6 +117,49 @@ function WorkoutPanelInner({ onActiveWorkout }: WorkoutPanelProps): JSX.Element 
     },
     [workoutLog, onActiveWorkout],
   )
+
+  // Returning from a form-check: re-enter the persisted workout (this panel
+  // was unmounted while on the Coach tab) and resolve the launch to its CV
+  // session via the history API. No match → resume without a prefill.
+  useEffect(() => {
+    if (pendingFormCheck === null) return
+    if (handledFormCheckRef.current === pendingFormCheck.startedAt) return
+    handledFormCheckRef.current = pendingFormCheck.startedAt
+
+    void (async () => {
+      if (workoutLog.workout === null) {
+        const storedId = readActiveId()
+        if (storedId !== null) {
+          try {
+            const w = await getWorkout(storedId)
+            if (w.ended_at === null) enterActiveWorkout(w)
+          } catch {
+            // Deleted or unauthenticated — stay on the landing.
+          }
+        }
+      }
+      try {
+        const sessions = await apiJson<CvSessionCandidate[]>(
+          "/api/v1/history/sessions?limit=5",
+        )
+        const match = findFormCheckSession(
+          sessions,
+          pendingFormCheck.cvExercise,
+          pendingFormCheck.startedAt,
+        )
+        if (match !== null) {
+          setFormCheckResult({
+            loggedExerciseId: pendingFormCheck.loggedExerciseId,
+            sessionId: match.id,
+            repCount: match.rep_count,
+          })
+        }
+      } catch {
+        // fail open — a plain set row
+      }
+      onFormCheckHandled?.()
+    })()
+  }, [pendingFormCheck, workoutLog.workout, enterActiveWorkout, onFormCheckHandled])
 
   const handleStartWorkout = async (): Promise<void> => {
     setStartingWorkout(true)
@@ -176,6 +245,9 @@ function WorkoutPanelInner({ onActiveWorkout }: WorkoutPanelProps): JSX.Element 
         workout={workoutLog.workout}
         workoutLog={workoutLog}
         onFinish={() => void handleFinishWorkout()}
+        onFormCheck={onFormCheck}
+        formCheckResult={formCheckResult}
+        onFormCheckConsumed={() => setFormCheckResult(null)}
       />
     )
   }
