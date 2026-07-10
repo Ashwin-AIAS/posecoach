@@ -17,11 +17,12 @@ vi.mock("../components/BarcodeScanner", () => ({
 vi.mock("../lib/nutritionApi", () => ({
   lookupBarcode: vi.fn(),
   createManualFood: vi.fn(),
+  logFood: vi.fn(),
 }))
 
-import { createManualFood, lookupBarcode } from "../lib/nutritionApi"
+import { createManualFood, logFood, lookupBarcode } from "../lib/nutritionApi"
 import { CaloriesPanel } from "../components/CaloriesPanel"
-import type { FoodItemOut } from "../types"
+import type { FoodItemOut, LogEntryOut } from "../types"
 
 const FOOD: FoodItemOut = {
   id: "f1",
@@ -124,5 +125,47 @@ describe("CaloriesPanel", () => {
     expect(screen.getByTestId("fake-scanner")).toBeInTheDocument()
     fireEvent.click(screen.getByTestId("cancel-scan-btn"))
     expect(screen.getByTestId("scan-btn")).toBeInTheDocument()
+  })
+
+  it("product card → Add to diary → sheet logs it → confirmation (P28)", async () => {
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+    const entry: LogEntryOut = {
+      id: "e1",
+      logged_date: "2026-07-10",
+      meal: "snack",
+      amount_g: 15,
+      kcal: 80.85,
+      protein_g: 0.95,
+      carbs_g: 8.63,
+      fat_g: 4.64,
+      food: FOOD,
+    }
+    vi.mocked(logFood).mockResolvedValueOnce(entry)
+    render(<CaloriesPanel />)
+
+    await scanOnce()
+
+    fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
+    expect(screen.getByTestId("add-to-diary-sheet")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId("atd-submit"))
+
+    expect(await screen.findByTestId("logged-confirmation")).toBeInTheDocument()
+    expect(vi.mocked(logFood)).toHaveBeenCalledWith(
+      expect.objectContaining({ food_item_id: "f1", amount_g: 15 }),
+    )
+  })
+
+  it("cancelling the add-to-diary sheet returns to the product card", async () => {
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+    render(<CaloriesPanel />)
+
+    await scanOnce()
+
+    fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
+    fireEvent.click(screen.getByTestId("atd-cancel"))
+
+    expect(screen.getByTestId("add-to-diary-btn")).toBeInTheDocument()
+    expect(vi.mocked(logFood)).not.toHaveBeenCalled()
   })
 })

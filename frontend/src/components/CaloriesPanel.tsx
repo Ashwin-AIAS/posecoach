@@ -1,14 +1,16 @@
 import { memo, useCallback, useState } from "react"
-import { PencilLine, RefreshCw, ScanBarcode, X } from "lucide-react"
+import { CalendarPlus, CheckCircle2, PencilLine, RefreshCw, ScanBarcode, X } from "lucide-react"
 
 import type { FoodItemOut } from "../types"
 import { lookupBarcode } from "../lib/nutritionApi"
+import { todayISO } from "../lib/day"
+import { AddToDiarySheet } from "./AddToDiarySheet"
 import { BarcodeScanner } from "./BarcodeScanner"
 import { FoodMacroCard } from "./FoodMacroCard"
 import { ManualFoodForm } from "./ManualFoodForm"
 import { Icon } from "./ui/Icon"
 
-type Mode = "idle" | "scanning" | "loading" | "product" | "not-found" | "manual" | "error"
+type Mode = "idle" | "scanning" | "loading" | "product" | "not-found" | "manual" | "error" | "log" | "logged"
 
 const BARCODE_RE = /^\d{6,14}$/
 
@@ -135,14 +137,23 @@ function CaloriesPanelInner(): JSX.Element {
             <div className="flex gap-2">
               <button
                 type="button"
+                onClick={() => setMode("log")}
+                className={`${PRIMARY_BTN} flex-1`}
+                data-testid="add-to-diary-btn"
+              >
+                <Icon icon={CalendarPlus} size={18} />
+                Add to diary
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   setFood(null)
                   setMode("scanning")
                 }}
-                className={`${PRIMARY_BTN} flex-1`}
+                className={SECONDARY_BTN}
                 data-testid="scan-another-btn"
               >
-                <Icon icon={ScanBarcode} size={18} />
+                <Icon icon={ScanBarcode} size={16} />
                 Scan another
               </button>
               <button
@@ -153,6 +164,52 @@ function CaloriesPanelInner(): JSX.Element {
                 }}
                 className={SECONDARY_BTN}
                 data-testid="done-btn"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+
+        {mode === "log" && food && (
+          <div className="mt-6 space-y-4">
+            <FoodMacroCard food={food} />
+            <AddToDiarySheet
+              food={food}
+              dateISO={todayISO()}
+              onLogged={() => {
+                setFood(null)
+                setMode("logged")
+              }}
+              onCancel={() => setMode("product")}
+            />
+          </div>
+        )}
+
+        {mode === "logged" && (
+          <div
+            className="mt-8 flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-10 text-center shadow-elev-1"
+            data-testid="logged-confirmation"
+          >
+            <Icon icon={CheckCircle2} size={28} className="text-accent" />
+            <h3 className="mt-3 font-display text-base font-semibold text-gray-100">
+              Added to your diary
+            </h3>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("scanning")}
+                className={PRIMARY_BTN}
+                data-testid="logged-scan-another-btn"
+              >
+                <Icon icon={ScanBarcode} size={18} />
+                Scan another
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("idle")}
+                className={SECONDARY_BTN}
+                data-testid="logged-done-btn"
               >
                 Done
               </button>
