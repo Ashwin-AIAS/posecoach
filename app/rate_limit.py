@@ -22,6 +22,7 @@ from slowapi.util import get_remote_address
 # Per-endpoint limits — referenced by the @limiter.limit decorators.
 AUTH_RATE_LIMIT = "10/minute"  # login + register, per IP
 CHAT_RATE_LIMIT = "10/minute"  # /chat/stream, per IP (Gemini free tier is 15/min)
+NUTRITION_RATE_LIMIT = "10/minute"  # /nutrition/products lookups (OFF quota is 15/min/IP)
 
 _RATE_LIMIT_ENABLED = os.environ.get("RATE_LIMIT_ENABLED", "true").lower() == "true"
 
