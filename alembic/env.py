@@ -51,10 +51,16 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations using the async engine — required for asyncpg."""
+    # Same TLS handling as app/db.py: managed Postgres rejects non-TLS
+    # connections and asyncpg only honors SSL via connect_args.
+    ssl_mode = os.environ.get("POSTGRES_SSL", "")
+    url = config.get_main_option("sqlalchemy.url") or ""
+    connect_args = {"ssl": ssl_mode} if ssl_mode and not url.startswith("sqlite") else {}
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
