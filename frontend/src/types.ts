@@ -339,3 +339,37 @@ export interface FoodItemOut {
   readonly image_url: string | null
   readonly source: string
 }
+
+// ── P28: diary (additive — mirrors app/nutrition/schemas.py exactly) ─────────
+
+/** The four diary meals, in display order. */
+export type Meal = "breakfast" | "lunch" | "dinner" | "snack"
+
+/** One diary row with its food detail and log-time macro snapshot. */
+export interface LogEntryOut {
+  readonly id: string
+  /** ISO `YYYY-MM-DD` — a date, never a timestamp. */
+  readonly logged_date: string
+  readonly meal: string
+  readonly amount_g: number
+  readonly kcal: number
+  readonly protein_g: number
+  readonly carbs_g: number
+  readonly fat_g: number
+  readonly food: FoodItemOut
+}
+
+/** Running totals for one diary day. */
+export interface DailyTotals {
+  readonly kcal: number
+  readonly protein_g: number
+  readonly carbs_g: number
+  readonly fat_g: number
+}
+
+/** A full diary day: entries (insertion order) + server-computed totals. */
+export interface DailyLogOut {
+  readonly log_date: string
+  readonly entries: readonly LogEntryOut[]
+  readonly totals: DailyTotals
+}
