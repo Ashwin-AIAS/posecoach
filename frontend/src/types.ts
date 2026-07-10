@@ -321,3 +321,21 @@ export interface Recommendation {
   /** One-line plain-English coaching message. */
   readonly message: string
 }
+
+// ── P27: nutrition (additive — do not change anything above) ─────────────────
+
+/** A food product: an Open Food Facts cache row or the user's own manual entry. */
+export interface FoodItemOut {
+  readonly id: string
+  readonly barcode: string | null
+  readonly name: string
+  readonly brand: string | null
+  readonly serving_size_g: number | null
+  readonly serving_label: string | null
+  readonly kcal_100g: number
+  readonly protein_100g: number
+  readonly carbs_100g: number
+  readonly fat_100g: number
+  readonly image_url: string | null
+  readonly source: string
+}
