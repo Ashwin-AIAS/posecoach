@@ -44,6 +44,15 @@ module = [
 ]
 ignore_missing_imports = true
 
+# redis-py 5.x ships py.typed but leaves ``from_url`` unannotated, so --strict
+# flags the call unless the optional types-redis stubs happen to be installed.
+# Relax untyped-call checking in the one thin wrapper module instead of
+# depending on per-machine stub presence (a type:ignore would trip
+# warn_unused_ignores on machines that DO have the stubs).
+[[tool.mypy.overrides]]
+module = ["app.cache"]
+disallow_untyped_calls = false
+
 # Ultralytics ships no py.typed. When it IS installed (e.g. a dev box that ran an
 # ONNX export), --strict's no-implicit-reexport flags `from ultralytics import
 # YOLO`; skipping follow keeps it Any whether or not the heavy lib is present.

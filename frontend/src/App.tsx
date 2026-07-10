@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ChevronLeft,
-  Flame,
   MessageCircle,
   PlayCircle,
   RefreshCw,
@@ -13,7 +12,7 @@ import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
 import { ChatPanel } from "./components/ChatPanel"
 import { CoachingCues } from "./components/CoachingCues"
-import { ComingSoon } from "./components/ComingSoon"
+import { CaloriesPanel } from "./components/CaloriesPanel"
 import { WorkoutPanel } from "./components/WorkoutPanel"
 import type { PendingFormCheck } from "./components/WorkoutPanel"
 import { EmptyStageHint } from "./components/EmptyStageHint"
@@ -603,13 +602,7 @@ export default function App(): JSX.Element {
         />
       )}
 
-      {tab === "calories" && (
-        <ComingSoon
-          title="Calories"
-          subtitle="Scan a barcode to see calories and macros, then track them in a simple daily diary."
-          icon={Flame}
-        />
-      )}
+      {tab === "calories" && <CaloriesPanel />}
 
       {tab === "settings" && (
         <SettingsPanel auth={auth} onNavigateCoach={() => setTab("coach")} />
