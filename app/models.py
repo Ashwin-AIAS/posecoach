@@ -233,3 +233,71 @@ class RoutineExercise(Base):
 
     routine: Mapped["Routine"] = relationship(back_populates="exercises")
     exercise: Mapped["Exercise"] = relationship()
+
+
+# ── P27: calorie tracker (additive; everything above is untouched) ────────────
+#
+# FoodItem is both the server-side Open Food Facts cache (``source="off"``,
+# shared across users, ``created_by`` NULL) and the store for per-user manual
+# entries (``source="manual"``, visible only to their creator). FoodLogEntry is
+# the daily diary; its macro columns are SNAPSHOTS computed at log time from
+# ``amount_g`` × the food's per-100 g values, so a later cache refresh never
+# rewrites diary history.
+
+
+class FoodItem(Base):
+    """A food product (P27): an OFF-cached product or a user's manual entry."""
+
+    __tablename__ = "food_items"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    # Nullable — manual entries have no barcode. Unique so each product caches once.
+    barcode: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    brand: Mapped[str | None] = mapped_column(String, nullable=True)
+    serving_size_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    serving_label: Mapped[str | None] = mapped_column(String, nullable=True)
+    kcal_100g: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    protein_100g: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    carbs_100g: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    fat_100g: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    image_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # "off" (shared cache row) or "manual" (per-user entry).
+    source: Mapped[str] = mapped_column(String, nullable=False, default="off")
+    # Set for manual foods only, so GDPR account deletion removes them.
+    created_by: Mapped[str | None] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+
+class FoodLogEntry(Base):
+    """One diary row (P27): a food eaten on a date, macros snapshotted at log time."""
+
+    __tablename__ = "food_log_entries"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    food_item_id: Mapped[str] = mapped_column(
+        String, ForeignKey("food_items.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    logged_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    meal: Mapped[str] = mapped_column(String, nullable=False, default="snack")
+    amount_g: Mapped[float] = mapped_column(Float, nullable=False)
+    # Snapshot columns — computed server-side when the entry is created/updated.
+    kcal: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    protein_g: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    carbs_g: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    fat_g: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+    food_item: Mapped["FoodItem"] = relationship()
