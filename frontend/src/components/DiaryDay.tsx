@@ -1,5 +1,16 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { CalendarPlus, ChevronLeft, ChevronRight, RefreshCw, Undo2 } from "lucide-react"
+import {
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  Coffee,
+  Cookie,
+  Moon,
+  RefreshCw,
+  Sun,
+  Undo2,
+} from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
 import type { DailyLogOut, LogEntryOut, Meal } from "../types"
 import { deleteLogEntry, getDailyLog } from "../lib/nutritionApi"
@@ -19,6 +30,54 @@ interface DiaryDayProps {
 
 /** How long the Undo affordance stays before the DELETE is actually sent. */
 const UNDO_MS = 5000
+
+const MEAL_ICONS: Record<Meal, LucideIcon> = {
+  breakfast: Coffee,
+  lunch: Sun,
+  dinner: Moon,
+  snack: Cookie,
+}
+
+/** jsdom (tests) and very old browsers lack matchMedia — treat as reduced motion. */
+function prefersReducedMotion(): boolean {
+  if (typeof window.matchMedia !== "function") return true
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+}
+
+const COUNT_UP_MS = 450
+
+/** Counts from the previous displayed value to `target`; snaps when reduced. */
+function useCountUp(target: number): number {
+  const reduced = prefersReducedMotion()
+  const [value, setValue] = useState(target)
+  const fromRef = useRef(target)
+
+  useEffect(() => {
+    if (reduced) {
+      fromRef.current = target
+      setValue(target)
+      return
+    }
+    const from = fromRef.current
+    if (from === target) return
+    const start = performance.now()
+    let frame = 0
+    const tick = (now: number): void => {
+      const t = Math.min(1, (now - start) / COUNT_UP_MS)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(from + (target - from) * eased)
+      if (t < 1) {
+        frame = requestAnimationFrame(tick)
+      } else {
+        fromRef.current = target
+      }
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [target, reduced])
+
+  return value
+}
 
 const NAV_BTN =
   "grid h-11 w-11 place-content-center rounded-full text-gray-300 shadow-elev-1 transition ease-spring hover:text-white active:scale-[0.95] disabled:opacity-30 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
@@ -148,6 +207,7 @@ function DiaryDayInner({ dateISO, onDateChange, onAddFood }: DiaryDayProps): JSX
   // Totals derive from the rows so optimistic edits/deletes stay consistent;
   // on a fresh fetch this equals the server's totals (same snapshot sums).
   const totals = useMemo(() => sumTotals(current?.entries ?? []), [current])
+  const animatedKcal = useCountUp(totals.kcal)
   const macroGrams = totals.protein_g + totals.carbs_g + totals.fat_g
   const share = (g: number): number => (macroGrams > 0 ? (g / macroGrams) * 100 : 0)
 
@@ -236,7 +296,7 @@ function DiaryDayInner({ dateISO, onDateChange, onAddFood }: DiaryDayProps): JSX
               <div className="mt-4 rounded-2xl bg-surface-raised p-4 shadow-elev-1" data-testid="daily-totals">
                 <div className="flex items-baseline gap-2">
                   <span className="hud-numerals text-3xl font-semibold text-accent" data-testid="totals-kcal">
-                    {fmt(totals.kcal)}
+                    {fmt(animatedKcal)}
                   </span>
                   <span className="text-sm text-gray-500">kcal</span>
                 </div>
@@ -276,7 +336,10 @@ function DiaryDayInner({ dateISO, onDateChange, onAddFood }: DiaryDayProps): JSX
                     return (
                       <section key={meal} className="mt-4" data-testid={`meal-section-${meal}`}>
                         <header className="flex items-baseline justify-between px-2">
-                          <h4 className="font-display text-sm font-semibold text-gray-300">{MEAL_LABELS[meal]}</h4>
+                          <h4 className="flex items-center gap-1.5 font-display text-sm font-semibold text-gray-300">
+                            <Icon icon={MEAL_ICONS[meal]} size={14} className="text-gray-500" />
+                            {MEAL_LABELS[meal]}
+                          </h4>
                           <span className="hud-numerals text-xs text-gray-500" data-testid={`meal-subtotal-${meal}`}>
                             {fmt(subtotal.kcal)} kcal
                           </span>
