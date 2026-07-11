@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { createManualFood, lookupBarcode, searchFoods } from "../lib/nutritionApi"
-import type { FoodItemOut } from "../types"
+import {
+  createManualFood,
+  deleteLogEntry,
+  getDailyLog,
+  logFood,
+  lookupBarcode,
+  searchFoods,
+  updateLogEntry,
+} from "../lib/nutritionApi"
+import type { FoodItemOut, LogEntryOut } from "../types"
 
 const FOOD: FoodItemOut = {
   id: "f1",
@@ -64,5 +72,95 @@ describe("searchFoods", () => {
     const rows = await searchFoods("nutella spread")
     expect(rows).toHaveLength(1)
     expect(String(fn.mock.calls[0]?.[0])).toContain("q=nutella+spread")
+  })
+})
+
+// ── P28 diary wrappers ────────────────────────────────────────────────────────
+
+const ENTRY: LogEntryOut = {
+  id: "e1",
+  logged_date: "2026-07-10",
+  meal: "breakfast",
+  amount_g: 30,
+  kcal: 161.7,
+  protein_g: 1.89,
+  carbs_g: 17.25,
+  fat_g: 9.27,
+  food: FOOD,
+}
+
+describe("logFood", () => {
+  it("POSTs the entry body to /log and returns the created row", async () => {
+    const fn = mockFetch(201, ENTRY)
+    const created = await logFood({
+      food_item_id: "f1",
+      logged_date: "2026-07-10",
+      meal: "breakfast",
+      amount_g: 30,
+    })
+    expect(created.id).toBe("e1")
+    const [url, init] = fn.mock.calls[0] as [string, RequestInit]
+    expect(String(url)).toContain("/api/v1/nutrition/log")
+    expect(init.method).toBe("POST")
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      food_item_id: "f1",
+      logged_date: "2026-07-10",
+      meal: "breakfast",
+      amount_g: 30,
+    })
+  })
+
+  it("surfaces the server detail on failure", async () => {
+    mockFetch(404, { detail: "food not found" })
+    await expect(
+      logFood({ food_item_id: "nope", logged_date: "2026-07-10", meal: "snack", amount_g: 100 }),
+    ).rejects.toThrow(/food not found/)
+  })
+})
+
+describe("getDailyLog", () => {
+  it("GETs /log with the date param and returns entries + totals", async () => {
+    const fn = mockFetch(200, {
+      log_date: "2026-07-10",
+      entries: [ENTRY],
+      totals: { kcal: 161.7, protein_g: 1.89, carbs_g: 17.25, fat_g: 9.27 },
+    })
+    const day = await getDailyLog("2026-07-10")
+    expect(day.entries).toHaveLength(1)
+    expect(day.totals.kcal).toBeCloseTo(161.7)
+    expect(String(fn.mock.calls[0]?.[0])).toContain("/api/v1/nutrition/log?date=2026-07-10")
+  })
+})
+
+describe("updateLogEntry", () => {
+  it("PATCHes only the given fields and returns the updated row", async () => {
+    const fn = mockFetch(200, { ...ENTRY, amount_g: 45, kcal: 242.55 })
+    const updated = await updateLogEntry("e1", { amount_g: 45 })
+    expect(updated.amount_g).toBe(45)
+    const [url, init] = fn.mock.calls[0] as [string, RequestInit]
+    expect(String(url)).toContain("/api/v1/nutrition/log/e1")
+    expect(init.method).toBe("PATCH")
+    expect(JSON.parse(String(init.body))).toEqual({ amount_g: 45 })
+  })
+
+  it("surfaces a 404 (foreign or deleted entry) as an error, not a crash", async () => {
+    mockFetch(404, { detail: "log entry not found" })
+    await expect(updateLogEntry("someone-elses", { meal: "lunch" })).rejects.toThrow(/not found/)
+  })
+})
+
+describe("deleteLogEntry", () => {
+  it("DELETEs the entry and resolves void on 204 (no body to parse)", async () => {
+    const fn = vi.fn(async () => new Response(null, { status: 204 }))
+    vi.stubGlobal("fetch", fn)
+    await expect(deleteLogEntry("e1")).resolves.toBeUndefined()
+    const [url, init] = fn.mock.calls[0] as unknown as [string, RequestInit]
+    expect(String(url)).toContain("/api/v1/nutrition/log/e1")
+    expect(init.method).toBe("DELETE")
+  })
+
+  it("throws the server detail on failure", async () => {
+    mockFetch(404, { detail: "log entry not found" })
+    await expect(deleteLogEntry("gone")).rejects.toThrow(/not found/)
   })
 })

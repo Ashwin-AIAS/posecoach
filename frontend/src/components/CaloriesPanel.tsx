@@ -1,14 +1,20 @@
 import { memo, useCallback, useState } from "react"
-import { PencilLine, RefreshCw, ScanBarcode, X } from "lucide-react"
+import { CalendarPlus, ChevronLeft, PencilLine, RefreshCw, ScanBarcode, X } from "lucide-react"
 
 import type { FoodItemOut } from "../types"
 import { lookupBarcode } from "../lib/nutritionApi"
+import { todayISO } from "../lib/day"
+import { AddFoodChooser } from "./AddFoodChooser"
+import { AddToDiarySheet } from "./AddToDiarySheet"
 import { BarcodeScanner } from "./BarcodeScanner"
+import { DiaryDay } from "./DiaryDay"
 import { FoodMacroCard } from "./FoodMacroCard"
 import { ManualFoodForm } from "./ManualFoodForm"
 import { Icon } from "./ui/Icon"
 
-type Mode = "idle" | "scanning" | "loading" | "product" | "not-found" | "manual" | "error"
+type View = "diary" | "add"
+/** The P27 scan machine, plus "choose" (the add-food entry point) and "log". */
+type AddMode = "choose" | "scanning" | "loading" | "product" | "not-found" | "manual" | "error" | "log"
 
 const BARCODE_RE = /^\d{6,14}$/
 
@@ -18,39 +24,52 @@ const SECONDARY_BTN =
   "flex min-h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium text-gray-300 shadow-elev-1 transition ease-spring hover:text-white active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
 
 /**
- * Calories tab (P27): scan a barcode on-device → see calories + macros, with a
- * manual-entry fallback for products Open Food Facts doesn't know. Logging to
- * the daily diary arrives in P28. Full-screen, memoized, owns its header —
+ * Calories tab (P28): the tab home is the daily food diary — totals, meal
+ * groups, day navigation. Adding food (the P27 scan → macro card → manual
+ * fallback machine, plus name search) is a flow launched from the diary and
+ * logs to the currently-viewed day. Full-screen, memoized, owns its header —
  * mirrors the SettingsPanel/WorkoutPanel pattern.
  */
 function CaloriesPanelInner(): JSX.Element {
-  const [mode, setMode] = useState<Mode>("idle")
+  const [view, setView] = useState<View>("diary")
+  const [dateISO, setDateISO] = useState<string>(todayISO())
+  const [addMode, setAddMode] = useState<AddMode>("choose")
   const [food, setFood] = useState<FoodItemOut | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const openAdd = useCallback((): void => {
+    setFood(null)
+    setError(null)
+    setAddMode("choose")
+    setView("add")
+  }, [])
+
+  // DiaryDay remounts on return and refetches — the new row is simply there.
+  const closeAdd = useCallback((): void => setView("diary"), [])
+
   const handleDecoded = useCallback((digits: string): void => {
     if (!BARCODE_RE.test(digits)) return // not a retail food code — keep scanning
-    setMode("loading")
+    setAddMode("loading")
     void (async () => {
       try {
         const result = await lookupBarcode(digits)
         if (result === null) {
-          setMode("not-found")
+          setAddMode("not-found")
         } else {
           setFood(result)
-          setMode("product")
+          setAddMode("product")
         }
       } catch (e) {
         const message = (e as Error).message
         setError(/\(401\)/.test(message) ? "Sign in to look up foods." : message)
-        setMode("error")
+        setAddMode("error")
       }
     })()
   }, [])
 
   const handleScannerError = useCallback((message: string): void => {
     setError(message || "Camera unavailable — check permissions.")
-    setMode("error")
+    setAddMode("error")
   }, [])
 
   return (
@@ -60,45 +79,40 @@ function CaloriesPanelInner(): JSX.Element {
       data-testid="calories-panel"
     >
       <div className="mx-auto max-w-2xl">
+        {view === "add" && (
+          <button
+            type="button"
+            onClick={closeAdd}
+            className="mb-2 flex min-h-11 items-center gap-1 rounded-full pr-3 text-sm font-medium text-gray-400 transition ease-spring hover:text-white active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
+            data-testid="add-back-btn"
+          >
+            <Icon icon={ChevronLeft} size={18} />
+            Diary
+          </button>
+        )}
         <h2 className="font-display text-xl font-semibold">Calories</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Scan a product barcode to see its calories and macros.
+          {view === "diary"
+            ? "Your food diary — running totals for the day."
+            : "Add a food to your diary."}
         </p>
 
-        {mode === "idle" && (
-          <div className="mt-8 flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-10 text-center shadow-elev-1">
-            <div className="grid h-16 w-16 place-content-center rounded-2xl bg-accent-soft">
-              <Icon icon={ScanBarcode} size={28} className="text-accent" />
-            </div>
-            <p className="mt-4 max-w-xs text-sm text-gray-400">
-              Point your camera at any food barcode. Scanning happens on your
-              device — only the number is looked up.
-            </p>
-            <button
-              type="button"
-              onClick={() => setMode("scanning")}
-              className={`${PRIMARY_BTN} mt-6`}
-              data-testid="scan-btn"
-            >
-              <Icon icon={ScanBarcode} size={18} />
-              Scan a barcode
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("manual")}
-              className={`${SECONDARY_BTN} mt-3`}
-              data-testid="manual-entry-btn"
-            >
-              <Icon icon={PencilLine} size={16} />
-              Type it in instead
-            </button>
-            <p className="mt-6 text-[11px] text-gray-600">
-              Product data is community-sourced from Open Food Facts.
-            </p>
-          </div>
+        {view === "diary" && (
+          <DiaryDay dateISO={dateISO} onDateChange={setDateISO} onAddFood={openAdd} />
         )}
 
-        {mode === "scanning" && (
+        {view === "add" && addMode === "choose" && (
+          <AddFoodChooser
+            onScan={() => setAddMode("scanning")}
+            onManual={() => setAddMode("manual")}
+            onPick={(picked) => {
+              setFood(picked)
+              setAddMode("log")
+            }}
+          />
+        )}
+
+        {view === "add" && addMode === "scanning" && (
           <div className="mt-6">
             <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-black shadow-elev-2 sm:aspect-video">
               <BarcodeScanner onDecoded={handleDecoded} onError={handleScannerError} />
@@ -109,7 +123,7 @@ function CaloriesPanelInner(): JSX.Element {
             </p>
             <button
               type="button"
-              onClick={() => setMode("idle")}
+              onClick={() => setAddMode("choose")}
               className={`${SECONDARY_BTN} mx-auto mt-4`}
               data-testid="cancel-scan-btn"
             >
@@ -119,7 +133,7 @@ function CaloriesPanelInner(): JSX.Element {
           </div>
         )}
 
-        {mode === "loading" && (
+        {view === "add" && addMode === "loading" && (
           <div
             className="mt-8 flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-12 text-center shadow-elev-1"
             data-testid="lookup-loading"
@@ -129,38 +143,51 @@ function CaloriesPanelInner(): JSX.Element {
           </div>
         )}
 
-        {mode === "product" && food && (
+        {view === "add" && addMode === "product" && food && (
           <div className="mt-6 space-y-4">
             <FoodMacroCard food={food} />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setFood(null)
-                  setMode("scanning")
-                }}
+                onClick={() => setAddMode("log")}
                 className={`${PRIMARY_BTN} flex-1`}
-                data-testid="scan-another-btn"
+                data-testid="add-to-diary-btn"
               >
-                <Icon icon={ScanBarcode} size={18} />
-                Scan another
+                <Icon icon={CalendarPlus} size={18} />
+                Add to diary
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setFood(null)
-                  setMode("idle")
+                  setAddMode("scanning")
                 }}
                 className={SECONDARY_BTN}
-                data-testid="done-btn"
+                data-testid="scan-another-btn"
               >
+                <Icon icon={ScanBarcode} size={16} />
+                Scan another
+              </button>
+              <button type="button" onClick={closeAdd} className={SECONDARY_BTN} data-testid="done-btn">
                 Done
               </button>
             </div>
           </div>
         )}
 
-        {mode === "not-found" && (
+        {view === "add" && addMode === "log" && food && (
+          <div className="mt-6 space-y-4">
+            <FoodMacroCard food={food} />
+            <AddToDiarySheet
+              food={food}
+              dateISO={dateISO}
+              onLogged={closeAdd}
+              onCancel={() => setAddMode("product")}
+            />
+          </div>
+        )}
+
+        {view === "add" && addMode === "not-found" && (
           <div
             className="mt-8 flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-10 text-center shadow-elev-1"
             data-testid="not-found"
@@ -175,7 +202,7 @@ function CaloriesPanelInner(): JSX.Element {
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
-                onClick={() => setMode("manual")}
+                onClick={() => setAddMode("manual")}
                 className={PRIMARY_BTN}
                 data-testid="not-found-manual-btn"
               >
@@ -184,7 +211,7 @@ function CaloriesPanelInner(): JSX.Element {
               </button>
               <button
                 type="button"
-                onClick={() => setMode("scanning")}
+                onClick={() => setAddMode("scanning")}
                 className={SECONDARY_BTN}
                 data-testid="not-found-rescan-btn"
               >
@@ -194,19 +221,19 @@ function CaloriesPanelInner(): JSX.Element {
           </div>
         )}
 
-        {mode === "manual" && (
+        {view === "add" && addMode === "manual" && (
           <div className="mt-6">
             <ManualFoodForm
               onCreated={(created) => {
                 setFood(created)
-                setMode("product")
+                setAddMode("log")
               }}
-              onCancel={() => setMode("idle")}
+              onCancel={() => setAddMode("choose")}
             />
           </div>
         )}
 
-        {mode === "error" && (
+        {view === "add" && addMode === "error" && (
           <div
             className="mt-8 flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-10 text-center shadow-elev-1"
             data-testid="lookup-error"
@@ -218,7 +245,7 @@ function CaloriesPanelInner(): JSX.Element {
               type="button"
               onClick={() => {
                 setError(null)
-                setMode("idle")
+                setAddMode("choose")
               }}
               className={`${SECONDARY_BTN} mt-5`}
               data-testid="error-back-btn"

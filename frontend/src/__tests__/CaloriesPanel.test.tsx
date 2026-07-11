@@ -17,11 +17,17 @@ vi.mock("../components/BarcodeScanner", () => ({
 vi.mock("../lib/nutritionApi", () => ({
   lookupBarcode: vi.fn(),
   createManualFood: vi.fn(),
+  logFood: vi.fn(),
+  getDailyLog: vi.fn(),
+  searchFoods: vi.fn(),
+  updateLogEntry: vi.fn(),
+  deleteLogEntry: vi.fn(),
 }))
 
-import { createManualFood, lookupBarcode } from "../lib/nutritionApi"
+import { createManualFood, getDailyLog, logFood, lookupBarcode } from "../lib/nutritionApi"
 import { CaloriesPanel } from "../components/CaloriesPanel"
-import type { FoodItemOut } from "../types"
+import { todayISO } from "../lib/day"
+import type { DailyLogOut, FoodItemOut, LogEntryOut } from "../types"
 
 const FOOD: FoodItemOut = {
   id: "f1",
@@ -38,14 +44,39 @@ const FOOD: FoodItemOut = {
   source: "off",
 }
 
-beforeEach(() => vi.clearAllMocks())
+function emptyDay(): DailyLogOut {
+  return {
+    log_date: todayISO(),
+    entries: [],
+    totals: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+  }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.mocked(getDailyLog).mockResolvedValue(emptyDay())
+})
+
+/** P28: the tab lands on the diary — the add-flow starts from "Add food". */
+async function openAddFlow(): Promise<void> {
+  fireEvent.click(await screen.findByTestId("diary-empty-add"))
+}
 
 async function scanOnce(): Promise<void> {
+  await openAddFlow()
   fireEvent.click(screen.getByTestId("scan-btn"))
   fireEvent.click(screen.getByTestId("fake-scanner"))
 }
 
 describe("CaloriesPanel", () => {
+  it("lands on today's diary (P28 home): day nav + totals", async () => {
+    render(<CaloriesPanel />)
+    expect(await screen.findByTestId("day-nav")).toBeInTheDocument()
+    expect(screen.getByTestId("day-label")).toHaveTextContent("Today")
+    expect(screen.getByTestId("daily-totals")).toBeInTheDocument()
+    expect(vi.mocked(getDailyLog)).toHaveBeenCalledWith(todayISO())
+  })
+
   it("scan → macro card with kcal and per-serving values", async () => {
     vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
     render(<CaloriesPanel />)
@@ -62,7 +93,7 @@ describe("CaloriesPanel", () => {
     expect(screen.getByText(/80\.9 kcal/)).toBeInTheDocument()
   })
 
-  it("unknown barcode → not-found state → manual form → card", async () => {
+  it("unknown barcode → not-found state → manual form → card + add sheet", async () => {
     vi.mocked(lookupBarcode).mockResolvedValueOnce(null)
     vi.mocked(createManualFood).mockResolvedValueOnce({
       ...FOOD,
@@ -87,9 +118,11 @@ describe("CaloriesPanel", () => {
       expect.objectContaining({ name: "Homemade bar", kcal_100g: 450 }),
     )
     expect(screen.getByText("Your manual entry.")).toBeInTheDocument()
+    // A just-created manual food is ready to log straight away (P28).
+    expect(screen.getByTestId("add-to-diary-sheet")).toBeInTheDocument()
   })
 
-  it("OFF outage shows the error state with a way back", async () => {
+  it("OFF outage shows the error state with a way back to the chooser", async () => {
     vi.mocked(lookupBarcode).mockRejectedValueOnce(
       new Error("food database unreachable — try again shortly"),
     )
@@ -112,17 +145,70 @@ describe("CaloriesPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Sign in to look up foods.")
   })
 
-  it("manual entry is reachable straight from idle", () => {
+  it("manual entry is reachable from the add-food chooser", async () => {
     render(<CaloriesPanel />)
+    await openAddFlow()
     fireEvent.click(screen.getByTestId("manual-entry-btn"))
     expect(screen.getByTestId("manual-food-form")).toBeInTheDocument()
   })
 
-  it("cancel returns from the scanner to idle", () => {
+  it("cancelling the scanner returns to the chooser", async () => {
     render(<CaloriesPanel />)
+    await openAddFlow()
     fireEvent.click(screen.getByTestId("scan-btn"))
     expect(screen.getByTestId("fake-scanner")).toBeInTheDocument()
     fireEvent.click(screen.getByTestId("cancel-scan-btn"))
     expect(screen.getByTestId("scan-btn")).toBeInTheDocument()
+  })
+
+  it("the back button leaves the add-flow for the diary", async () => {
+    render(<CaloriesPanel />)
+    await openAddFlow()
+    fireEvent.click(screen.getByTestId("add-back-btn"))
+    expect(await screen.findByTestId("day-nav")).toBeInTheDocument()
+  })
+
+  it("product card → Add to diary → sheet logs it → back on the diary (P28)", async () => {
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+    const entry: LogEntryOut = {
+      id: "e1",
+      logged_date: todayISO(),
+      meal: "snack",
+      amount_g: 15,
+      kcal: 80.85,
+      protein_g: 0.95,
+      carbs_g: 8.63,
+      fat_g: 4.64,
+      food: FOOD,
+    }
+    vi.mocked(logFood).mockResolvedValueOnce(entry)
+    render(<CaloriesPanel />)
+
+    await scanOnce()
+
+    fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
+    expect(screen.getByTestId("add-to-diary-sheet")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId("atd-submit"))
+
+    // Success returns to the diary, which refetches the viewed day.
+    expect(await screen.findByTestId("day-nav")).toBeInTheDocument()
+    expect(vi.mocked(logFood)).toHaveBeenCalledWith(
+      expect.objectContaining({ food_item_id: "f1", amount_g: 15, logged_date: todayISO() }),
+    )
+    expect(vi.mocked(getDailyLog).mock.calls.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("cancelling the add-to-diary sheet returns to the product card", async () => {
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+    render(<CaloriesPanel />)
+
+    await scanOnce()
+
+    fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
+    fireEvent.click(screen.getByTestId("atd-cancel"))
+
+    expect(screen.getByTestId("add-to-diary-btn")).toBeInTheDocument()
+    expect(vi.mocked(logFood)).not.toHaveBeenCalled()
   })
 })
