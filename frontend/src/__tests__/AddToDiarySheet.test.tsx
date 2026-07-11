@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("../lib/nutritionApi", () => ({
   logFood: vi.fn(),
+  updateLogEntry: vi.fn(),
 }))
 
-import { logFood } from "../lib/nutritionApi"
+import { logFood, updateLogEntry } from "../lib/nutritionApi"
 import { AddToDiarySheet } from "../components/AddToDiarySheet"
 import type { FoodItemOut, LogEntryOut } from "../types"
 
@@ -151,6 +152,36 @@ describe("AddToDiarySheet", () => {
     )
     fireEvent.click(screen.getByTestId("atd-cancel"))
     expect(onCancel).toHaveBeenCalled()
+    expect(vi.mocked(logFood)).not.toHaveBeenCalled()
+  })
+
+  it("edit mode prefills from the entry and PATCHes instead of logging", async () => {
+    vi.mocked(updateLogEntry).mockResolvedValueOnce({ ...ENTRY, amount_g: 30, kcal: 161.7 })
+    const onLogged = vi.fn()
+    render(
+      <AddToDiarySheet
+        food={FOOD}
+        dateISO="2026-07-10"
+        editEntry={ENTRY}
+        onLogged={onLogged}
+        onCancel={vi.fn()}
+      />,
+    )
+
+    // Prefilled from the entry, not from serving_size_g.
+    expect(screen.getByTestId("atd-amount")).toHaveValue("15")
+    expect(screen.getByText("Edit entry")).toBeInTheDocument()
+
+    fireEvent.change(screen.getByTestId("atd-amount"), { target: { value: "30" } })
+    fireEvent.click(screen.getByTestId("atd-submit"))
+
+    await waitFor(() =>
+      expect(vi.mocked(updateLogEntry)).toHaveBeenCalledWith("e1", {
+        meal: "breakfast",
+        amount_g: 30,
+      }),
+    )
+    expect(onLogged).toHaveBeenCalledWith(expect.objectContaining({ amount_g: 30 }))
     expect(vi.mocked(logFood)).not.toHaveBeenCalled()
   })
 })

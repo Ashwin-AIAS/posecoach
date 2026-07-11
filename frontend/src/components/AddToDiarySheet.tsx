@@ -1,9 +1,9 @@
 import { memo, useState } from "react"
-import { CalendarPlus } from "lucide-react"
+import { CalendarPlus, PencilLine } from "lucide-react"
 
 import type { FoodItemOut, LogEntryOut, Meal } from "../types"
-import { logFood } from "../lib/nutritionApi"
-import { previewMacros } from "../lib/macros"
+import { logFood, updateLogEntry } from "../lib/nutritionApi"
+import { asMeal, fmt, MEAL_LABELS, MEALS, previewMacros } from "../lib/macros"
 import { formatDayLabel } from "../lib/day"
 import { Icon } from "./ui/Icon"
 
@@ -12,17 +12,12 @@ interface AddToDiarySheetProps {
   /** The diary day (`YYYY-MM-DD`) the entry is logged to — the viewed day. */
   readonly dateISO: string
   readonly defaultMeal?: Meal
+  /** When set, the sheet edits this existing entry (PATCH) instead of logging. */
+  readonly editEntry?: LogEntryOut
   readonly onLogged: (entry: LogEntryOut) => void
   readonly onCancel: () => void
 }
 
-const MEALS: readonly Meal[] = ["breakfast", "lunch", "dinner", "snack"]
-const MEAL_LABELS: Record<Meal, string> = {
-  breakfast: "Breakfast",
-  lunch: "Lunch",
-  dinner: "Dinner",
-  snack: "Snack",
-}
 // Matches the server bound (AMOUNT_G_MAX): one row is a meal, not a shopping trip.
 const AMOUNT_G_MAX = 5000
 
@@ -31,26 +26,26 @@ const FIELD_CLS =
 const CHIP_CLS =
   "flex min-h-11 items-center justify-center rounded-full px-3 text-xs font-medium transition ease-spring active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
 
-/** Compact number for the preview row: 1 decimal, trailing ".0" dropped. */
-function fmt(n: number): string {
-  const rounded = Math.round(n * 10) / 10
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
-}
-
 /**
  * Meal + amount collector for "Add to diary" (P28): live kcal/P/C/F preview
- * for the entered amount, logged to the currently-viewed diary day. The
- * preview mirrors the server formula; the POST response is the truth.
+ * for the entered amount, logged to the currently-viewed diary day. With
+ * `editEntry` it edits that row instead (PATCH — the server recomputes the
+ * snapshot). The preview mirrors the server formula; the response is the truth.
  */
 function AddToDiarySheetInner({
   food,
   dateISO,
   defaultMeal,
+  editEntry,
   onLogged,
   onCancel,
 }: AddToDiarySheetProps): JSX.Element {
-  const [meal, setMeal] = useState<Meal>(defaultMeal ?? "snack")
-  const [amount, setAmount] = useState(String(food.serving_size_g ?? 100))
+  const [meal, setMeal] = useState<Meal>(
+    editEntry ? asMeal(editEntry.meal) : (defaultMeal ?? "snack"),
+  )
+  const [amount, setAmount] = useState(
+    editEntry ? String(editEntry.amount_g) : String(food.serving_size_g ?? 100),
+  )
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -65,12 +60,14 @@ function AddToDiarySheetInner({
     setPending(true)
     setError(null)
     try {
-      const entry = await logFood({
-        food_item_id: food.id,
-        logged_date: dateISO,
-        meal,
-        amount_g: amountNum,
-      })
+      const entry = editEntry
+        ? await updateLogEntry(editEntry.id, { meal, amount_g: amountNum })
+        : await logFood({
+            food_item_id: food.id,
+            logged_date: dateISO,
+            meal,
+            amount_g: amountNum,
+          })
       onLogged(entry)
     } catch (err) {
       setError((err as Error).message)
@@ -84,7 +81,9 @@ function AddToDiarySheetInner({
       className="rounded-2xl bg-surface-raised p-4 shadow-elev-2"
       data-testid="add-to-diary-sheet"
     >
-      <h3 className="font-display text-base font-semibold text-gray-100">Add to diary</h3>
+      <h3 className="font-display text-base font-semibold text-gray-100">
+        {editEntry ? "Edit entry" : "Add to diary"}
+      </h3>
       <p className="mt-0.5 text-xs text-gray-500">
         {food.name} · {formatDayLabel(dateISO)}
       </p>
@@ -176,8 +175,14 @@ function AddToDiarySheetInner({
           className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-accent px-4 text-sm font-semibold text-gray-950 transition ease-spring active:scale-[0.97] disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
           data-testid="atd-submit"
         >
-          <Icon icon={CalendarPlus} size={16} />
-          {pending ? "Adding…" : "Add to diary"}
+          <Icon icon={editEntry ? PencilLine : CalendarPlus} size={16} />
+          {editEntry
+            ? pending
+              ? "Saving…"
+              : "Save changes"
+            : pending
+              ? "Adding…"
+              : "Add to diary"}
         </button>
         <button
           type="button"
