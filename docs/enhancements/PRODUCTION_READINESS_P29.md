@@ -132,6 +132,36 @@ Frontend/deploy:
   authenticated user, from the Vercel origin, on a phone.
 - Commit: `[P29] chore: prod migration/seed verification + deploy notes`
 
+**Stage D — verified live (2026-07-12):** `hf` main fast-forwarded
+e88d179→4578b8c (clean, no divergence). Dockerfile's boot-time
+`alembic upgrade head` applied migration 0008 automatically — no direct
+Postgres connection needed from outside the Space. Verified against the
+live Space:
+- `GET /health/deep` → `{"status":"ok","postgres":"ok","redis":"ok","model":"ok"}`
+- Catalog seed intact: probing `?limit=5&offset=868` still returns 5 rows
+  (alphabetically through "Zottman Preacher Curl"), confirming the ~873-row
+  seed survived the migration.
+- `GET /api/v1/workouts/exercises?limit=1` → 200, row includes the new
+  `is_custom: false` field.
+- Disposable smoke-test account (register → verify → `DELETE /auth/account`)
+  confirmed the actual fix end to end: `Set-Cookie` came back
+  `SameSite=none; Secure` on both `access_token` and `refresh_token`, with
+  `access-control-allow-credentials: true` and the exact Vercel origin
+  echoed back. Account deleted immediately after (204, then 401 on reuse) —
+  no leftover rows in prod. No custom exercise was created during the smoke
+  test (would have orphaned as a permanent seeded-catalog row on account
+  delete, per the `SET NULL` design — intentionally avoided).
+- Vercel: confirmed via the live built JS bundle that
+  `VITE_API_URL=https://ashwintaibu-posecoach.hf.space` and
+  `ALLOWED_ORIGINS` on the Space were already correct from the earlier HF
+  migration (`docs/hf_migration_handoff.md`) — the only missing piece was
+  `COOKIE_SAMESITE`, added to the Space as a plain variable before this push.
+- **Not yet done:** the manual phone-based gate (register → workout → food
+  log → live Coach WS from the actual Vercel origin) — that's on the user,
+  since it needs a real device. Vercel will auto-deploy the new frontend
+  once the PR below merges to GitHub `main` (project already builds `main`
+  to production automatically).
+
 End with PR to `main`, then STOP.
 
 ---
