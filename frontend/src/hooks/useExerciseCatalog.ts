@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { UnauthenticatedError } from "../lib/api"
 import { listExercises } from "../lib/workoutsApi"
 import type { ExerciseSummary } from "../types"
 
@@ -11,10 +12,17 @@ export interface CatalogFilters {
   equipment?: string
 }
 
+/** Set only when there is no usable cached catalog AND the live fetch failed. */
+export type CatalogError = "auth" | "error" | null
+
 export interface UseExerciseCatalogResult {
   readonly all: readonly ExerciseSummary[]
   readonly loading: boolean
+  readonly error: CatalogError
   readonly search: (q: string, filters?: CatalogFilters) => readonly ExerciseSummary[]
+  readonly retry: () => void
+  /** Merge a freshly created custom exercise into the catalog + its cache (P29). */
+  readonly addLocal: (ex: ExerciseSummary) => void
 }
 
 function loadFromStorage(): ExerciseSummary[] | null {
@@ -77,19 +85,17 @@ function matchesFilters(ex: ExerciseSummary, q: string, filters: CatalogFilters)
 export function useExerciseCatalog(): UseExerciseCatalogResult {
   const [all, setAll] = useState<ExerciseSummary[]>(() => loadFromStorage() ?? [])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<CatalogError>(null)
   const fetchedRef = useRef(false)
 
-  useEffect(() => {
-    // If we loaded from localStorage cache, we can still mark loading=false
-    // immediately and silently refresh in the background.
-    if (fetchedRef.current) return
-    fetchedRef.current = true
-
+  const runFetch = useCallback((): void => {
+    setError(null)
     const cached = loadFromStorage()
     if (cached && cached.length > 0) {
       setAll(cached)
       setLoading(false)
-      // Background refresh — update cache quietly without blocking UI.
+      // Background refresh — update cache quietly without blocking UI; a
+      // signed-out/offline refresh just keeps showing the cached catalog.
       void fetchAllPages()
         .then((fresh) => {
           if (fresh.length > 0) {
@@ -98,21 +104,28 @@ export function useExerciseCatalog(): UseExerciseCatalogResult {
           }
         })
         .catch(() => {
-          /* network error — keep cached version */
+          /* network/auth error — keep cached version */
         })
       return
     }
 
+    setLoading(true)
     void fetchAllPages()
       .then((data) => {
         setAll(data)
         saveToStorage(data)
       })
-      .catch(() => {
-        /* silently show empty; error surfaced by WorkoutPanel's own fetch guard */
+      .catch((e) => {
+        setError(e instanceof UnauthenticatedError ? "auth" : "error")
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (fetchedRef.current) return
+    fetchedRef.current = true
+    runFetch()
+  }, [runFetch])
 
   const search = useCallback(
     (q: string, filters: CatalogFilters = {}): readonly ExerciseSummary[] => {
@@ -123,5 +136,13 @@ export function useExerciseCatalog(): UseExerciseCatalogResult {
     [all],
   )
 
-  return { all, loading, search }
+  const addLocal = useCallback((ex: ExerciseSummary): void => {
+    setAll((prev) => {
+      const next = [ex, ...prev]
+      saveToStorage(next)
+      return next
+    })
+  }, [])
+
+  return { all, loading, error, search, retry: runFetch, addLocal }
 }

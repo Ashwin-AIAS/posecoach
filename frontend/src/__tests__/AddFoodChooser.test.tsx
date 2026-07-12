@@ -6,6 +6,7 @@ vi.mock("../lib/nutritionApi", () => ({
 }))
 
 import { searchFoods } from "../lib/nutritionApi"
+import { UnauthenticatedError } from "../lib/api"
 import { AddFoodChooser } from "../components/AddFoodChooser"
 import type { FoodItemOut } from "../types"
 
@@ -100,6 +101,19 @@ describe("AddFoodChooser", () => {
 
     await typeAndSettle("nutella")
     expect(screen.getByTestId("search-error")).toBeInTheDocument()
+  })
+
+  it("a signed-out search shows a sign-in card that deep-links to Settings (P29)", async () => {
+    vi.mocked(searchFoods).mockRejectedValue(new UnauthenticatedError("Sign in required"))
+    const onSignIn = vi.fn()
+    render(<AddFoodChooser onScan={vi.fn()} onManual={vi.fn()} onPick={vi.fn()} onSignIn={onSignIn} />)
+
+    await typeAndSettle("nutella")
+    expect(screen.getByTestId("sign-in-prompt")).toHaveTextContent("Sign in to search your foods")
+    expect(screen.queryByTestId("search-error")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId("sign-in-prompt-btn"))
+    expect(onSignIn).toHaveBeenCalled()
   })
 
   it("scan and manual entry points fire their callbacks", () => {

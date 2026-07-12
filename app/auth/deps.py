@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, cast
 
 from fastapi import Cookie, Depends, HTTPException, status
 from sqlalchemy import select
@@ -15,6 +15,25 @@ from app.models import User
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
 COOKIE_SECURE = os.environ.get("ENVIRONMENT", "development") != "development"
+
+
+def _resolve_samesite() -> Literal["lax", "strict", "none"]:
+    """Read COOKIE_SAMESITE (default "lax"); "none" needs a secure context.
+
+    A Vercel frontend calling a separate HF Space backend is cross-origin, so
+    the auth cookies need SameSite=None to flow at all — but SameSite=None
+    without Secure is rejected outright by browsers, so a misconfigured prod
+    deploy should fail loudly at startup rather than silently drop cookies.
+    """
+    raw = os.environ.get("COOKIE_SAMESITE", "lax").lower()
+    if raw not in ("lax", "strict", "none"):
+        raise ValueError(f'COOKIE_SAMESITE must be "lax", "strict", or "none" — got {raw!r}')
+    if raw == "none" and not COOKIE_SECURE:
+        raise ValueError("COOKIE_SAMESITE=none requires a secure (non-development) ENVIRONMENT")
+    return cast(Literal["lax", "strict", "none"], raw)
+
+
+COOKIE_SAMESITE = _resolve_samesite()
 
 
 class CookieKwargs(TypedDict):
@@ -32,7 +51,7 @@ def cookie_kwargs(max_age: int, path: str = "/") -> CookieKwargs:
     return {
         "httponly": True,
         "secure": COOKIE_SECURE,
-        "samesite": "lax",
+        "samesite": COOKIE_SAMESITE,
         "max_age": max_age,
         "path": path,
     }

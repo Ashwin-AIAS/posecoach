@@ -27,7 +27,7 @@ const BASE: ExerciseDetailType = {
   instructions: ["Stand with bar.", "Squat to depth."],
   image_urls: ["https://cdn.example.com/squat/0.jpg", "https://cdn.example.com/squat/1.jpg"],
   youtube_id: "CWl0apMgshk",
-  is_cv_supported: true,
+  is_cv_supported: true, is_custom: false,
 }
 
 const NO_CV: ExerciseDetailType = {
@@ -35,7 +35,7 @@ const NO_CV: ExerciseDetailType = {
   slug: "cable-fly",
   name: "Cable Fly",
   youtube_id: null,
-  is_cv_supported: false,
+  is_cv_supported: false, is_custom: false,
 }
 
 beforeEach(() => {

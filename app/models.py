@@ -125,6 +125,15 @@ class Exercise(Base):
     image_urls: Mapped[list[str]] = mapped_column(JSON, default=list)
     youtube_id: Mapped[str | None] = mapped_column(String, nullable=True)
     is_cv_supported: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Custom exercises (P29): owner_user_id is null for the shared seeded
+    # catalog, set for a user's own addition. SET NULL on user delete — the
+    # row just becomes an orphaned catalog entry (name/muscle group carry no
+    # PII once unlinked), avoiding cross-table cascade-order dependence on
+    # workout_logs -> logged_exercises being cleared first.
+    owner_user_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class WorkoutLog(Base):

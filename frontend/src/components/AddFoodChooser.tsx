@@ -2,8 +2,10 @@ import { memo, useEffect, useRef, useState } from "react"
 import { PencilLine, RefreshCw, ScanBarcode, Search } from "lucide-react"
 
 import type { FoodItemOut } from "../types"
+import { UnauthenticatedError, friendlyMessage } from "../lib/api"
 import { searchFoods } from "../lib/nutritionApi"
 import { fmt } from "../lib/macros"
+import { SignInPrompt } from "./SignInPrompt"
 import { Icon } from "./ui/Icon"
 
 interface AddFoodChooserProps {
@@ -13,6 +15,8 @@ interface AddFoodChooserProps {
   readonly onManual: () => void
   /** A search hit was picked — straight to the macro card + add sheet. */
   readonly onPick: (food: FoodItemOut) => void
+  /** Deep-links to Settings when search 401s (P29). */
+  readonly onSignIn?: () => void
 }
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -28,11 +32,12 @@ const SECONDARY_BTN =
  * product once, then re-log it by name (cached OFF rows + your manual foods).
  * Scan stays the discovery path for new products; manual is the fallback.
  */
-function AddFoodChooserInner({ onScan, onManual, onPick }: AddFoodChooserProps): JSX.Element {
+function AddFoodChooserInner({ onScan, onManual, onPick, onSignIn }: AddFoodChooserProps): JSX.Element {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<readonly FoodItemOut[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [searchAuthRequired, setSearchAuthRequired] = useState(false)
   // Ignore out-of-order responses while the user keeps typing.
   const searchSeq = useRef(0)
 
@@ -43,6 +48,7 @@ function AddFoodChooserInner({ onScan, onManual, onPick }: AddFoodChooserProps):
       setResults(null)
       setSearching(false)
       setSearchError(null)
+      setSearchAuthRequired(false)
       return
     }
     setSearching(true)
@@ -54,10 +60,12 @@ function AddFoodChooserInner({ onScan, onManual, onPick }: AddFoodChooserProps):
           if (seq !== searchSeq.current) return
           setResults(rows)
           setSearchError(null)
+          setSearchAuthRequired(false)
         } catch (e) {
           if (seq !== searchSeq.current) return
           setResults(null)
-          setSearchError((e as Error).message)
+          setSearchAuthRequired(e instanceof UnauthenticatedError)
+          setSearchError(friendlyMessage(e))
         } finally {
           if (seq === searchSeq.current) setSearching(false)
         }
@@ -93,7 +101,11 @@ function AddFoodChooserInner({ onScan, onManual, onPick }: AddFoodChooserProps):
         </div>
       )}
 
-      {searchError && (
+      {searchError && searchAuthRequired && (
+        <SignInPrompt message="Sign in to search your foods" onSignIn={onSignIn} />
+      )}
+
+      {searchError && !searchAuthRequired && (
         <p role="alert" className="mt-3 px-1 text-xs text-red-400" data-testid="search-error">
           {searchError}
         </p>

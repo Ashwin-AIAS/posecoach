@@ -6,7 +6,7 @@ by ``user_id`` (IDOR rule).
 """
 from __future__ import annotations
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Exercise, LoggedExercise, LoggedSet, WorkoutLog
@@ -29,22 +29,34 @@ def one_rep_max(weight_kg: float, reps: int) -> float:
     return weight_kg * (1.0 + reps / EPLEY_REP_DIVISOR)
 
 
+def visible_to(user_id: str) -> ColumnElement[bool]:
+    """SQLAlchemy predicate: the shared seeded catalog, plus one user's own rows.
+
+    A custom exercise (P29) is only ever visible to the user who created it —
+    applied everywhere a raw exercise id/slug can reach the catalog (browse,
+    detail, history, add-to-workout, routine creation) so another user can't
+    read or attach someone else's custom row even by guessing its id.
+    """
+    return or_(Exercise.owner_user_id.is_(None), Exercise.owner_user_id == user_id)
+
+
 async def search_catalog(
     db: AsyncSession,
     *,
+    user_id: str,
     search: str | None = None,
     muscle: str | None = None,
     equipment: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[Exercise]:
-    """Browse the shared exercise catalog with optional filters.
+    """Browse the shared exercise catalog (plus the caller's own custom rows).
 
     Name/slug ``search`` and ``equipment`` are filtered in SQL; ``muscle`` is
     matched in Python against the JSON muscle lists (portable across SQLite and
     Postgres) before ``offset``/``limit`` paginate the result.
     """
-    stmt = select(Exercise).order_by(Exercise.name.asc())
+    stmt = select(Exercise).where(visible_to(user_id)).order_by(Exercise.name.asc())
     if search:
         pattern = f"%{search.strip().lower()}%"
         stmt = stmt.where(

@@ -335,3 +335,97 @@ async def test_idor_workouts_sets_and_routines(
     # And B sees none of A's workouts/routines in their own lists.
     assert (await client.get(f"{WORKOUTS}/workouts")).json() == []
     assert (await client.get(f"{WORKOUTS}/routines")).json() == []
+
+
+# ── Custom exercises (P29) ─────────────────────────────────────────────────────
+
+
+async def test_create_custom_exercise_requires_auth(client: AsyncClient) -> None:
+    resp = await client.post(f"{WORKOUTS}/exercises", json={"name": "Cable Face Pull Variant"})
+    assert resp.status_code == 401
+
+
+async def test_create_custom_exercise_appears_in_own_catalog(
+    client: AsyncClient, catalog: dict[str, str]
+) -> None:
+    await _register(client, "custom@x.com")
+
+    created = await client.post(
+        f"{WORKOUTS}/exercises",
+        json={"name": "Cable Face Pull Variant", "primary_muscle": "shoulders"},
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["is_custom"] is True
+    assert body["slug"].startswith("custom-")
+    assert body["primary_muscles"] == ["shoulders"]
+
+    listed = await client.get(f"{WORKOUTS}/exercises")
+    slugs = {r["slug"] for r in listed.json()}
+    # Seeded catalog rows are still there alongside the new custom one.
+    assert {"barbell-squat", "bench-press", body["slug"]} <= slugs
+
+    detail = await client.get(f"{WORKOUTS}/exercises/{body['slug']}")
+    assert detail.status_code == 200
+    assert detail.json()["name"] == "Cable Face Pull Variant"
+
+
+async def test_custom_exercise_isolated_between_users(
+    client: AsyncClient, catalog: dict[str, str]
+) -> None:
+    await _register(client, "owner@x.com")
+    created = await client.post(f"{WORKOUTS}/exercises", json={"name": "Owner's Curl"})
+    slug = created.json()["slug"]
+    ex_id = created.json()["id"]
+
+    # A different user registers on the same client (cookie now belongs to them).
+    await _register(client, "stranger@x.com")
+
+    # Not in the stranger's catalog listing.
+    listed = await client.get(f"{WORKOUTS}/exercises")
+    assert slug not in {r["slug"] for r in listed.json()}
+
+    # Not resolvable by slug — 404, indistinguishable from a missing exercise.
+    assert (await client.get(f"{WORKOUTS}/exercises/{slug}")).status_code == 404
+
+    # Can't attach it to their own workout by raw exercise id either.
+    workout_id = (await client.post(f"{WORKOUTS}/workouts", json={"title": "X"})).json()["id"]
+    add = await client.post(
+        f"{WORKOUTS}/workouts/{workout_id}/exercises", json={"exercise_id": ex_id}
+    )
+    assert add.status_code == 404
+
+    # Nor via a routine.
+    bad_routine = await client.post(
+        f"{WORKOUTS}/routines", json={"name": "Bad", "exercise_ids": [ex_id]}
+    )
+    assert bad_routine.status_code == 422
+
+
+async def test_log_sets_against_custom_exercise(
+    client: AsyncClient, catalog: dict[str, str]
+) -> None:
+    await _register(client, "logcustom@x.com")
+    ex = (
+        await client.post(f"{WORKOUTS}/exercises", json={"name": "Landmine Twist"})
+    ).json()
+
+    workout_id = (await client.post(f"{WORKOUTS}/workouts", json={"title": "Core"})).json()["id"]
+    added = await client.post(
+        f"{WORKOUTS}/workouts/{workout_id}/exercises", json={"exercise_id": ex["id"]}
+    )
+    assert added.status_code == 201
+    le_id = added.json()["id"]
+    assert added.json()["exercise"]["slug"] == ex["slug"]
+
+    s1 = await client.post(
+        f"{WORKOUTS}/logged-exercises/{le_id}/sets", json={"weight_kg": 20.0, "reps": 12}
+    )
+    assert s1.status_code == 201
+
+    full = await client.get(f"{WORKOUTS}/workouts/{workout_id}")
+    assert full.json()["exercises"][0]["sets"][0]["reps"] == 12
+
+    hist = await client.get(f"{WORKOUTS}/exercises/{ex['slug']}/history")
+    assert hist.status_code == 200
+    assert hist.json()["total_sets"] == 1

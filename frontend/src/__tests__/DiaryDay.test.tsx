@@ -9,6 +9,7 @@ vi.mock("../lib/nutritionApi", () => ({
 }))
 
 import { deleteLogEntry, getDailyLog, updateLogEntry } from "../lib/nutritionApi"
+import { UnauthenticatedError } from "../lib/api"
 import { DiaryDay } from "../components/DiaryDay"
 import { addDays, todayISO } from "../lib/day"
 import type { DailyLogOut, FoodItemOut, LogEntryOut } from "../types"
@@ -144,6 +145,19 @@ describe("DiaryDay", () => {
 
     expect(await screen.findByTestId("daily-totals")).toBeInTheDocument()
     expect(screen.getByTestId("totals-kcal")).toHaveTextContent("99")
+  })
+
+  it("signed-out fetch shows a sign-in card that deep-links to Settings (P29)", async () => {
+    vi.mocked(getDailyLog).mockRejectedValueOnce(new UnauthenticatedError("Sign in required"))
+    const onSignIn = vi.fn()
+    render(<DiaryDay dateISO={todayISO()} onDateChange={vi.fn()} onAddFood={vi.fn()} onSignIn={onSignIn} />)
+
+    expect(await screen.findByTestId("sign-in-prompt")).toHaveTextContent(
+      "Sign in to see your food diary",
+    )
+    expect(screen.queryByTestId("diary-error")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId("sign-in-prompt-btn"))
+    expect(onSignIn).toHaveBeenCalled()
   })
 
   it("delete is optimistic and Undo restores the row without any DELETE call", async () => {

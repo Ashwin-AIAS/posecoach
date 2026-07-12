@@ -2,15 +2,17 @@ import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { BookOpen, ClipboardList, Play, Plus } from "lucide-react"
 
 import type { Exercise, ExerciseSummary, ExerciseDetail, WorkoutLog, WorkoutSummary } from "../types"
-import { apiJson } from "../lib/api"
+import { apiJson, friendlyMessage, isNetworkError, UnauthenticatedError } from "../lib/api"
 import { createWorkout, createRoutine, getExercise, getWorkout, listWorkouts } from "../lib/workoutsApi"
 import { findFormCheckSession } from "../lib/cvExercises"
 import type { CvSessionCandidate } from "../lib/cvExercises"
 import { ActiveWorkout } from "./ActiveWorkout"
 import type { FormCheckResult } from "./ActiveWorkout"
+import { ErrorRetry } from "./ErrorRetry"
 import { ExerciseDetail as ExerciseDetailView } from "./ExerciseDetail"
 import { ExerciseLibrary } from "./ExerciseLibrary"
 import { RoutineList } from "./RoutineList"
+import { SignInPrompt } from "./SignInPrompt"
 import { WorkoutDetail } from "./WorkoutDetail"
 import { Icon } from "./ui/Icon"
 import { useWorkoutLog } from "../hooks/useWorkoutLog"
@@ -68,6 +70,15 @@ interface WorkoutPanelProps {
   readonly pendingFormCheck?: PendingFormCheck | null
   /** Called once the pending form-check has been resolved (match or not). */
   readonly onFormCheckHandled?: () => void
+  /** Deep-links to Settings from a "Sign in" card (P29). */
+  readonly onNavigateSettings?: () => void
+}
+
+/** A failed action on the landing/library screens: sign-in card vs retry. */
+interface ActionError {
+  readonly auth: boolean
+  readonly message: string
+  readonly retry: () => void
 }
 
 function WorkoutPanelInner({
@@ -75,10 +86,12 @@ function WorkoutPanelInner({
   onFormCheck,
   pendingFormCheck = null,
   onFormCheckHandled,
+  onNavigateSettings,
 }: WorkoutPanelProps): JSX.Element {
   const [subView, setSubView] = useState<SubView>("landing")
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutSummary[]>([])
   const [loadingRecent, setLoadingRecent] = useState(true)
+  const [recentError, setRecentError] = useState<ActionError | null>(null)
   const [selectedExercise, setSelectedExercise] = useState<ExerciseDetail | null>(null)
   const [viewingWorkoutId, setViewingWorkoutId] = useState<string | null>(null)
   const [startingWorkout, setStartingWorkout] = useState(false)
@@ -86,6 +99,9 @@ function WorkoutPanelInner({
   const [routineDraft, setRoutineDraft] = useState<RoutineDraft | null>(null)
   const [routinesRefresh, setRoutinesRefresh] = useState(0)
   const [formCheckResult, setFormCheckResult] = useState<FormCheckResult | null>(null)
+  // Start/resume share one slot — only one of those two CTAs is ever mid-flight.
+  const [landingError, setLandingError] = useState<ActionError | null>(null)
+  const [libraryError, setLibraryError] = useState<ActionError | null>(null)
   // One resolution per launch — guards effect re-runs (deps change, StrictMode).
   const handledFormCheckRef = useRef<string | null>(null)
 
@@ -93,11 +109,16 @@ function WorkoutPanelInner({
 
   const loadRecent = useCallback(async (): Promise<void> => {
     setLoadingRecent(true)
+    setRecentError(null)
     try {
       const rows = await listWorkouts()
       setRecentWorkouts(rows.slice(0, 5))
-    } catch {
-      // Unauthenticated or network error — silently show empty.
+    } catch (e) {
+      setRecentError({
+        auth: e instanceof UnauthenticatedError,
+        message: friendlyMessage(e),
+        retry: () => void loadRecent(),
+      })
     } finally {
       setLoadingRecent(false)
     }
@@ -163,20 +184,27 @@ function WorkoutPanelInner({
 
   const handleStartWorkout = async (): Promise<void> => {
     setStartingWorkout(true)
+    setLandingError(null)
     try {
       const w = await createWorkout()
       enterActiveWorkout(w)
-    } catch {
-      // Surface to user? For now silently fail — button re-enabled.
+    } catch (e) {
+      setLandingError({
+        auth: e instanceof UnauthenticatedError,
+        message: friendlyMessage(e),
+        retry: () => void handleStartWorkout(),
+      })
     } finally {
       setStartingWorkout(false)
     }
   }
 
   const handleResume = async (): Promise<void> => {
-    if (resumableId === null) return
+    const id = resumableId
+    if (id === null) return
+    setLandingError(null)
     try {
-      const w = await getWorkout(resumableId)
+      const w = await getWorkout(id)
       if (w.ended_at !== null) {
         // Already finished elsewhere — nothing to resume.
         writeActiveId(null)
@@ -184,20 +212,35 @@ function WorkoutPanelInner({
         return
       }
       enterActiveWorkout(w)
-    } catch {
-      // Deleted or unauthenticated — clear the stale pointer.
+    } catch (e) {
+      if (e instanceof UnauthenticatedError) {
+        // The workout is still there once they sign in — keep the pointer.
+        setLandingError({ auth: true, message: friendlyMessage(e), retry: () => void handleResume() })
+        return
+      }
+      // A genuine network hiccup is retryable without losing the pointer.
+      // Anything else (e.g. 404 — deleted elsewhere) means it's truly gone.
+      if (isNetworkError(e)) {
+        setLandingError({ auth: false, message: friendlyMessage(e), retry: () => void handleResume() })
+        return
+      }
       writeActiveId(null)
       setResumableId(null)
     }
   }
 
   const handleExerciseSelect = async (ex: ExerciseSummary): Promise<void> => {
+    setLibraryError(null)
     try {
       const detail = await getExercise(ex.slug)
       setSelectedExercise(detail)
       setSubView("exercise-detail")
-    } catch {
-      // silently ignore
+    } catch (e) {
+      setLibraryError({
+        auth: e instanceof UnauthenticatedError,
+        message: friendlyMessage(e),
+        retry: () => void handleExerciseSelect(ex),
+      })
     }
   }
 
@@ -289,7 +332,16 @@ function WorkoutPanelInner({
           </button>
           <h2 className="font-display text-base font-semibold text-gray-100">Exercise Library</h2>
         </div>
-        <ExerciseLibrary onSelect={(ex) => void handleExerciseSelect(ex)} />
+        {libraryError &&
+          (libraryError.auth ? (
+            <SignInPrompt message="Sign in to view this exercise" onSignIn={onNavigateSettings} />
+          ) : (
+            <ErrorRetry message={libraryError.message} onRetry={libraryError.retry} />
+          ))}
+        <ExerciseLibrary
+          onSelect={(ex) => void handleExerciseSelect(ex)}
+          onSignIn={onNavigateSettings}
+        />
       </div>
     )
   }
@@ -343,10 +395,21 @@ function WorkoutPanelInner({
           <Icon icon={BookOpen} size={15} />
           Browse exercises
         </button>
+
+        {landingError &&
+          (landingError.auth ? (
+            <SignInPrompt message="Sign in to track workouts" onSignIn={onNavigateSettings} />
+          ) : (
+            <ErrorRetry message={landingError.message} onRetry={landingError.retry} />
+          ))}
       </div>
 
       {/* Routines */}
-      <RoutineList refreshKey={routinesRefresh} onStartWorkout={enterActiveWorkout} />
+      <RoutineList
+        refreshKey={routinesRefresh}
+        onStartWorkout={enterActiveWorkout}
+        onSignIn={onNavigateSettings}
+      />
 
       {/* Recent workouts */}
       <div className="flex flex-col gap-2 p-4 pt-0">
@@ -355,6 +418,12 @@ function WorkoutPanelInner({
         </h3>
         {loadingRecent ? (
           <p className="text-sm text-gray-600">Loading…</p>
+        ) : recentError ? (
+          recentError.auth ? (
+            <SignInPrompt message="Sign in to see your recent workouts" onSignIn={onNavigateSettings} />
+          ) : (
+            <ErrorRetry message={recentError.message} onRetry={recentError.retry} />
+          )
         ) : recentWorkouts.length === 0 ? (
           <p className="text-sm text-gray-600">No workouts logged yet.</p>
         ) : (

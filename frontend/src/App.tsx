@@ -599,10 +599,11 @@ export default function App(): JSX.Element {
           onFormCheck={handleFormCheck}
           pendingFormCheck={pendingFormCheck}
           onFormCheckHandled={() => setPendingFormCheck(null)}
+          onNavigateSettings={() => setTab("settings")}
         />
       )}
 
-      {tab === "calories" && <CaloriesPanel />}
+      {tab === "calories" && <CaloriesPanel onNavigateSettings={() => setTab("settings")} />}
 
       {tab === "settings" && (
         <SettingsPanel auth={auth} onNavigateCoach={() => setTab("coach")} />

@@ -123,6 +123,33 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
   return apiJson<SessionDetail>(`/api/v1/history/sessions/${sessionId}`)
 }
 
+/**
+ * Thrown by `apiJson` for a 401 that survived a refresh attempt (P29). Panels
+ * catch this specifically to render a "Sign in" card instead of a generic
+ * error — `instanceof Error` still holds, so untouched call sites keep
+ * working off `.message` alone.
+ */
+export class UnauthenticatedError extends Error {
+  constructor(message = "Sign in required") {
+    super(message)
+    this.name = "UnauthenticatedError"
+  }
+}
+
+/**
+ * True for a `fetch()` network failure (offline, DNS, CORS) — the browser
+ * rejects those as a bare `TypeError`, distinct from a parsed HTTP error.
+ */
+export function isNetworkError(e: unknown): boolean {
+  return e instanceof TypeError
+}
+
+/** A short, user-facing message for anything `apiJson`/`apiFetch` can throw. */
+export function friendlyMessage(e: unknown): string {
+  if (isNetworkError(e)) return "You're offline — check your connection and try again."
+  return e instanceof Error ? e.message : "Something went wrong."
+}
+
 export async function apiJson<T>(input: string, init: RequestInit = {}): Promise<T> {
   const resp = await apiFetch(input, init)
   if (!resp.ok) {
@@ -133,6 +160,7 @@ export async function apiJson<T>(input: string, init: RequestInit = {}): Promise
     } catch {
       // fall through with default message
     }
+    if (resp.status === 401) throw new UnauthenticatedError(detail)
     throw new Error(detail)
   }
   return (await resp.json()) as T

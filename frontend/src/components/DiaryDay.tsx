@@ -13,11 +13,13 @@ import {
 import type { LucideIcon } from "lucide-react"
 
 import type { DailyLogOut, LogEntryOut, Meal } from "../types"
+import { UnauthenticatedError, friendlyMessage } from "../lib/api"
 import { deleteLogEntry, getDailyLog } from "../lib/nutritionApi"
 import { addDays, formatDayLabel, isToday, todayISO } from "../lib/day"
 import { asMeal, fmt, MEAL_LABELS, MEALS, sumTotals } from "../lib/macros"
 import { AddToDiarySheet } from "./AddToDiarySheet"
 import { DiaryEntryRow } from "./DiaryEntryRow"
+import { SignInPrompt } from "./SignInPrompt"
 import { Icon } from "./ui/Icon"
 
 interface DiaryDayProps {
@@ -26,6 +28,8 @@ interface DiaryDayProps {
   readonly onDateChange: (iso: string) => void
   /** Launches the add-food flow (scan / search / manual) for this day. */
   readonly onAddFood: () => void
+  /** Deep-links to Settings when the diary load 401s (P29). */
+  readonly onSignIn?: () => void
 }
 
 /** How long the Undo affordance stays before the DELETE is actually sent. */
@@ -108,10 +112,11 @@ function MacroBar({ label, grams, share }: { label: string; grams: number; share
  * kcal + macro totals, entries grouped by meal, and optimistic edit/delete with
  * Undo. Owns the day's data: refetches whenever `dateISO` changes.
  */
-function DiaryDayInner({ dateISO, onDateChange, onAddFood }: DiaryDayProps): JSX.Element {
+function DiaryDayInner({ dateISO, onDateChange, onAddFood, onSignIn }: DiaryDayProps): JSX.Element {
   const [day, setDay] = useState<DailyLogOut | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [authRequired, setAuthRequired] = useState(false)
   const [editing, setEditing] = useState<LogEntryOut | null>(null)
   const [undoEntry, setUndoEntry] = useState<LogEntryOut | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -126,11 +131,14 @@ function DiaryDayInner({ dateISO, onDateChange, onAddFood }: DiaryDayProps): JSX
     const seq = ++fetchSeq.current
     setLoading(true)
     setError(null)
+    setAuthRequired(false)
     try {
       const d = await getDailyLog(dateISO)
       if (seq === fetchSeq.current) setDay(d)
     } catch (e) {
-      if (seq === fetchSeq.current) setError((e as Error).message)
+      if (seq !== fetchSeq.current) return
+      setAuthRequired(e instanceof UnauthenticatedError)
+      setError(friendlyMessage(e))
     } finally {
       if (seq === fetchSeq.current) setLoading(false)
     }
@@ -276,7 +284,11 @@ function DiaryDayInner({ dateISO, onDateChange, onAddFood }: DiaryDayProps): JSX
             </div>
           )}
 
-          {error && !current && !loading && (
+          {error && authRequired && !current && !loading && (
+            <SignInPrompt message="Sign in to see your food diary" onSignIn={onSignIn} />
+          )}
+
+          {error && !authRequired && !current && !loading && (
             <div
               className="mt-4 flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-10 text-center shadow-elev-1"
               data-testid="diary-error"

@@ -222,6 +222,8 @@ export interface ExerciseSummary {
   readonly image_urls: readonly string[]
   readonly youtube_id: string | null
   readonly is_cv_supported: boolean
+  /** True for a user's own catalog addition (P29) — never seen by other users. */
+  readonly is_custom: boolean
 }
 
 /** Full exercise detail (same shape as ExerciseSummary but explicit for type safety). */

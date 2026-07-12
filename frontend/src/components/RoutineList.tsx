@@ -2,7 +2,10 @@ import { memo, useCallback, useEffect, useState } from "react"
 import { Play, Repeat, Trash2 } from "lucide-react"
 
 import type { RoutineOut, WorkoutLog } from "../types"
+import { UnauthenticatedError, friendlyMessage } from "../lib/api"
 import { deleteRoutine, listRoutines, startFromRoutine } from "../lib/workoutsApi"
+import { ErrorRetry } from "./ErrorRetry"
+import { SignInPrompt } from "./SignInPrompt"
 import { Icon } from "./ui/Icon"
 
 interface RoutineListProps {
@@ -10,6 +13,14 @@ interface RoutineListProps {
   readonly refreshKey?: number
   /** Called with the freshly created workout when a routine is started. */
   readonly onStartWorkout: (workout: WorkoutLog) => void
+  /** Deep-links to Settings when starting a routine 401s (P29). */
+  readonly onSignIn?: () => void
+}
+
+interface StartError {
+  readonly routineId: string
+  readonly auth: boolean
+  readonly message: string
 }
 
 /**
@@ -18,10 +29,15 @@ interface RoutineListProps {
  * list it sits next to; empty state renders nothing (the section only appears
  * once the user has saved a routine).
  */
-function RoutineListInner({ refreshKey = 0, onStartWorkout }: RoutineListProps): JSX.Element | null {
+function RoutineListInner({
+  refreshKey = 0,
+  onStartWorkout,
+  onSignIn,
+}: RoutineListProps): JSX.Element | null {
   const [routines, setRoutines] = useState<readonly RoutineOut[]>([])
   const [busyId, setBusyId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [startError, setStartError] = useState<StartError | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -40,11 +56,16 @@ function RoutineListInner({ refreshKey = 0, onStartWorkout }: RoutineListProps):
   const handleStart = useCallback(
     async (routine: RoutineOut): Promise<void> => {
       setBusyId(routine.id)
+      setStartError(null)
       try {
         const workout = await startFromRoutine(routine.id)
         onStartWorkout(workout)
-      } catch {
-        // best-effort — button re-enabled below
+      } catch (e) {
+        setStartError({
+          routineId: routine.id,
+          auth: e instanceof UnauthenticatedError,
+          message: friendlyMessage(e),
+        })
       } finally {
         setBusyId(null)
       }
@@ -131,6 +152,19 @@ function RoutineListInner({ refreshKey = 0, onStartWorkout }: RoutineListProps):
           </div>
         ))}
       </div>
+
+      {startError &&
+        (startError.auth ? (
+          <SignInPrompt message="Sign in to start a routine" onSignIn={onSignIn} />
+        ) : (
+          <ErrorRetry
+            message={startError.message}
+            onRetry={() => {
+              const routine = routines.find((r) => r.id === startError.routineId)
+              if (routine) void handleStart(routine)
+            }}
+          />
+        ))}
     </div>
   )
 }
