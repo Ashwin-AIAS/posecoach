@@ -33,16 +33,11 @@ export default defineConfig({
         ]
       },
       workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /^http:\/\/localhost:8000\/.*/,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache",
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 }
-            }
-          }
-        ]
+        // No runtimeCaching entries for /api or /ws (P29): stale data from a
+        // signed-out or offline cache would silently defeat the sign-in/retry
+        // gating added in Stage A. Uncached requests fall straight through to
+        // the network, which is what we want for auth-gated API calls.
+        navigateFallbackDenylist: [/^\/api\//]
       }
     })
   ],
