@@ -6,15 +6,19 @@ import App from "../App"
 // Same mocks as App.test.tsx — the nav-shell cases live in their own file so
 // the existing App.test.tsx stays byte-for-byte unchanged (P23: App.tsx is the
 // only existing file this prompt edits).
-vi.mock("../lib/api", () => ({
-  apiJson: vi.fn(async (path: string) => {
-    if (path === "/api/v1/auth/me") throw new Error("unauthenticated")
-    if (path === "/api/v1/history/sessions") return []
-    throw new Error(`unexpected path: ${path}`)
-  }),
-  apiFetch: vi.fn(),
-  fetchRecommendation: vi.fn(async () => null),
-}))
+vi.mock("../lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/api")>()
+  return {
+    ...actual,
+    apiJson: vi.fn(async (path: string) => {
+      if (path === "/api/v1/auth/me") throw new Error("unauthenticated")
+      if (path === "/api/v1/history/sessions") return []
+      throw new Error(`unexpected path: ${path}`)
+    }),
+    apiFetch: vi.fn(),
+    fetchRecommendation: vi.fn(async () => null),
+  }
+})
 
 // Stub the workouts API so WorkoutPanel doesn't try to hit the network.
 vi.mock("../lib/workoutsApi", () => ({

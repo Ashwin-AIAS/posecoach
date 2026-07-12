@@ -34,13 +34,17 @@ vi.mock("../lib/workoutsApi", () => ({
   getExerciseHistory: vi.fn(async () => ({ entries: [] })),
 }))
 
-vi.mock("../lib/api", () => ({
-  apiJson: vi.fn(async () => []),
-  apiFetch: vi.fn(),
-}))
+vi.mock("../lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/api")>()
+  return {
+    ...actual,
+    apiJson: vi.fn(async () => []),
+    apiFetch: vi.fn(),
+  }
+})
 
-import { apiJson } from "../lib/api"
-import { getWorkout } from "../lib/workoutsApi"
+import { apiJson, UnauthenticatedError } from "../lib/api"
+import { createWorkout, getWorkout, listWorkouts } from "../lib/workoutsApi"
 import { WorkoutPanel } from "../components/WorkoutPanel"
 
 const ACTIVE_KEY = "pc.activeWorkout.v1"
@@ -192,5 +196,117 @@ describe("WorkoutPanel", () => {
     await waitFor(() => expect(screen.getByTestId("active-workout")).toBeInTheDocument())
     expect(screen.queryByTestId("cv-prefill-hint")).not.toBeInTheDocument()
     await waitFor(() => expect(onHandled).toHaveBeenCalled())
+  })
+
+  describe("P29 error surfacing", () => {
+    it("signed-out Start workout shows a sign-in card that deep-links to Settings", async () => {
+      vi.mocked(createWorkout).mockRejectedValueOnce(new UnauthenticatedError("Sign in required"))
+      const onNavigateSettings = vi.fn()
+      render(<WorkoutPanel onNavigateSettings={onNavigateSettings} />)
+
+      fireEvent.click(await screen.findByTestId("start-workout-cta"))
+
+      expect(await screen.findByTestId("sign-in-prompt")).toHaveTextContent("Sign in to track workouts")
+      fireEvent.click(screen.getByTestId("sign-in-prompt-btn"))
+      expect(onNavigateSettings).toHaveBeenCalled()
+      // The failed click never persisted an active id.
+      expect(window.localStorage.getItem(ACTIVE_KEY)).toBeNull()
+    })
+
+    it("a network-fail Start workout shows an error card; retry re-attempts the same action", async () => {
+      vi.mocked(createWorkout)
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockResolvedValueOnce({
+          id: "w1",
+          title: null,
+          notes: null,
+          started_at: new Date().toISOString(),
+          ended_at: null,
+          exercises: [],
+        })
+      render(<WorkoutPanel />)
+
+      fireEvent.click(await screen.findByTestId("start-workout-cta"))
+      expect(await screen.findByTestId("error-retry")).toHaveTextContent(/offline/i)
+
+      fireEvent.click(screen.getByTestId("error-retry-btn"))
+      await waitFor(() => expect(screen.getByTestId("active-workout")).toBeInTheDocument())
+      expect(vi.mocked(createWorkout)).toHaveBeenCalledTimes(2)
+    })
+
+    it("signed-out Resume keeps the stored pointer (still resumable once signed in)", async () => {
+      window.localStorage.setItem(ACTIVE_KEY, "w-resume")
+      vi.mocked(getWorkout).mockRejectedValueOnce(new UnauthenticatedError("Sign in required"))
+      render(<WorkoutPanel />)
+
+      fireEvent.click(await screen.findByTestId("resume-workout-btn"))
+
+      expect(await screen.findByTestId("sign-in-prompt")).toHaveTextContent(
+        "Sign in to track workouts",
+      )
+      // resumableId untouched — the button is still there for the next attempt.
+      expect(screen.getByTestId("resume-workout-btn")).toBeInTheDocument()
+      expect(window.localStorage.getItem(ACTIVE_KEY)).toBe("w-resume")
+    })
+
+    it("shows a sign-in card in Recent workouts when signed out", async () => {
+      vi.mocked(listWorkouts).mockRejectedValueOnce(new UnauthenticatedError("Sign in required"))
+      const onNavigateSettings = vi.fn()
+      render(<WorkoutPanel onNavigateSettings={onNavigateSettings} />)
+
+      expect(await screen.findByTestId("sign-in-prompt")).toHaveTextContent(
+        "Sign in to see your recent workouts",
+      )
+      fireEvent.click(screen.getByTestId("sign-in-prompt-btn"))
+      expect(onNavigateSettings).toHaveBeenCalled()
+    })
+
+    it("selecting an exercise that 401s in the library shows a sign-in card", async () => {
+      const { getExercise, listExercises } = await import("../lib/workoutsApi")
+      vi.mocked(listExercises).mockResolvedValueOnce([
+        {
+          id: "e1",
+          slug: "barbell-squat",
+          name: "Barbell Squat",
+          category: "strength",
+          equipment: "barbell",
+          primary_muscles: ["quadriceps"],
+          secondary_muscles: [],
+          image_urls: [],
+          youtube_id: null,
+          is_cv_supported: true,
+        },
+      ])
+      vi.mocked(getExercise).mockRejectedValueOnce(new UnauthenticatedError("Sign in required"))
+      const onNavigateSettings = vi.fn()
+      render(<WorkoutPanel onNavigateSettings={onNavigateSettings} />)
+
+      fireEvent.click(await screen.findByTestId("browse-exercises-btn"))
+      fireEvent.click(await screen.findByTestId("exercise-row-barbell-squat"))
+
+      expect(await screen.findByTestId("sign-in-prompt")).toHaveTextContent(
+        "Sign in to view this exercise",
+      )
+      fireEvent.click(screen.getByTestId("sign-in-prompt-btn"))
+      expect(onNavigateSettings).toHaveBeenCalled()
+      // Still on the library, not stuck on a dead click.
+      expect(screen.getByTestId("exercise-library")).toBeInTheDocument()
+    })
+
+    it("a couldn't-load catalog in the library shows an error card with retry", async () => {
+      const { listExercises } = await import("../lib/workoutsApi")
+      vi.mocked(listExercises)
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockResolvedValueOnce([])
+      render(<WorkoutPanel />)
+
+      fireEvent.click(await screen.findByTestId("browse-exercises-btn"))
+
+      expect(await screen.findByTestId("error-retry")).toHaveTextContent(
+        "Couldn't load the exercise catalog.",
+      )
+      fireEvent.click(screen.getByTestId("error-retry-btn"))
+      await waitFor(() => expect(vi.mocked(listExercises)).toHaveBeenCalledTimes(2))
+    })
   })
 })

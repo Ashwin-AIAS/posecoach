@@ -16,6 +16,11 @@ type View = "diary" | "add"
 /** The P27 scan machine, plus "choose" (the add-food entry point) and "log". */
 type AddMode = "choose" | "scanning" | "loading" | "product" | "not-found" | "manual" | "error" | "log"
 
+interface CaloriesPanelProps {
+  /** Deep-links to Settings from a "Sign in" card (P29). */
+  readonly onNavigateSettings?: () => void
+}
+
 const BARCODE_RE = /^\d{6,14}$/
 
 const PRIMARY_BTN =
@@ -30,7 +35,7 @@ const SECONDARY_BTN =
  * logs to the currently-viewed day. Full-screen, memoized, owns its header —
  * mirrors the SettingsPanel/WorkoutPanel pattern.
  */
-function CaloriesPanelInner(): JSX.Element {
+function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Element {
   const [view, setView] = useState<View>("diary")
   const [dateISO, setDateISO] = useState<string>(todayISO())
   const [addMode, setAddMode] = useState<AddMode>("choose")
@@ -98,7 +103,12 @@ function CaloriesPanelInner(): JSX.Element {
         </p>
 
         {view === "diary" && (
-          <DiaryDay dateISO={dateISO} onDateChange={setDateISO} onAddFood={openAdd} />
+          <DiaryDay
+            dateISO={dateISO}
+            onDateChange={setDateISO}
+            onAddFood={openAdd}
+            onSignIn={onNavigateSettings}
+          />
         )}
 
         {view === "add" && addMode === "choose" && (
@@ -109,6 +119,7 @@ function CaloriesPanelInner(): JSX.Element {
               setFood(picked)
               setAddMode("log")
             }}
+            onSignIn={onNavigateSettings}
           />
         )}
 

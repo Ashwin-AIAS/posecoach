@@ -3,6 +3,8 @@ import { Search, Star } from "lucide-react"
 
 import type { ExerciseSummary } from "../types"
 import { useExerciseCatalog } from "../hooks/useExerciseCatalog"
+import { ErrorRetry } from "./ErrorRetry"
+import { SignInPrompt } from "./SignInPrompt"
 import { Icon } from "./ui/Icon"
 
 const MUSCLES = [
@@ -29,6 +31,8 @@ const EQUIPMENT = [
 
 interface ExerciseLibraryProps {
   readonly onSelect: (ex: ExerciseSummary) => void
+  /** Deep-links to Settings when the catalog load 401s (P29). */
+  readonly onSignIn?: () => void
 }
 
 interface FilterChipsProps {
@@ -106,8 +110,8 @@ function ExerciseRow({
   )
 }
 
-function ExerciseLibraryInner({ onSelect }: ExerciseLibraryProps): JSX.Element {
-  const { all, loading, search } = useExerciseCatalog()
+function ExerciseLibraryInner({ onSelect, onSignIn }: ExerciseLibraryProps): JSX.Element {
+  const { all, loading, error, search, retry } = useExerciseCatalog()
   const [query, setQuery] = useState("")
   const [muscle, setMuscle] = useState("")
   const [equipment, setEquipment] = useState("")
@@ -170,6 +174,10 @@ function ExerciseLibraryInner({ onSelect }: ExerciseLibraryProps): JSX.Element {
       <div className="flex-1 overflow-y-auto">
         {loading && all.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-gray-500">Loading catalog…</p>
+        ) : all.length === 0 && error === "auth" ? (
+          <SignInPrompt message="Sign in to browse the exercise library" onSignIn={onSignIn} />
+        ) : all.length === 0 && error === "error" ? (
+          <ErrorRetry message="Couldn't load the exercise catalog." onRetry={retry} />
         ) : results.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-gray-500">No exercises found.</p>
         ) : (
