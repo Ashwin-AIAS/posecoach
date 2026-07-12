@@ -24,6 +24,15 @@ class ExerciseOut(BaseModel):
     image_urls: list[str]
     youtube_id: str | None
     is_cv_supported: bool
+    is_custom: bool
+
+
+class CustomExerciseCreate(BaseModel):
+    """Create a user's own catalog entry (P29). Never visible to other users."""
+
+    name: str = Field(min_length=1, max_length=200)
+    primary_muscle: str | None = Field(default=None, max_length=100)
+    equipment: str | None = Field(default=None, max_length=100)
 
 
 class SetOut(BaseModel):

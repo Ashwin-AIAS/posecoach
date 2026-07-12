@@ -29,7 +29,7 @@ const exercise = {
   secondary_muscles: [],
   image_urls: [],
   youtube_id: null,
-  is_cv_supported: true,
+  is_cv_supported: true, is_custom: false,
   instructions: [],
 }
 

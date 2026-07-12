@@ -21,6 +21,8 @@ export interface UseExerciseCatalogResult {
   readonly error: CatalogError
   readonly search: (q: string, filters?: CatalogFilters) => readonly ExerciseSummary[]
   readonly retry: () => void
+  /** Merge a freshly created custom exercise into the catalog + its cache (P29). */
+  readonly addLocal: (ex: ExerciseSummary) => void
 }
 
 function loadFromStorage(): ExerciseSummary[] | null {
@@ -134,5 +136,13 @@ export function useExerciseCatalog(): UseExerciseCatalogResult {
     [all],
   )
 
-  return { all, loading, error, search, retry: runFetch }
+  const addLocal = useCallback((ex: ExerciseSummary): void => {
+    setAll((prev) => {
+      const next = [ex, ...prev]
+      saveToStorage(next)
+      return next
+    })
+  }, [])
+
+  return { all, loading, error, search, retry: runFetch, addLocal }
 }

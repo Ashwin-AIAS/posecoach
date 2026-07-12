@@ -9,6 +9,7 @@ indistinguishable from a missing one.
 """
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, date, datetime, time, timedelta
 
 import structlog
@@ -31,6 +32,7 @@ from app.models import (
 )
 from app.workouts.schemas import (
     AddExerciseRequest,
+    CustomExerciseCreate,
     CvLinkOut,
     CvLinkRequest,
     ExerciseHistoryOut,
@@ -47,7 +49,7 @@ from app.workouts.schemas import (
     WorkoutSummary,
     WorkoutUpdate,
 )
-from app.workouts.service import get_exercise_history, search_catalog
+from app.workouts.service import get_exercise_history, search_catalog, visible_to
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/v1/workouts", tags=["workouts"])
@@ -69,6 +71,7 @@ def _exercise_out(ex: Exercise) -> ExerciseOut:
         image_urls=ex.image_urls,
         youtube_id=ex.youtube_id,
         is_cv_supported=ex.is_cv_supported,
+        is_custom=ex.is_custom,
     )
 
 
@@ -149,8 +152,11 @@ async def _load_routine(db: AsyncSession, routine_id: str, user_id: str) -> Rout
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
-async def _get_exercise(db: AsyncSession, slug: str) -> Exercise | None:
-    return (await db.execute(select(Exercise).where(Exercise.slug == slug))).scalar_one_or_none()
+async def _get_exercise(db: AsyncSession, slug: str, user_id: str) -> Exercise | None:
+    """Look up a catalog exercise by slug — invisible (404) if it is another
+    user's custom row (P29 isolation)."""
+    stmt = select(Exercise).where(Exercise.slug == slug, visible_to(user_id))
+    return (await db.execute(stmt)).scalar_one_or_none()
 
 
 def _day_start(d: date) -> datetime:
@@ -171,11 +177,35 @@ async def browse_exercises(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> list[ExerciseOut]:
-    """Browse/search the shared exercise catalog (auth required)."""
+    """Browse/search the shared exercise catalog, plus the caller's own custom
+    rows (auth required)."""
     rows = await search_catalog(
-        db, search=search, muscle=muscle, equipment=equipment, limit=limit, offset=offset
+        db, user_id=user.id, search=search, muscle=muscle, equipment=equipment,
+        limit=limit, offset=offset,
     )
     return [_exercise_out(r) for r in rows]
+
+
+@router.post("/exercises", response_model=ExerciseOut, status_code=status.HTTP_201_CREATED)
+async def create_custom_exercise(
+    body: CustomExerciseCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ExerciseOut:
+    """Add a user's own catalog entry (P29) — usable and loggable immediately,
+    never visible to other users."""
+    ex = Exercise(
+        slug=f"custom-{uuid.uuid4().hex[:8]}",
+        name=body.name,
+        primary_muscles=[body.primary_muscle] if body.primary_muscle else [],
+        equipment=body.equipment,
+        is_custom=True,
+        owner_user_id=user.id,
+    )
+    db.add(ex)
+    await db.flush()
+    logger.info("custom_exercise_created", user_id=user.id, exercise_id=ex.id)
+    return _exercise_out(ex)
 
 
 @router.get("/exercises/{slug}", response_model=ExerciseOut)
@@ -184,7 +214,7 @@ async def get_exercise(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseOut:
-    ex = await _get_exercise(db, slug)
+    ex = await _get_exercise(db, slug, user.id)
     if ex is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="exercise not found")
     return _exercise_out(ex)
@@ -197,7 +227,7 @@ async def get_exercise_history_route(
     db: AsyncSession = Depends(get_db),
 ) -> ExerciseHistoryOut:
     """This user's past sets of an exercise, with total volume and best 1RM."""
-    ex = await _get_exercise(db, slug)
+    ex = await _get_exercise(db, slug, user.id)
     if ex is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="exercise not found")
     return await get_exercise_history(db, user_id=user.id, exercise=ex)
@@ -325,7 +355,9 @@ async def add_exercise_to_workout(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="workout not found")
 
     ex = (
-        await db.execute(select(Exercise).where(Exercise.id == body.exercise_id))
+        await db.execute(
+            select(Exercise).where(Exercise.id == body.exercise_id, visible_to(user.id))
+        )
     ).scalar_one_or_none()
     if ex is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="exercise not found")
@@ -527,7 +559,11 @@ async def create_routine(
     db: AsyncSession = Depends(get_db),
 ) -> RoutineOut:
     found = (
-        await db.execute(select(Exercise.id).where(Exercise.id.in_(body.exercise_ids)))
+        await db.execute(
+            select(Exercise.id).where(
+                Exercise.id.in_(body.exercise_ids), visible_to(user.id)
+            )
+        )
     ).scalars().all()
     found_ids = set(found)
     missing = [eid for eid in body.exercise_ids if eid not in found_ids]

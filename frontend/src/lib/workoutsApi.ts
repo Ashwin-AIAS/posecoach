@@ -47,6 +47,19 @@ export async function getExerciseHistory(slug: string): Promise<ExerciseHistoryO
   )
 }
 
+export interface CustomExerciseInput {
+  name: string
+  primaryMuscle?: string
+}
+
+/** Add a user's own catalog entry (P29) — usable and loggable immediately. */
+export async function createCustomExercise(input: CustomExerciseInput): Promise<ExerciseDetail> {
+  return apiJson<ExerciseDetail>("/api/v1/workouts/exercises", {
+    method: "POST",
+    body: JSON.stringify({ name: input.name, primary_muscle: input.primaryMuscle }),
+  })
+}
+
 // ── Workouts ──────────────────────────────────────────────────────────────────
 
 export interface ListWorkoutsParams {

@@ -148,7 +148,7 @@ describe("WorkoutPanel", () => {
             instructions: [],
             image_urls: [],
             youtube_id: null,
-            is_cv_supported: true,
+            is_cv_supported: true, is_custom: false,
           },
           sets: [],
         },
@@ -274,7 +274,7 @@ describe("WorkoutPanel", () => {
           secondary_muscles: [],
           image_urls: [],
           youtube_id: null,
-          is_cv_supported: true,
+          is_cv_supported: true, is_custom: false,
         },
       ])
       vi.mocked(getExercise).mockRejectedValueOnce(new UnauthenticatedError("Sign in required"))

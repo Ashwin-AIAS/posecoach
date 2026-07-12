@@ -3,22 +3,11 @@ import { Search, Star } from "lucide-react"
 
 import type { ExerciseSummary } from "../types"
 import { useExerciseCatalog } from "../hooks/useExerciseCatalog"
+import { MUSCLES } from "../lib/muscleGroups"
+import { CustomExerciseSheet } from "./CustomExerciseSheet"
 import { ErrorRetry } from "./ErrorRetry"
 import { SignInPrompt } from "./SignInPrompt"
 import { Icon } from "./ui/Icon"
-
-const MUSCLES = [
-  "abdominals",
-  "biceps",
-  "chest",
-  "glutes",
-  "hamstrings",
-  "lats",
-  "lower back",
-  "quadriceps",
-  "shoulders",
-  "triceps",
-]
 
 const EQUIPMENT = [
   "barbell",
@@ -98,6 +87,11 @@ function ExerciseRow({
           {ex.is_cv_supported && (
             <Icon icon={Star} size={11} className="shrink-0 text-accent" />
           )}
+          {ex.is_custom && (
+            <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent">
+              Custom
+            </span>
+          )}
         </div>
         {ex.primary_muscles.length > 0 && (
           <p className="truncate text-[11px] text-gray-500">{ex.primary_muscles.join(", ")}</p>
@@ -111,10 +105,11 @@ function ExerciseRow({
 }
 
 function ExerciseLibraryInner({ onSelect, onSignIn }: ExerciseLibraryProps): JSX.Element {
-  const { all, loading, error, search, retry } = useExerciseCatalog()
+  const { all, loading, error, search, retry, addLocal } = useExerciseCatalog()
   const [query, setQuery] = useState("")
   const [muscle, setMuscle] = useState("")
   const [equipment, setEquipment] = useState("")
+  const [showCustomSheet, setShowCustomSheet] = useState(false)
 
   const results = useMemo(
     () => search(query, { muscle: muscle || undefined, equipment: equipment || undefined }),
@@ -128,6 +123,15 @@ function ExerciseLibraryInner({ onSelect, onSignIn }: ExerciseLibraryProps): JSX
   }, [])
 
   const hasFilters = query !== "" || muscle !== "" || equipment !== ""
+
+  const handleCustomCreated = useCallback(
+    (ex: ExerciseSummary): void => {
+      addLocal(ex)
+      setShowCustomSheet(false)
+      onSelect(ex)
+    },
+    [addLocal, onSelect],
+  )
 
   return (
     <div className="flex h-full flex-col gap-0" data-testid="exercise-library">
@@ -179,7 +183,17 @@ function ExerciseLibraryInner({ onSelect, onSignIn }: ExerciseLibraryProps): JSX
         ) : all.length === 0 && error === "error" ? (
           <ErrorRetry message="Couldn't load the exercise catalog." onRetry={retry} />
         ) : results.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-gray-500">No exercises found.</p>
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <p className="text-sm text-gray-500">No exercises found.</p>
+            <button
+              type="button"
+              onClick={() => setShowCustomSheet(true)}
+              className="text-sm font-medium text-accent underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              data-testid="add-custom-exercise"
+            >
+              Can't find it? Add your own
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col gap-2 p-3">
             <p className="text-[11px] text-gray-600">
@@ -191,6 +205,13 @@ function ExerciseLibraryInner({ onSelect, onSignIn }: ExerciseLibraryProps): JSX
           </div>
         )}
       </div>
+
+      {showCustomSheet && (
+        <CustomExerciseSheet
+          onCreated={handleCustomCreated}
+          onClose={() => setShowCustomSheet(false)}
+        />
+      )}
     </div>
   )
 }

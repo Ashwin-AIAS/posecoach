@@ -3,6 +3,7 @@ import { Search, X } from "lucide-react"
 
 import type { ExerciseSummary } from "../types"
 import { useExerciseCatalog } from "../hooks/useExerciseCatalog"
+import { CustomExerciseSheet } from "./CustomExerciseSheet"
 import { Icon } from "./ui/Icon"
 
 interface ExercisePickerProps {
@@ -11,8 +12,9 @@ interface ExercisePickerProps {
 }
 
 function ExercisePickerInner({ onPick, onClose }: ExercisePickerProps): JSX.Element {
-  const { all, loading, search } = useExerciseCatalog()
+  const { all, loading, search, addLocal } = useExerciseCatalog()
   const [query, setQuery] = useState("")
+  const [showCustomSheet, setShowCustomSheet] = useState(false)
 
   const results = useMemo(() => search(query), [search, query])
 
@@ -23,6 +25,24 @@ function ExercisePickerInner({ onPick, onClose }: ExercisePickerProps): JSX.Elem
     },
     [onPick, onClose],
   )
+
+  const handleCustomCreated = useCallback(
+    (ex: ExerciseSummary): void => {
+      addLocal(ex)
+      setShowCustomSheet(false)
+      handlePick(ex)
+    },
+    [addLocal, handlePick],
+  )
+
+  if (showCustomSheet) {
+    return (
+      <CustomExerciseSheet
+        onCreated={handleCustomCreated}
+        onClose={() => setShowCustomSheet(false)}
+      />
+    )
+  }
 
   return (
     <div
@@ -79,7 +99,17 @@ function ExercisePickerInner({ onPick, onClose }: ExercisePickerProps): JSX.Elem
           {loading && all.length === 0 ? (
             <p className="py-6 text-center text-sm text-gray-500">Loading…</p>
           ) : results.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500">No results.</p>
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <p className="text-sm text-gray-500">No results.</p>
+              <button
+                type="button"
+                onClick={() => setShowCustomSheet(true)}
+                className="text-sm font-medium text-accent underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                data-testid="add-custom-exercise"
+              >
+                Can't find it? Add your own
+              </button>
+            </div>
           ) : (
             <div className="flex flex-col gap-1.5">
               {results.slice(0, 80).map((ex) => (

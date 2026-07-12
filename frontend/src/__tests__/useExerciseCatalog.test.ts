@@ -22,7 +22,7 @@ const FIXTURE: ExerciseSummary[] = [
     secondary_muscles: ["glutes"],
     image_urls: [],
     youtube_id: "CWl0apMgshk",
-    is_cv_supported: true,
+    is_cv_supported: true, is_custom: false,
   },
   {
     id: "2",
@@ -34,7 +34,7 @@ const FIXTURE: ExerciseSummary[] = [
     secondary_muscles: [],
     image_urls: [],
     youtube_id: null,
-    is_cv_supported: false,
+    is_cv_supported: false, is_custom: false,
   },
   {
     id: "3",
@@ -46,7 +46,7 @@ const FIXTURE: ExerciseSummary[] = [
     secondary_muscles: ["hamstrings"],
     image_urls: [],
     youtube_id: null,
-    is_cv_supported: false,
+    is_cv_supported: false, is_custom: false,
   },
 ]
 
