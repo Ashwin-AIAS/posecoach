@@ -1,7 +1,22 @@
-# PoseCoach Backend — Python 3.11
+# PoseCoach — Multi-stage Docker build
+# Stage 1: Build the React frontend (same-origin, no VITE_API_URL)
+# Stage 2: Python 3.11 runtime with the built frontend baked in
 # Build: docker build -t posecoach .
 # Run:   docker-compose up backend
 
+# ── Stage 1: Frontend build ──────────────────────────────────────────────────
+FROM node:20-alpine AS frontend-build
+WORKDIR /frontend
+
+# Install deps first (cached layer)
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --ignore-scripts
+
+# Build the SPA — no VITE_API_URL means same-origin relative paths
+COPY frontend/ ./
+RUN npm run build
+
+# ── Stage 2: Python runtime ─────────────────────────────────────────────────
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -36,6 +51,11 @@ COPY scripts/ ./scripts/
 COPY models/ ./models/
 COPY data/knowledge_base/ ./data/knowledge_base/
 RUN mkdir -p data/chroma
+
+# Built frontend from Stage 1 — served by the SPA static mount in app.main.
+# When this dir is present the app serves the React shell at /; when absent
+# (local dev, CI) the mount is cleanly skipped.
+COPY --from=frontend-build /frontend/dist ./static
 
 # NOTE: RAG ingest is NOT run at build time. It runs lazily at app startup
 # (see lifespan -> _ensure_rag_index in app/main.py). The embedding model is
