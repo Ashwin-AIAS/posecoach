@@ -4,6 +4,7 @@ import secrets
 from collections.abc import AsyncGenerator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -247,3 +248,16 @@ async def health_deep() -> dict[str, str]:
         raise HTTPException(status_code=503, detail=status)
 
     return {"status": "ok", **status}
+
+
+# ---------------------------------------------------------------------------
+# SPA static serving (P30 — same-origin deploy)
+# ---------------------------------------------------------------------------
+# Mount the built frontend when the Docker image includes it. The directory
+# is absent during local dev and in the pytest suite, so the mount is
+# cleanly skipped and behaviour is identical to pre-P30.
+_STATIC_DIR = os.environ.get("SPA_STATIC_DIR", "/app/static")
+if Path(_STATIC_DIR, "index.html").is_file():
+    from app.static_spa import mount_spa
+
+    mount_spa(app, _STATIC_DIR)
