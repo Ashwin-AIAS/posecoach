@@ -1,120 +1,122 @@
-# PoseCoach — Latency Optimization Plan (Resolution-first; INT8 deferred)
+# PoseCoach — Latency Optimization Plan (Phase 2: resolution ruled out → pipeline & infra)
 
-> **Supersedes** the earlier INT8-first framing. Empirical benchmarking showed the
-> input-resolution lever (320) beats INT8 quantization decisively, so the strategy is now
-> **ship the 320 model**, with INT8 kept as an optional later add-on.
+> **Supersedes** the "resolution-first, ship 320" framing (and the earlier INT8-first framing
+> before it). The 2026-07-15 resolution sweep tested every candidate size against the 0.97-OKS
+> accuracy gate — **all failed**. Model input resolution is closed as a latency lever.
 > **Type:** Performance / additive. No feature-behaviour change.
 > **Context:** Vercel PWA → WebSocket → FastAPI on a CPU Hugging Face Space; edge target
-> Android + iOS. PyTorch/`.pt` is not deployable (no GPU on Space, no torch on phones) — ONNX stays.
+> Android + iOS. `.pt` not deployable (no GPU on Space, no torch on phones) — ONNX stays.
 
 ---
 
-## Project Leader — framing
+## Project Leader — where we are
 
-The kids feel lag because inference runs FP32 at 640 on a CPU Space. We keep ONNX and reduce
-compute. We tested two levers locally against the fine-tuned model. The data decided it.
+Two experiment rounds are complete. The data closed two doors:
 
-### What the local benchmark showed
-| Model | Latency (local CPU, mean) | vs 640 FP32 | State |
-|-------|---------------------------|-------------|-------|
-| 640 FP32 (`yolo_posecoach_v1.onnx`) | 25.3 ms | baseline | working (recorded Space baseline ≈ 54.9 ms) |
-| 320 FP32 (`yolo_posecoach_v1_320.onnx`) | 6.6 ms | **−74%** | **working, already exported** |
-| 640 INT8 (`yolo_posecoach_v1_int8.onnx`) | 20.1 ms | −20% | **collapsed** (score = 0.000) |
+| Lever | Result | Verdict |
+|-------|--------|---------|
+| INT8-640 (end-to-end graph) | collapsed — all scores 0.000 | dead (repairable variant ≈ −13–20% only) |
+| 320 input | −74% latency, mean OKS 0.8552 vs 640 | **fails 0.97 gate** |
+| 448 input | −33% latency, mean OKS 0.9081 | **fails** |
+| 512 input | −15% latency, mean OKS 0.9284, p95 ≈ 640's | **fails** (and prize too small anyway) |
 
-Recorded FP32 accuracy baseline (from training): **OKS-mAP@0.50 = 0.9126** (mAP@0.50:0.95 = 0.7638).
+Sweep record: `data/eval/resolution_sweep_results.json` (150 in-domain images, conf 0.5,
+OKS-vs-640 proxy; detection parity was NOT the blocker — 448/512 detected slightly *more*
+than 640 — keypoint placement disagreement was).
 
-### Decision
-**Adopt the 320-resolution model as the latency fix. Defer INT8.**
-- 320 gives ~3.5× the latency win of INT8 and it is not broken.
-- INT8 collapsed because the end-to-end quantization included the score-decode / TopK head,
-  wiping the confidence path; it also could only use MinMax calibration locally (histogram
-  calibrators OOM at >15 GB). Even repaired (head excluded), its local win was ~20%.
-- INT8 stays a **future stack-on**: quantize the *320* model backbone/neck only (head excluded)
-  if we ever need more. Not now.
+### The key observation
+The model itself is not obviously the bottleneck:
 
-### Risks
-1. **Accuracy loss from lower resolution** — 320 loses keypoint precision, worst for small/distant
-   subjects; gym close-ups are the favourable case. → Must be measured, not assumed.
-2. **Frozen-core touch** — changing input size / model file lives in the inference path
-   (`imgsz`, model load). → Ship behind an env flag, code path unchanged, Leader sign-off before merge.
-3. **Missing val split** — the labeled `yolo_pose` val set is not local, so the exact OKS-mAP
-   recheck is blocked until it's recovered (Drive / re-generate).
+- 640 FP32 local CPU: **26.7 ms mean** · recorded Space baseline: **≈54.9 ms mean (p95 57.2)**.
+- At 15 FPS the frame budget is 66 ms. Even the Space's 55 ms fits — **if only one frame is
+  in flight**. Perceived "lag" that ramps up over a session is the signature of **frame
+  queueing** (client keeps sending at fixed FPS while server + network can't keep pace, so
+  the backlog — and the on-screen delay — grows), plus network RTT Vercel↔Space and
+  Space CPU contention/cold starts.
+- Conclusion: **attack the pipeline, not the weights.**
 
 ---
 
-## ML Engineer — the 320 model + how we judge it
+## Phase 2 workstreams (ranked)
 
-The 320 export already exists (`models/yolo_posecoach_v1_320.onnx`). No new training or export needed.
+> **Code audit 2026-07-15 (before building anything):** two of the planned fixes already
+> exist in the frozen core.
+> - **Backpressure is DONE:** `usePoseStream.ts` sends at most one frame in flight
+>   (`inFlightRef`), caps capture at 15 FPS, tracks an RTT EMA, and adaptively drops JPEG
+>   quality (>160 ms RTT) and resolution (>300 ms). Frames are *skipped*, never queued.
+>   Workstream "drop-latest" is therefore closed — no backlog can build.
+> - **Server instrumentation is DONE:** every WS reply already carries per-frame
+>   `latency_ms` (inference time), and `posecoach_pipeline_stage_latency_seconds`
+>   (Prometheus, by stage × exercise) plus P11 rolling per-stage logs cover the server side.
+> - **Consequence:** with single-in-flight, perceived lag = per-frame round-trip. If deployed
+>   RTT is ~300 ms, users see ~3 FPS overlay that trails by ~0.3 s — laggy but bounded. The
+>   missing number is the **client-side breakdown of that RTT**: encode + network share vs.
+>   the server's `latency_ms`. Nobody has read the deployed numbers end-to-end.
 
-**Local accuracy proxy (available now, no val split):** compare the 320 model's keypoints to the
-640 model's on ~150 in-domain images, in normalized coordinates, via OKS — plus detection-count parity.
-Implemented in `notebooks/quantize_int8_local.py` (final section).
-- **Ship gate (proxy):** mean OKS ≥ **0.97** AND 320 detects a person on ≈ the same frames as 640.
-- If OKS < 0.97 or 320 misses detections 640 caught → 320 too lossy; try an intermediate size
-  (448 or 512) or repair-then-stack INT8.
+### 1. Latency diagnostics probe — *Frontend, additive, the only build needed now*
+A dev-flagged Diagnostics panel (Settings tab) with its **own** WS connection to
+`/ws/inference` — zero frozen-file edits (new files only + a mount point in the non-frozen
+Settings component).
+- Sends ~50 camera frames single-in-flight; records per frame: JPEG encode ms, RTT
+  (send→reply), server `latency_ms` (from the reply), network+overhead = RTT − latency_ms.
+- Reports p50/p95 per stage + effective FPS. Optionally POST-free — display only, user
+  screenshots or copies JSON.
+- Run it from a phone against `https://ashwintaibu-posecoach.hf.space` (P30 same-origin —
+  browser talks to the Space directly).
+- Cross-check server side via the token-gated `/metrics` (Prometheus histograms) from a
+  machine with `METRICS_TOKEN`.
+- **Gate:** a written p50/p95 breakdown from ≥1 real phone session. Maps to the thesis
+  latency chapter (extends the <100 ms p95 metric with a deployed end-to-end table).
+- **Decision rule:** network share dominates → on-device PoC is the fix (workstream 2);
+  server `latency_ms` ≫ 55 ms benchmark → Space contention → tier upgrade (workstream 4);
+  RTT ≈ benchmark and it still "feels" laggy → perception problem → interpolation/overlay
+  smoothing discussion (the frozen `poseInterpolator` already exists).
 
-**Formal accuracy gate (needs val split):** recompute OKS-mAP@0.50 for the 320 model on the labeled
-val set; require it **within 2% of 0.9126** and still ≥ 0.75 (the P01 thesis gate). This is the
-number that goes in the evaluation chapter.
+### 2. On-device inference PoC: onnxruntime-web — *Frontend + ML*
+Eliminates network + Space entirely; best fit for the Android/iOS edge target and the privacy
+story (frames never leave the device — thesis-grade contribution).
+- PoC: load `yolo_posecoach_v1.onnx` (12 MB) in the PWA via onnxruntime-web
+  (WebGPU EP, wasm-simd fallback), measure per-frame ms on a real mid-range phone.
+- Decision input, not a commitment: if a phone runs 640 in < 66 ms, this becomes the headline
+  fix; if 150 ms+, it stays a thesis experiment.
+- **Gate:** measured ms/frame on ≥ 2 real devices + keypoint parity vs. server output on the
+  same frames.
 
----
+### 3. Optional stack-on: repair INT8-640 (head excluded) — *ML*
+Backbone/neck-only QDQ per-channel quantization, decode/TopK head excluded, MinMax calibration
+(histogram OOMs locally). Expected ≈ −13–20%, accuracy-preserving. Worth doing only after 1–2
+land, or as the on-device model (INT8 helps most on phone CPUs).
 
-## Backend / DevOps — branch & one-flag revert
-
-- **Branch:** `perf/low-latency-320` off `main`. Nothing merges until gates pass.
-- **Ship the 320 ONNX as a new artifact** alongside the 640 file — never overwrite it.
-- **Env flag** selects it, e.g. `POSE_INPUT_SIZE=320|640` (default `640`), mapping to the 320 vs 640
-  ONNX + matching `imgsz`. Loading code unchanged; only which file/size is read.
-- **Rollback = set `POSE_INPUT_SIZE=640` and redeploy** (seconds). Full revert = delete the branch.
-- Because this touches the frozen inference path indirectly, get explicit Leader sign-off before merge.
-
----
-
-## QA / Thesis Advisor — acceptance gates
-
-Measure **on the HF Space CPU** (the real target), same frames, before/after.
-- **Latency gate:** target a large p50 cut on the Space (320 should far exceed the earlier ≥30–40% aim).
-  Report p50 and p95.
-- **Accuracy gate (hard):** 320 OKS-mAP@0.50 within **2%** of 0.9126 on the val split; **no rep-count
-  regression** and **no form-score-stability regression** (these matter most to users; smoothers absorb
-  minor jitter).
-- **Rollback trigger:** accuracy fails the gate, or rep-count regresses → `POSE_INPUT_SIZE=640`, branch
-  stays unmerged; escalate to intermediate resolution.
-- **Standard quality gate (unchanged):** `ruff check app/ --fix`, `mypy app/ --strict`,
-  `pytest -x --timeout=30 --cov=app/analysis --cov-fail-under=80`.
-
----
-
-## Stage → gate → push plan
-
-1. **Proxy check (local, now).** Run the updated script; record 320-vs-640 mean OKS + detection parity.
-   *Gate:* mean OKS ≥ 0.97 and detection parity.
-2. **Recover the val split.** From Drive, or re-generate via P01. *Gate:* labeled val set reachable.
-3. **Formal accuracy.** OKS-mAP@0.50 of 320 vs 0.9126 on the val split.
-   *Gate:* within 2% and ≥ 0.75.
-4. **Wire the flag.** Add 320 artifact + `POSE_INPUT_SIZE` (default 640); loading code unchanged.
-   *Gate:* flag flips size; default path unchanged; quality gate green.
-5. **Measure on the Space.** Deploy to a staging Space, record p50/p95 latency 320 vs 640.
-   *Gate:* large latency cut confirmed; kids no longer feel lag on a real test.
-6. **(Optional, later) INT8 stack.** Quantize the 320 model backbone/neck only (head excluded, QDQ,
-   per-channel). Only if more speed is needed. *Gate:* same accuracy gate as step 3.
-7. **PR to `main`** with before/after latency + accuracy, flagged for Leader sign-off. **STOP.**
+### 4. Money lever: Space tier / keep-warm — *DevOps*
+CPU upgrade or persistent hardware on the HF Space; eliminate cold starts. Zero code. Pairs
+with whatever 1 finds about contention.
 
 ---
 
-## Open items (separate from shipping 320)
-- **Recover the labeled `yolo_pose` val split** — blocks the formal accuracy number.
-- **Color-order finding:** local probe showed FP32 scores markedly higher with **RGB** input, but the
-  production `OnnxPoseSession` feeds **BGR** "for parity with the `.pt` path." If real, the live app may
-  be running the model on the wrong channel order and quietly losing accuracy. Worth a focused check —
-  frozen-core, so investigate and report before any change.
+## Guardrails (unchanged)
+Pose core FROZEN (`ws_inference.py`, `app/inference/**`, `app/analysis/**`, lifespan, frozen
+frontend camera/pose hooks). Everything above is additive + env-flagged + one-flag revert +
+Leader sign-off. YOLO26: no `end2end=False`, keypoints via `.xyn`, conf gate 0.5. No fabricated
+numbers; gates don't loosen. Quality gate before any checkpoint: ruff / mypy --strict / pytest
+cov ≥ 80 on `app/analysis`.
 
----
+## Open items (separate)
+- **Labeled `yolo_pose` val split** still not local (Drive or re-run P01) — blocks any formal
+  OKS-mAP recheck vs 0.9126. All local accuracy work uses the vs-640 proxy meanwhile.
+- **RGB/BGR finding:** local probe showed FP32 scores markedly higher with RGB input, but prod
+  `OnnxPoseSession` feeds BGR. Possible latent accuracy bug in the frozen core — investigate
+  and report before any change. (Independent of latency; do not bundle.)
+- New artifacts kept for reference: `models/yolo_posecoach_v1_448.onnx`, `_512.onnx`
+  (sweep exports; not wired anywhere).
 
 ## Leader's summary
-Benchmarking redirected the plan: **the 320-resolution model is the latency fix, not INT8.** It's
-~74% faster locally, already exported, and not broken, whereas INT8 collapsed and only bought ~20%.
-Ship 320 behind `POSE_INPUT_SIZE` (default 640) so rollback is one flag. Decide with accuracy: pass the
-local OKS-drift proxy (≥ 0.97) now, then the formal OKS-mAP@0.50-within-2%-of-0.9126 gate once the val
-split is recovered, confirming the latency win on the Space. INT8 remains an optional later stack on the
-320 model with the head excluded. **Next step:** run the proxy check and read the 320-vs-640 OKS number.
+Resolution is dead as a latency lever — every size below 640 fails the accuracy gate, and the
+sizes that come closest barely buy any speed. The code audit then closed two more workstreams
+before they started: client backpressure and server instrumentation already exist in the frozen
+core. With single-in-flight sending, felt lag = per-frame round-trip — so the one unknown left
+is **where the deployed RTT goes** (encode vs network vs server). **Next step: build the
+additive Latency Diagnostics probe (workstream 1), run it from a real phone against the prod
+Space, and let the p50/p95 breakdown pick between on-device inference, a Space upgrade, or
+overlay smoothing.** INT8 repair stays in the back pocket. No commits made; the probe ships on
+a fresh `perf/latency-diagnostics` branch once `feat/p30-same-origin-deploy` is merged or
+stashed.
