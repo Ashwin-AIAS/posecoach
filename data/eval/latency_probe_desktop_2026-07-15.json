@@ -1,0 +1,18 @@
+{
+  "note": "P31 latency diagnostics probe — first deployed end-to-end run. Desktop Chrome (Windows), 50 frames, 512px JPEG q0.6, vs prod Space. Verdict: network-dominated (~80% of RTT); server stable at benchmark (~58.6ms, p95 60.5) => Space tier upgrade ruled out; on-device inference selected as Phase 2 fix.",
+  "url": "wss://ashwintaibu-posecoach.hf.space/ws/inference",
+  "started_at": "2026-07-15T21:28:49.853Z",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+  "frames_requested": 50,
+  "frames_completed": 50,
+  "duration_s": 14.5,
+  "effective_fps": 3.4,
+  "capture": { "long_side": 512, "jpeg_quality": 0.6, "exercise": "squat" },
+  "status_counts": { "ok": 50 },
+  "stages": {
+    "encode":  { "n": 50, "p50_ms": 2.5,   "p95_ms": 4.3,   "mean_ms": 2.8 },
+    "rtt":     { "n": 50, "p50_ms": 269.1, "p95_ms": 438.6, "mean_ms": 286.6 },
+    "server":  { "n": 50, "p50_ms": 58.5,  "p95_ms": 60.5,  "mean_ms": 58.6 },
+    "network": { "n": 50, "p50_ms": 210.4, "p95_ms": 380.3, "mean_ms": 228.0 }
+  }
+}

@@ -72,7 +72,15 @@ Settings component).
   RTT ≈ benchmark and it still "feels" laggy → perception problem → interpolation/overlay
   smoothing discussion (the frozen `poseInterpolator` already exists).
 
-### 2. On-device inference PoC: onnxruntime-web — *Frontend + ML*
+> **PROBE RESULT 2026-07-15 (workstream 1 complete — `data/eval/latency_probe_desktop_2026-07-15.json`):**
+> 50/50 frames vs prod Space, desktop Chrome. Per frame p50: encode **2.5 ms** ·
+> server **58.5 ms** (p95 60.5 — dead stable, matches the 54.9 benchmark, no contention) ·
+> network **210.4 ms** (p95 380.3) → RTT **269.1 ms**, effective **3.4 FPS**.
+> **~80% of the round-trip is network. Decision rule fired: Space tier upgrade RULED OUT
+> (would address ~58 ms of 269); on-device inference (workstream 2) selected as the fix.**
+> Phone-on-mobile-data run still worth recording for the thesis table (expected worse network).
+
+### 2. On-device inference PoC: onnxruntime-web — *Frontend + ML* ← **ACTIVE**
 Eliminates network + Space entirely; best fit for the Android/iOS edge target and the privacy
 story (frames never leave the device — thesis-grade contribution).
 - PoC: load `yolo_posecoach_v1.onnx` (12 MB) in the PWA via onnxruntime-web

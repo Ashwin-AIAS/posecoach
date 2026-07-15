@@ -6,6 +6,7 @@ import { isLatencyDiagEnabled } from "../hooks/useLatencyProbe"
 import { useUnitPref, type Unit } from "../hooks/useUnitPref"
 import { AuthModal } from "./AuthModal"
 import { LatencyDiagnostics } from "./LatencyDiagnostics"
+import { OnDeviceInference } from "./OnDeviceInference"
 import { Icon } from "./ui/Icon"
 
 type AuthHook = ReturnType<typeof useAuth>
@@ -198,12 +199,17 @@ function SettingsPanelInner({ auth, onNavigateCoach }: SettingsPanelProps): JSX.
           )}
         </Section>
 
-        {/* P31: dev-flagged latency probe (LATENCY_OPTIMIZATION_PLAN.md Phase 2 §1).
+        {/* P31/P32: dev-flagged diagnostics (LATENCY_OPTIMIZATION_PLAN.md Phase 2).
             Hidden from real users — dev builds, or `?diag=1` once in production. */}
         {isLatencyDiagEnabled() && (
-          <Section title="Developer — Latency">
-            <LatencyDiagnostics />
-          </Section>
+          <>
+            <Section title="Developer — Latency">
+              <LatencyDiagnostics />
+            </Section>
+            <Section title="Developer — On-device">
+              <OnDeviceInference />
+            </Section>
+          </>
         )}
       </div>
 
