@@ -100,8 +100,6 @@ test.describe("Production smoke test", () => {
       await caloriesTab.click()
       await page.waitForTimeout(1000)
 
-      // Verify the calories panel loaded (look for search or diary)
-      const caloriesPanel = page.locator("[data-testid*='calorie'], [data-testid*='food'], [data-testid*='nutrition']")
       // Just verify tab navigation works — food search requires barcode/text
       await page.waitForTimeout(500)
     }

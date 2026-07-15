@@ -104,3 +104,7 @@ posecoach/
 
 # Local working notes that keep churning without being commit-worthy
 docs/enhancements/RESPONSIVE_MOBILE_P19-P22.md
+
+# Calibration images (large dataset)
+data/calib_images/
+
