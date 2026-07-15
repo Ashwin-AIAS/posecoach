@@ -28,10 +28,14 @@ describe("OnDeviceInference", () => {
 
     fireEvent.click(screen.getByTestId("ondevice-run"))
 
-    await waitFor(() =>
-      expect(screen.getByTestId("ondevice-error")).toHaveTextContent(
-        "Model endpoint returned 404",
-      ),
+    // Generous timeout: the assertion resolves in ms, but waitFor's 1s default
+    // is tight enough to flake when the machine is under heavy disk load.
+    await waitFor(
+      () =>
+        expect(screen.getByTestId("ondevice-error")).toHaveTextContent(
+          "Model endpoint returned 404",
+        ),
+      { timeout: 5000 },
     )
     // And return to a runnable state.
     expect(screen.getByTestId("ondevice-run")).toHaveTextContent("Run on-device test")

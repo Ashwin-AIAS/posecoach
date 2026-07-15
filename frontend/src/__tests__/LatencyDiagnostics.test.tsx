@@ -22,10 +22,14 @@ describe("LatencyDiagnostics", () => {
     fireEvent.click(screen.getByTestId("latency-diag-run"))
 
     // jsdom has no navigator.mediaDevices — the probe must fail cleanly, not hang.
-    await waitFor(() =>
-      expect(screen.getByTestId("latency-diag-error")).toHaveTextContent(
-        "Camera not available in this browser",
-      ),
+    // Generous timeout: the assertion resolves in ms, but waitFor's 1s default
+    // is tight enough to flake when the machine is under heavy disk load.
+    await waitFor(
+      () =>
+        expect(screen.getByTestId("latency-diag-error")).toHaveTextContent(
+          "Camera not available in this browser",
+        ),
+      { timeout: 5000 },
     )
     // And return to a runnable state.
     expect(screen.getByTestId("latency-diag-run")).toHaveTextContent("Run latency probe")

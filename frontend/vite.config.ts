@@ -37,7 +37,12 @@ export default defineConfig({
         // signed-out or offline cache would silently defeat the sign-in/retry
         // gating added in Stage A. Uncached requests fall straight through to
         // the network, which is what we want for auth-gated API calls.
-        navigateFallbackDenylist: [/^\/api\//]
+        navigateFallbackDenylist: [/^\/api\//],
+        // onnxruntime-web's wasm binary (~24MB) backs the dev-flagged on-device
+        // panel (P32) only. Precaching it would push 24MB onto every real user
+        // at install for a surface they never open; it is fetched on demand
+        // instead. Workbox refuses >2MB entries anyway and errors the build.
+        globIgnores: ["**/ort-wasm-*.wasm"]
       }
     })
   ],
