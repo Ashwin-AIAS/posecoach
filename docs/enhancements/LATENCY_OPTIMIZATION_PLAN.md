@@ -80,7 +80,7 @@ Settings component).
 > (would address ~58 ms of 269); on-device inference (workstream 2) selected as the fix.**
 > Phone-on-mobile-data run still worth recording for the thesis table (expected worse network).
 
-### 2. On-device inference PoC: onnxruntime-web — *Frontend + ML* ← **ACTIVE**
+### 2. On-device inference PoC: onnxruntime-web — *Frontend + ML* ← **COMPLETE (built P32; gate met)**
 Eliminates network + Space entirely; best fit for the Android/iOS edge target and the privacy
 story (frames never leave the device — thesis-grade contribution).
 - PoC: load `yolo_posecoach_v1.onnx` (12 MB) in the PWA via onnxruntime-web
@@ -90,10 +90,54 @@ story (frames never leave the device — thesis-grade contribution).
 - **Gate:** measured ms/frame on ≥ 2 real devices + keypoint parity vs. server output on the
   same frames.
 
-### 3. Optional stack-on: repair INT8-640 (head excluded) — *ML*
+> **PoC RESULT 2026-07-15 (workstream 2 complete — `data/eval/ondevice_poc_iphone_2026-07-15.json`,
+> `ondevice_poc_desktop_2026-07-15.json`). Gate MET on both limbs.**
+>
+> | Path | per-frame p50 | p95 | FPS | parity vs server |
+> |------|--------------|-----|-----|------------------|
+> | Deployed WS round-trip (P31) | 269.1 ms | 438.6 | 3.4 | — (is the server) |
+> | On-device **iPhone** (iOS 26.5.1, WebGPU) | **75 ms** (71 infer) | 80 | **13.2** | **1.3 px / 12 joints, conf 0.92** |
+> | On-device desktop (Edge 150, WebGPU) | 31.7 ms (27.4 infer) | 41.3 | 30.4 | not obtained (framing) |
+>
+> **Accuracy: settled.** 1.3 px mean delta on a 384×512 frame (~0.3% of frame) validates the
+> browser port end-to-end — BGR channel order, letterbox geometry, (300,57) one-to-one head
+> decode, un-letterbox inverse. Residual is browser-vs-PIL JPEG decode + float precision. The
+> port is faithful; **no accuracy argument against on-device remains.**
+>
+> **Speed: 3.6× better than deployed, but 14% over the strict budget.** 75 ms misses the 66 ms
+> (15 FPS) line — so it satisfies neither branch of the original decision rule (<66 ms ⇒ headline
+> fix; ≥150 ms ⇒ thesis-only). Judgement: **proceed.** The rule's thresholds were a proxy for
+> perceived lag, and on that the verdict is not close — 13.2 FPS trailing 75 ms vs 3.4 FPS
+> trailing 269 ms. WebGPU was selected on *both* devices (iOS included), and inference is
+> remarkably stable (p50 71 / p95 76).
+>
+> **What this hands to workstream 3:** INT8-640 (head excluded, ≈ −13–20%) would take 75 → ~60–65 ms,
+> landing under the 66 ms budget. It was "back pocket"; it is now **the natural closer**, and INT8
+> helps most exactly where it is now needed (phone).
+>
+> **Unresolved risks (do not skip before committing to on-device as the product path):**
+> - **Cold start ~41 s** (iPhone: 13.1 s model fetch + 28.4 s session create; desktop 57 s). The
+>   fetch is one-time/cacheable; the session create — 24 MB wasm + WebGPU shader compile — recurs
+>   per page load and browsers do not reliably persist compiled shaders. Not shippable as-is:
+>   needs warming during the pre-workout screens and/or a smaller on-device model.
+> - **Thermal throttling unmeasured.** The run is ~4.5 s of GPU load; a real set is minutes. Phone
+>   GPUs throttle hard. A sustained (2–3 min) run is the next measurement, and it is the one that
+>   could still overturn this.
+> - **Android untested** (iOS only). WebGPU coverage there is patchier; the wasm-fallback path —
+>   single-threaded by design, since COEP would break the exercise-image CDNs — is unmeasured.
+> - `detected_frames` 14/50 (iPhone) / 31/50 (desktop) are **framing artifacts, not defects** —
+>   iPhone samples 42–49 all detect and the parity frame right after scored 0.92.
+
+### 3. Repair INT8-640 (head excluded) — *ML* ← **ACTIVE** (promoted by the P32 result)
 Backbone/neck-only QDQ per-channel quantization, decode/TopK head excluded, MinMax calibration
-(histogram OOMs locally). Expected ≈ −13–20%, accuracy-preserving. Worth doing only after 1–2
-land, or as the on-device model (INT8 helps most on phone CPUs).
+(histogram OOMs locally). Expected ≈ −13–20%, accuracy-preserving. No longer optional: P32 landed
+on-device at 75 ms vs a 66 ms budget, and this is the lever that closes that ~9 ms gap. Ships as
+the **on-device** model (the Space keeps FP32-640) — so the accuracy gate is the vs-640 OKS proxy
+at ≥0.97, and a regression here costs nothing server-side.
+
+**Sequencing note:** the ~41 s cold start and the unmeasured thermal-throttling risk (see the P32
+result box) are both bigger threats to on-device-as-product than the 9 ms. A sustained-load run is
+cheap and could overturn the whole path — do it before or alongside this, not after.
 
 ### 4. Money lever: Space tier / keep-warm — *DevOps*
 CPU upgrade or persistent hardware on the HF Space; eliminate cold starts. Zero code. Pairs
@@ -117,14 +161,23 @@ cov ≥ 80 on `app/analysis`.
 - New artifacts kept for reference: `models/yolo_posecoach_v1_448.onnx`, `_512.onnx`
   (sweep exports; not wired anywhere).
 
-## Leader's summary
-Resolution is dead as a latency lever — every size below 640 fails the accuracy gate, and the
-sizes that come closest barely buy any speed. The code audit then closed two more workstreams
-before they started: client backpressure and server instrumentation already exist in the frozen
-core. With single-in-flight sending, felt lag = per-frame round-trip — so the one unknown left
-is **where the deployed RTT goes** (encode vs network vs server). **Next step: build the
-additive Latency Diagnostics probe (workstream 1), run it from a real phone against the prod
-Space, and let the p50/p95 breakdown pick between on-device inference, a Space upgrade, or
-overlay smoothing.** INT8 repair stays in the back pocket. No commits made; the probe ships on
-a fresh `perf/latency-diagnostics` branch once `feat/p30-same-origin-deploy` is merged or
-stashed.
+## Leader's summary (updated 2026-07-15, after P32)
+Resolution died as a latency lever (every size below 640 fails the accuracy gate). The code audit
+then closed backpressure and server instrumentation — both already existed in the frozen core.
+That left one unknown: where the deployed RTT actually goes. **P31 answered it — ~80% network,
+server dead-stable at its benchmark — which killed the Space-tier lever and selected on-device.
+P32 then measured on-device and the gate is met on both limbs: the browser port is provably
+faithful (1.3 px vs the server), and an iPhone runs the full 640 graph at 75 ms/frame — 3.6×
+better than the deployed 269 ms, 13.2 FPS vs 3.4.**
+
+The 75 ms sits 14% over the 66 ms budget, so the original decision rule's two branches (<66 ⇒
+headline fix, ≥150 ⇒ thesis-only) both miss it. Called as **proceed**: those thresholds were a
+proxy for perceived lag, and on perceived lag it is not close.
+
+**The remaining risk is no longer accuracy or per-frame speed — it is cold start (~41 s, of which
+~28 s is per-page-load session create) and unmeasured thermal throttling over a real multi-minute
+set.** Next: a sustained-load run (cheap; could overturn the path), Android, then workstream 3
+(INT8 head-excluded) to close the last ~9 ms as the on-device model.
+
+_History: the P31 probe shipped on `perf/latency-diagnostics` (#12); the P32 PoC on
+`perf/p32-ondevice-poc` (#13) + build fix (#14). Both merged and deployed._
