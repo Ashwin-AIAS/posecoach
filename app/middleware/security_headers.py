@@ -21,7 +21,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "connect-src 'self' ws: wss:; "
-            "script-src 'self' 'unsafe-inline'; "
+            # 'wasm-unsafe-eval' permits WebAssembly compilation ONLY (not JS
+            # eval) — required by onnxruntime-web for the on-device inference
+            # PoC (P32). worker-src covers ORT's optional blob: workers.
+            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; "
+            "worker-src 'self' blob:; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob:; "
             "media-src 'self' blob:;"

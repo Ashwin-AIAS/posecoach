@@ -113,7 +113,8 @@ function round1(v: number): number {
   return Math.round(v * 10) / 10
 }
 
-function stageStats(values: readonly number[]): StageStats {
+/** n/p50/p95/mean over one stage's samples. Exported for reuse (P32). */
+export function stageStats(values: readonly number[]): StageStats {
   if (values.length === 0) return { n: 0, p50_ms: 0, p95_ms: 0, mean_ms: 0 }
   const mean = values.reduce((a, b) => a + b, 0) / values.length
   return {
@@ -201,7 +202,8 @@ const FATAL_CODES: Readonly<Record<string, string>> = {
     "Close the live view or wait ~2 minutes, then retry.",
 }
 
-function openSocket(url: string): Promise<WebSocket> {
+/** Exported for reuse by the P32 on-device PoC's server parity check. */
+export function openSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url)
     const timer = window.setTimeout(() => {
@@ -240,8 +242,9 @@ function waitForVideo(video: HTMLVideoElement): Promise<void> {
   })
 }
 
-/** One-shot reply await. Installed BEFORE send so a fast reply is never missed. */
-function awaitReply(ws: WebSocket): Promise<ProbeReply> {
+/** One-shot reply await. Installed BEFORE send so a fast reply is never missed.
+ *  Exported for reuse by the P32 on-device PoC's server parity check. */
+export function awaitReply(ws: WebSocket): Promise<ProbeReply> {
   return new Promise((resolve, reject) => {
     const detach = (): void => {
       window.clearTimeout(timer)
