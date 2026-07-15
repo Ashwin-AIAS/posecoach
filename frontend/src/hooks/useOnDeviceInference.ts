@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import ortJsepWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.jsep.wasm?url"
 
 import type { ProbeReply, StageStats } from "./useLatencyProbe"
 import { awaitReply, getProbeWsUrl, openSocket, stageStats } from "./useLatencyProbe"
@@ -320,7 +319,12 @@ export function useOnDeviceInference(
         //    CDNs), so multithreaded wasm is unavailable by design.
         setStep("Loading onnxruntime-web…")
         const ort = await import("onnxruntime-web/webgpu")
-        ort.env.wasm.wasmPaths = { wasm: ortJsepWasmUrl }
+        // wasmPaths is deliberately NOT set. The webgpu bundle self-resolves its
+        // binary via `new URL("ort-wasm-simd-threaded.asyncify.wasm",
+        // import.meta.url)` — which Vite statically rewrites to the emitted,
+        // hashed asset — but only when wasmPaths is unset. Setting it here would
+        // both suppress that and (unless hand-matched to the exact build variant)
+        // hand the loader the wrong binary.
         ort.env.wasm.numThreads = 1
         if (stale()) return
 
