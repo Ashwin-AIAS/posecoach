@@ -1,7 +1,10 @@
 # Fix — Neon Overlay Not Visible After Merge (UI-11 Cutover)
 
 > **Track:** Appearance-only frontend config fix (follow-up to `PREMIUM_POSE_OVERLAY_UI11.md`).
-> **Status:** SPEC / not started.
+> **Status:** IMPLEMENTED (option A) — prod-build smoke PASSED 2026-07-16.
+> Built app (`npm run build && npm run preview`, no `VITE_OVERLAY_NEON` set) mounts
+> `PoseOverlayNeon` (`data-testid="pose-overlay-neon"`, canvas paints HUD chrome),
+> legacy `PoseOverlay` absent from the DOM. §5 manual steps still pending.
 > **Placement:** `docs/enhancements/FIX_OVERLAY_NEON_CUTOVER.md`
 > **Owner path:** Frontend Engineer (lead), DevOps/MLOps (build vars + deploy — see §5 MANUAL).
 > **Read first:** `PREMIUM_POSE_OVERLAY_UI11.md` (§4.1 flag, §3 data contract), then this file.
