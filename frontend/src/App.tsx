@@ -24,6 +24,7 @@ import { DivisionSelector } from "./components/DivisionSelector"
 import { InstallBanner } from "./components/InstallBanner"
 import { ModeToggle } from "./components/ModeToggle"
 import { PoseOverlay } from "./components/PoseOverlay"
+import { toOverlayFrame, isOverlayNeonEnabled, PoseOverlayNeon } from "./features/coach/overlay"
 import { PoseSelector } from "./components/PoseSelector"
 import { PosingPanel } from "./components/PosingPanel"
 import { PrepProgressPanel } from "./components/PrepProgressPanel"
@@ -51,6 +52,9 @@ import { DIVISIONS } from "./lib/poses"
 import type { Division, Exercise, PoseName, SessionMode } from "./types"
 
 const LATENCY_BUDGET_MS = 100
+// UI-11: resolved once at module load — see features/coach/overlay/flag.ts
+// (default on in dev, gated off in prod until explicitly cut over).
+const OVERLAY_NEON_ENABLED = isOverlayNeonEnabled()
 
 /** Live inference-latency badge — proves the <100ms thesis metric on screen. */
 const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): JSX.Element {
@@ -124,6 +128,13 @@ export default function App(): JSX.Element {
   })
 
   const posing = mode === "posing"
+
+  // UI-11: adapts the (frozen) hook's PoseResult into the neon overlay's
+  // read-only view-model — pure key/unit mapping, see adaptPoseResult.ts.
+  const overlayFrame = useMemo(
+    () => toOverlayFrame(pose.result, camera.facingMode === "user"),
+    [pose.result, camera.facingMode],
+  )
 
   // Closes the on-tap sheets if the user leaves the live view while one is open.
   useEffect(() => {
@@ -348,15 +359,19 @@ export default function App(): JSX.Element {
             switching={camera.switching}
             mirrored={camera.facingMode === "user"}
           />
-          <PoseOverlay
-            result={pose.result}
-            mirrored={camera.facingMode === "user"}
-            worst={worst}
-            videoRef={camera.videoRef}
-            onCanvasReady={(c) => {
-              overlayCanvasRef.current = c
-            }}
-          />
+          {OVERLAY_NEON_ENABLED ? (
+            <PoseOverlayNeon frame={overlayFrame} videoRef={camera.videoRef} />
+          ) : (
+            <PoseOverlay
+              result={pose.result}
+              mirrored={camera.facingMode === "user"}
+              worst={worst}
+              videoRef={camera.videoRef}
+              onCanvasReady={(c) => {
+                overlayCanvasRef.current = c
+              }}
+            />
+          )}
           <CameraHud
             result={pose.result}
             active={camera.ready}

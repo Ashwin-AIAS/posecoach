@@ -29,5 +29,13 @@ export default defineConfig({
     url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
+    // UI-11: VITE_OVERLAY_NEON defaults on in dev (features/coach/overlay/flag.ts)
+    // so an interactive `npm run dev` shows the new overlay immediately. Pin it
+    // off for the e2e server specifically so the legacy pose_overlay.spec.ts
+    // (which asserts on the old overlay's data-testid) stays deterministic —
+    // it never exercises the flag itself. e2e/pose_overlay_neon.spec.ts is
+    // unaffected either way: it mounts PoseOverlayNeon directly via
+    // overlay-preview.html, bypassing the flag/App.tsx entirely.
+    env: { VITE_OVERLAY_NEON: "false" },
   },
 })
