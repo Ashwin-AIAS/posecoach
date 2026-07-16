@@ -9,7 +9,7 @@ import type { Page } from "@playwright/test"
  * pose_overlay.spec.ts, which must stay green and untouched.
  */
 
-const STATUS_DOT = { x: 19, y: 36 } // matches drawStatusLine's dot position
+const STATUS_DOT = { x: 19, y: 37 } // matches drawStatusLine's dot position
 const GOOD_RGB = [0x2b, 0xf5, 0xb0] as const
 const ERROR_RGB = [0xff, 0x4d, 0x6d] as const
 const CUE_BY_STATE = {

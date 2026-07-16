@@ -80,13 +80,14 @@ function stateColor(state: OverlayTopState): string {
 export function drawStatusLine(ctx: AnyCtx, state: OverlayTopState): void {
   const x = 16
   const topY = 20
-  const dotY = topY + 16
+  const dotY = topY + 17
 
   ctx.save()
   ctx.textAlign = "left"
   ctx.textBaseline = "middle"
 
-  ctx.font = "600 10px Inter, system-ui, sans-serif"
+  // §4.6: no text below 11px anywhere in the overlay.
+  ctx.font = "600 11px Inter, system-ui, sans-serif"
   ctx.fillStyle = hexToRgba(OVERLAY.color.dim, 0.85)
   ctx.fillText("POSECOACH · LIVE FORM ENGINE", x, topY)
 
@@ -109,7 +110,8 @@ const LEGEND_ITEMS: ReadonlyArray<readonly [string, string]> = [
 
 export function drawLegend(ctx: AnyCtx, w: number): void {
   ctx.save()
-  ctx.font = "600 9px Inter, system-ui, sans-serif"
+  // §4.6: no text below 11px anywhere in the overlay.
+  ctx.font = "600 11px Inter, system-ui, sans-serif"
   ctx.textAlign = "right"
   ctx.textBaseline = "middle"
   const right = w - 16
@@ -122,7 +124,7 @@ export function drawLegend(ctx: AnyCtx, w: number): void {
     ctx.beginPath()
     ctx.arc(right - 10 - textW - 8, y, 3, 0, Math.PI * 2)
     ctx.fill()
-    y += 14
+    y += 17
   }
   ctx.restore()
 }

@@ -54,6 +54,12 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches
 }
 
+/** `?lowfx=1` drops the scan band + node pulse for weaker devices (§4.4/§7 Stage 5). */
+function lowFxRequested(): boolean {
+  if (typeof window === "undefined") return false
+  return new URLSearchParams(window.location.search).get("lowfx") === "1"
+}
+
 function PoseOverlayNeonInner({ frame, videoRef, videoSize, className }: PoseOverlayNeonProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // Latest props mirrored into refs so the rAF loop never re-subscribes —
@@ -71,7 +77,10 @@ function PoseOverlayNeonInner({ frame, videoRef, videoSize, className }: PoseOve
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const reducedMotion = prefersReducedMotion()
+    // Either preference drops the scan band + node pulse — an OS-level
+    // accessibility setting and a manual perf opt-out for weaker devices
+    // both mean "skip the decorative motion" (§4.4/§7 Stage 5).
+    const skipMotion = prefersReducedMotion() || lowFxRequested()
     let raf = 0
     let lastDraw = 0
 
@@ -101,7 +110,7 @@ function PoseOverlayNeonInner({ frame, videoRef, videoSize, className }: PoseOve
       const isIdle = f.state === "idle"
       // §3.2: no person / low conf -> dim the skeleton to base cyan at 40%.
       const drawFrame: OverlayFrame = isIdle ? { ...f, jointQuality: undefined, formScore: null } : f
-      const pulse = reducedMotion
+      const pulse = skipMotion
         ? 1
         : 1 + PULSE_AMPLITUDE * Math.sin((2 * Math.PI * now) / OVERLAY.motion.pulsePeriodMs)
 
@@ -117,7 +126,7 @@ function PoseOverlayNeonInner({ frame, videoRef, videoSize, className }: PoseOve
       drawCueChip(ctx, cssW, cssH, f.cue, f.state)
       drawLegend(ctx, cssW)
 
-      if (!reducedMotion) {
+      if (!skipMotion) {
         const progress = (now % OVERLAY.motion.scanPeriodMs) / OVERLAY.motion.scanPeriodMs
         drawScanBand(ctx, cssW, cssH, progress)
       }
@@ -125,9 +134,10 @@ function PoseOverlayNeonInner({ frame, videoRef, videoSize, className }: PoseOve
 
     // Always run the capped rAF loop (matches the frozen PoseOverlay.tsx
     // convention — it re-measures the canvas box and picks up new frame refs
-    // every tick regardless of motion prefs). `reducedMotion` only gates the
+    // every tick regardless of motion prefs). `skipMotion` only gates the
     // motion-specific bits inside `draw` (pulse amplitude, scan band), so a
-    // static fixture with reduced motion still redraws byte-identical output.
+    // static fixture with reduced motion / lowfx still redraws byte-identical
+    // output.
     const loop = (now: number): void => {
       raf = requestAnimationFrame(loop)
       if (now - lastDraw < FRAME_MS) return
