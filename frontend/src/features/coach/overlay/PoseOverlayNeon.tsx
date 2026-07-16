@@ -22,9 +22,15 @@
 
 import { memo, useEffect, useRef } from "react"
 
-import { computeCoverProjection } from "./geometry"
 import { drawArcs, drawBones, drawNodes, projectKeypoints } from "./drawSkeleton"
+import { drawCornerBrackets, drawCueChip, drawGridAndVignette, drawLegend, drawScanBand, drawStatusLine } from "./drawHud"
+import { computeCoverProjection } from "./geometry"
+import { OVERLAY } from "./overlayTheme"
 import type { OverlayFrame } from "./types"
+
+/** 30fps cap, matching the frozen overlay's convention — plenty smooth for HUD motion. */
+const FRAME_MS = 1000 / 30
+const PULSE_AMPLITUDE = 0.12
 
 interface PoseOverlayNeonProps {
   readonly frame: OverlayFrame
@@ -35,6 +41,11 @@ interface PoseOverlayNeonProps {
    */
   readonly videoSize?: { readonly width: number; readonly height: number }
   readonly className?: string
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
 }
 
 function PoseOverlayNeonInner({ frame, videoSize, className }: PoseOverlayNeonProps): JSX.Element {
@@ -50,7 +61,11 @@ function PoseOverlayNeonInner({ frame, videoSize, className }: PoseOverlayNeonPr
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const draw = (): void => {
+    const reducedMotion = prefersReducedMotion()
+    let raf = 0
+    let lastDraw = 0
+
+    const draw = (now: number): void => {
       const rect = canvas.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
       const cssW = rect.width || canvas.clientWidth
@@ -67,15 +82,52 @@ function PoseOverlayNeonInner({ frame, videoSize, className }: PoseOverlayNeonPr
       const proj = computeCoverProjection(cssW, cssH, vs?.width ?? cssW, vs?.height ?? cssH)
       const pts = projectKeypoints(f, f.mirrored, proj)
 
-      drawBones(ctx, f, pts)
-      drawArcs(ctx, f, pts)
-      drawNodes(ctx, f, pts)
+      drawGridAndVignette(ctx, cssW, cssH)
+
+      const isIdle = f.state === "idle"
+      // §3.2: no person / low conf -> dim the skeleton to base cyan at 40%.
+      const drawFrame: OverlayFrame = isIdle ? { ...f, jointQuality: undefined, formScore: null } : f
+      const pulse = reducedMotion
+        ? 1
+        : 1 + PULSE_AMPLITUDE * Math.sin((2 * Math.PI * now) / OVERLAY.motion.pulsePeriodMs)
+
+      ctx.save()
+      if (isIdle) ctx.globalAlpha = 0.4
+      drawBones(ctx, drawFrame, pts)
+      drawArcs(ctx, drawFrame, pts)
+      drawNodes(ctx, drawFrame, pts, pulse)
+      ctx.restore()
+
+      drawCornerBrackets(ctx, cssW, cssH)
+      drawStatusLine(ctx, f.state)
+      drawCueChip(ctx, cssW, cssH, f.cue, f.state)
+      drawLegend(ctx, cssW)
+
+      if (!reducedMotion) {
+        const progress = (now % OVERLAY.motion.scanPeriodMs) / OVERLAY.motion.scanPeriodMs
+        drawScanBand(ctx, cssW, cssH, progress)
+      }
     }
 
-    draw()
-    const ro = new ResizeObserver(draw)
+    if (reducedMotion) {
+      // Static — a single draw is enough, no continuous rAF needed.
+      draw(0)
+    } else {
+      const loop = (now: number): void => {
+        raf = requestAnimationFrame(loop)
+        if (now - lastDraw < FRAME_MS) return
+        lastDraw = now
+        draw(now)
+      }
+      raf = requestAnimationFrame(loop)
+    }
+
+    const ro = new ResizeObserver(() => draw(reducedMotion ? 0 : performance.now()))
     ro.observe(canvas)
-    return () => ro.disconnect()
+    return () => {
+      if (raf !== 0) cancelAnimationFrame(raf)
+      ro.disconnect()
+    }
   }, [frame, videoSize])
 
   const ariaLabel =

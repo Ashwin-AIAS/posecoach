@@ -219,7 +219,8 @@ function drawDegreePill(ctx: AnyCtx, at: Point2D, degrees: number, color: string
   ctx.fillText(text, at.x, at.y + 0.5)
 }
 
-function roundRect(ctx: AnyCtx, x: number, y: number, w: number, h: number, r: number): void {
+/** Shared by drawHud.ts for the cue chip — a single rounded-rect path helper. */
+export function roundRect(ctx: AnyCtx, x: number, y: number, w: number, h: number, r: number): void {
   ctx.moveTo(x + r, y)
   ctx.arcTo(x + w, y, x + w, y + h, r)
   ctx.arcTo(x + w, y + h, x, y + h, r)
