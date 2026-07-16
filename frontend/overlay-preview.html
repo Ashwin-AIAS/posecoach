@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>UI-11 overlay preview (QA only)</title>
+    <style>
+      html, body, #root { height: 100%; margin: 0; background: #000; }
+    </style>
+  </head>
+  <body>
+    <!--
+      QA-only harness (never built into the production bundle — vite build's
+      default entry is index.html, this file is dev-server-only). Mounts
+      PoseOverlayNeon over a static poster with a fixed fixture, selected via
+      ?state=good|fault|idle, so Playwright can snapshot it without a live
+      camera/WebSocket. See docs/enhancements/PREMIUM_POSE_OVERLAY_UI11.md §6/§7.
+    -->
+    <div id="root"></div>
+    <script type="module" src="/src/features/coach/overlay/previewEntry.tsx"></script>
+  </body>
+</html>

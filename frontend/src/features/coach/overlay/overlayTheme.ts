@@ -43,3 +43,12 @@ export function bandFromScore(score: number): JointQuality {
   if (score >= 70) return "warn"
   return "error"
 }
+
+/** `#rrggbb` -> `rgba(r,g,b,alpha)`, for the cheap glow underlay pass (§4.4). */
+export function hexToRgba(hex: string, alpha: number): string {
+  const v = hex.replace("#", "")
+  const r = parseInt(v.slice(0, 2), 16)
+  const g = parseInt(v.slice(2, 4), 16)
+  const b = parseInt(v.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
