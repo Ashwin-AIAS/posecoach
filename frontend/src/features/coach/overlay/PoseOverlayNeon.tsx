@@ -10,15 +10,15 @@
 //   result.cues[0]; angles are present as result.measured_angles but keyed by the verbose
 //   scorer names (left_knee_angle, right_knee_angle, left_hip_angle, right_hip_angle,
 //   left_elbow_angle, right_elbow_angle, left_shoulder_angle, right_shoulder_angle,
-//   hip_trunk_angle) rather than the spec's short keys -> remap on the presentation side.
-//   jointQuality is NOT exposed directly, but result.joint_scores (0-100 per joint, same
-//   verbose keys) IS exposed and is banded per-joint client-side using the spec's
-//   >=85/70-84/<70 thresholds (graceful-degrade rule in §3.2, applied per-joint since the
-//   scorer already grades per-joint - richer than the single-band fallback, still no new
-//   scoring). state is NOT a field; derived from result.status (mirrors the existing
-//   CameraHud.tsx blocked/statusMessage logic: status !== "ok" -> idle, else score-banded
-//   good/error). mirrored is not on PoseResult; it flows from camera.facingMode === "user",
-//   the same prop already passed to the legacy PoseOverlay.
+//   hip_trunk_angle) rather than the spec's short keys -> remap on the presentation side
+//   (see adaptPoseResult.ts). jointQuality is NOT exposed directly, but result.joint_scores
+//   (0-100 per joint, same verbose keys) IS exposed and is banded per-joint client-side
+//   using the spec's >=85/70-84/<70 thresholds (graceful-degrade rule in §3.2, applied
+//   per-joint since the scorer already grades per-joint - richer than the single-band
+//   fallback, still no new scoring). state is NOT a field; derived from result.status
+//   (mirrors the existing CameraHud.tsx blocked/statusMessage logic: status !== "ok" ->
+//   idle, else score-banded good/error). mirrored is not on PoseResult; it flows from
+//   camera.facingMode === "user", the same prop already passed to the legacy PoseOverlay.
 
 import { memo, useEffect, useRef } from "react"
 
@@ -35,9 +35,15 @@ const PULSE_AMPLITUDE = 0.12
 interface PoseOverlayNeonProps {
   readonly frame: OverlayFrame
   /**
-   * Native size of the source video, for the cover-fit projection (§4.2).
-   * Omit when there is no letterboxing to account for (e.g. a square poster
-   * in the QA preview harness) — the canvas's own size is used instead.
+   * The displayed `<video>`'s ref, read fresh every draw for its native
+   * `videoWidth`/`videoHeight` (§4.2 cover-fit) — same convention as the
+   * legacy PoseOverlay's `videoRef` prop. Preferred over `videoSize` for a
+   * live camera since native size can change (e.g. front/back camera flip).
+   */
+  readonly videoRef?: React.RefObject<HTMLVideoElement>
+  /**
+   * Static native size override, for callers with no `<video>` element (the
+   * QA preview harness). Ignored when `videoRef` resolves to a real element.
    */
   readonly videoSize?: { readonly width: number; readonly height: number }
   readonly className?: string
@@ -48,11 +54,15 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches
 }
 
-function PoseOverlayNeonInner({ frame, videoSize, className }: PoseOverlayNeonProps): JSX.Element {
+function PoseOverlayNeonInner({ frame, videoRef, videoSize, className }: PoseOverlayNeonProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Latest props mirrored into refs so the rAF loop never re-subscribes —
+  // same pattern as the frozen PoseOverlay.tsx.
   const frameRef = useRef(frame)
+  const videoRefPropRef = useRef(videoRef)
   const videoSizeRef = useRef(videoSize)
   frameRef.current = frame
+  videoRefPropRef.current = videoRef
   videoSizeRef.current = videoSize
 
   useEffect(() => {
@@ -78,7 +88,11 @@ function PoseOverlayNeonInner({ frame, videoSize, className }: PoseOverlayNeonPr
       ctx.clearRect(0, 0, cssW, cssH)
 
       const f = frameRef.current
-      const vs = videoSizeRef.current
+      const videoEl = videoRefPropRef.current?.current ?? null
+      const vs =
+        videoEl !== null && videoEl.videoWidth > 0
+          ? { width: videoEl.videoWidth, height: videoEl.videoHeight }
+          : videoSizeRef.current
       const proj = computeCoverProjection(cssW, cssH, vs?.width ?? cssW, vs?.height ?? cssH)
       const pts = projectKeypoints(f, f.mirrored, proj)
 
@@ -109,26 +123,23 @@ function PoseOverlayNeonInner({ frame, videoSize, className }: PoseOverlayNeonPr
       }
     }
 
-    if (reducedMotion) {
-      // Static — a single draw is enough, no continuous rAF needed.
-      draw(0)
-    } else {
-      const loop = (now: number): void => {
-        raf = requestAnimationFrame(loop)
-        if (now - lastDraw < FRAME_MS) return
-        lastDraw = now
-        draw(now)
-      }
+    // Always run the capped rAF loop (matches the frozen PoseOverlay.tsx
+    // convention — it re-measures the canvas box and picks up new frame refs
+    // every tick regardless of motion prefs). `reducedMotion` only gates the
+    // motion-specific bits inside `draw` (pulse amplitude, scan band), so a
+    // static fixture with reduced motion still redraws byte-identical output.
+    const loop = (now: number): void => {
       raf = requestAnimationFrame(loop)
+      if (now - lastDraw < FRAME_MS) return
+      lastDraw = now
+      draw(now)
     }
+    raf = requestAnimationFrame(loop)
 
-    const ro = new ResizeObserver(() => draw(reducedMotion ? 0 : performance.now()))
-    ro.observe(canvas)
     return () => {
       if (raf !== 0) cancelAnimationFrame(raf)
-      ro.disconnect()
     }
-  }, [frame, videoSize])
+  }, [])
 
   const ariaLabel =
     frame.state === "idle"
