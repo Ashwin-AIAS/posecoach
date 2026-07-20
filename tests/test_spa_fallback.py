@@ -89,6 +89,11 @@ def spa_app(tmp_path: Path) -> Generator[object, None, None]:
         "<!doctype html><html><body>SPA shell</body></html>"
     )
     (assets_dir / "index-abc123.js").write_text("console.log('app')")
+    # Well-known PWA files served from the static root with revalidate semantics.
+    (static_dir / "sw.js").write_text("// service worker")
+    (static_dir / "registerSW.js").write_text("// register")
+    (static_dir / "manifest.webmanifest").write_text("{}")
+    (static_dir / "icon-192.png").write_bytes(b"\x89PNG")
 
     # Import fresh and mount
     from app.main import app
@@ -201,3 +206,58 @@ class TestSpaFallbackActive:
             r = client.get("/ws/inference")
         # Should get a 4xx (not a WS upgrade from GET), never the SPA shell
         assert "SPA shell" not in r.text
+
+
+class TestCacheControlHeaders:
+    """Stale builds must be impossible to serve: entry points always revalidate,
+    content-hashed assets are immutable long-cache."""
+
+    def test_index_html_revalidates(self, spa_app: object) -> None:
+        """The app shell must never be served from a positive-max-age cache."""
+        from app.main import app
+
+        with TestClient(app) as client:
+            r = client.get("/")
+        cc = r.headers["cache-control"]
+        assert "no-cache" in cc and "must-revalidate" in cc
+        assert "max-age=3" not in cc  # never a long positive max-age
+
+    def test_spa_fallback_revalidates(self, spa_app: object) -> None:
+        from app.main import app
+
+        with TestClient(app) as client:
+            r = client.get("/workouts")
+        cc = r.headers["cache-control"]
+        assert "no-cache" in cc and "must-revalidate" in cc
+
+    def test_service_worker_revalidates(self, spa_app: object) -> None:
+        """sw.js / registerSW.js must revalidate so the SW can update."""
+        from app.main import app
+
+        with TestClient(app) as client:
+            for path in ("/sw.js", "/registerSW.js", "/manifest.webmanifest"):
+                r = client.get(path)
+                assert r.status_code == 200, path
+                cc = r.headers["cache-control"]
+                assert "no-cache" in cc and "must-revalidate" in cc, path
+
+    def test_hashed_assets_immutable(self, spa_app: object) -> None:
+        """Content-hashed assets get a one-year immutable cache."""
+        from app.main import app
+
+        with TestClient(app) as client:
+            r = client.get("/assets/index-abc123.js")
+        assert r.status_code == 200
+        cc = r.headers["cache-control"]
+        assert "immutable" in cc and "max-age=31536000" in cc
+
+    def test_icons_short_cache_not_immutable(self, spa_app: object) -> None:
+        """Non-hashed root icons get a short cache, never immutable/year-long."""
+        from app.main import app
+
+        with TestClient(app) as client:
+            r = client.get("/icon-192.png")
+        assert r.status_code == 200
+        cc = r.headers["cache-control"]
+        assert "immutable" not in cc
+        assert "max-age=86400" in cc

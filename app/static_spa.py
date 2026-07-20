@@ -36,6 +36,38 @@ _RESERVED_PREFIXES: Final[tuple[str, ...]] = (
 # Tag applied to routes added by mount_spa so unmount_spa can remove them.
 _SPA_ROUTE_TAG: Final[str] = "__spa_route__"
 
+# --- Cache-Control policies -------------------------------------------------
+# Entry points (index.html, sw.js, registerSW.js, manifest) MUST revalidate on
+# every load so a returning browser can never boot a superseded shell. ``no-cache``
+# already forces revalidation; ``must-revalidate`` forbids serving a stale copy if
+# revalidation fails. Never give these a positive max-age.
+_ENTRY_CACHE: Final[str] = "no-cache, must-revalidate"
+
+# Everything under /assets/ is content-hashed by Vite (verified: every emitted
+# filename carries an 8-char hash, including the on-demand ort-wasm binary), so a
+# changed file always gets a new URL. That makes a one-year immutable cache safe
+# and eliminates the revalidation round-trip on repeat loads.
+_ASSET_CACHE: Final[str] = "public, max-age=31536000, immutable"
+
+# Non-hashed static files served from the SPA root (icons, favicon). Short-lived
+# so a rebranded icon propagates within a day without pinning it for a year.
+_STATIC_FILE_CACHE: Final[str] = "public, max-age=86400"
+
+
+class _ImmutableStaticFiles(StaticFiles):
+    """StaticFiles that stamps a long-lived immutable Cache-Control on 200s.
+
+    Starlette's ``StaticFiles`` sets only ``ETag``/``Last-Modified`` and would
+    otherwise force a revalidation round-trip on every asset. Every file under
+    ``/assets/`` is content-hashed, so a year-long immutable cache is safe.
+    """
+
+    async def get_response(self, path: str, scope: object) -> Response:
+        response = await super().get_response(path, scope)  # type: ignore[arg-type]
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = _ASSET_CACHE
+        return response
+
 
 def mount_spa(app: FastAPI, static_dir: str) -> None:
     """Mount the SPA static files and catch-all fallback onto *app*.
@@ -61,7 +93,7 @@ def mount_spa(app: FastAPI, static_dir: str) -> None:
     if assets_dir.is_dir():
         app.mount(
             "/assets",
-            StaticFiles(directory=str(assets_dir)),
+            _ImmutableStaticFiles(directory=str(assets_dir)),
             name="spa_assets",
         )
 
@@ -86,7 +118,7 @@ def mount_spa(app: FastAPI, static_dir: str) -> None:
 
     @app.get("/", include_in_schema=False, tags=[_SPA_ROUTE_TAG])
     async def _spa_root() -> FileResponse:
-        return FileResponse(_index_str, media_type="text/html", headers={"Cache-Control": "no-cache"})
+        return FileResponse(_index_str, media_type="text/html", headers={"Cache-Control": _ENTRY_CACHE})
 
     @app.get("/{path:path}", include_in_schema=False, tags=[_SPA_ROUTE_TAG])
     async def _spa_fallback(request: Request, path: str) -> Response:
@@ -101,7 +133,7 @@ def mount_spa(app: FastAPI, static_dir: str) -> None:
 
                 return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
-        return FileResponse(_index_str, media_type="text/html", headers={"Cache-Control": "no-cache"})
+        return FileResponse(_index_str, media_type="text/html", headers={"Cache-Control": _ENTRY_CACHE})
 
     logger.info("spa_mounted", static_dir=static_dir)
 
@@ -109,9 +141,10 @@ def mount_spa(app: FastAPI, static_dir: str) -> None:
 def _register_static_file(app: FastAPI, url_path: str, file_path: Path, name: str) -> None:
     """Register a single static file route with appropriate cache headers."""
     file_str = str(file_path)
-    # sw.js and index.html must not be cached (SW update semantics)
+    # sw.js / registerSW.js / manifest must always revalidate (SW update
+    # semantics); icons are content-stable enough for a short positive cache.
     no_cache = name in ("sw.js", "registerSW.js", "manifest.webmanifest")
-    cache_header = "no-cache" if no_cache else "public, max-age=86400"
+    cache_header = _ENTRY_CACHE if no_cache else _STATIC_FILE_CACHE
 
     @app.get(url_path, include_in_schema=False, tags=[_SPA_ROUTE_TAG], name=f"spa_{name}")
     async def _serve(
