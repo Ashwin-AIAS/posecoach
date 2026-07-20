@@ -52,6 +52,15 @@ describe("SettingsPanel", () => {
     expect(logout).toHaveBeenCalled()
   })
 
+  it("renders a build marker (sha · date) for stale-build debugging", () => {
+    render(<SettingsPanel auth={makeAuth()} onNavigateCoach={vi.fn()} />)
+
+    const marker = screen.getByTestId("build-info")
+    // Always shows an ISO date; the SHA is best-effort (may be "unknown").
+    expect(marker).toHaveTextContent(/\d{4}-\d{2}-\d{2}/)
+    expect(marker).toHaveTextContent("·")
+  })
+
   it("persists the units preference to localStorage", () => {
     render(<SettingsPanel auth={makeAuth()} onNavigateCoach={vi.fn()} />)
 
