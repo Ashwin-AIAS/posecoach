@@ -14,6 +14,11 @@ type AuthHook = ReturnType<typeof useAuth>
 const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "0.1.0"
 const UNITS: readonly Unit[] = ["kg", "lb"]
 
+// Build marker (injected in vite.config.ts). Makes "which build is live?"
+// answerable at a glance — the build date is the reliable stale-build check.
+const BUILD_SHA = __BUILD_SHA__
+const BUILD_DATE = __BUILD_TIME__.slice(0, 10)
+
 interface SettingsPanelProps {
   readonly auth: AuthHook
   /** Return to the Coach tab after the account is deleted. */
@@ -144,6 +149,16 @@ function SettingsPanelInner({ auth, onNavigateCoach }: SettingsPanelProps): JSX.
             </div>
             <span className="hud-numerals text-xs text-gray-500" data-testid="app-version">
               v{APP_VERSION}
+            </span>
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-gray-500">Build</span>
+            <span
+              className="hud-numerals text-[0.7rem] text-gray-500"
+              data-testid="build-info"
+              title={`Built ${__BUILD_TIME__}`}
+            >
+              {BUILD_SHA} · {BUILD_DATE}
             </span>
           </div>
           <div className="mt-3 flex items-start gap-2 border-t border-surface-hairline pt-3">

@@ -1,8 +1,37 @@
+import { execSync } from "node:child_process"
+
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import { VitePWA } from "vite-plugin-pwa"
 
+/**
+ * Build-time marker so a running build is identifiable at a glance (Settings tab).
+ * SHA: deploy-injected VITE_BUILD_SHA wins; otherwise read local git; "unknown"
+ * when neither is available (e.g. inside the Space image, which has no .git).
+ * Build time is always accurate and is the reliable "is this stale?" signal.
+ */
+function resolveBuildSha(): string {
+  const injected = process.env.VITE_BUILD_SHA?.trim()
+  if (injected) return injected
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim()
+  } catch {
+    return "unknown"
+  }
+}
+
+const BUILD_SHA = resolveBuildSha()
+const BUILD_TIME = new Date().toISOString()
+
 export default defineConfig({
+  define: {
+    __BUILD_SHA__: JSON.stringify(BUILD_SHA),
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
   plugins: [
     react(),
     VitePWA({
