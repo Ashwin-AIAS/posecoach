@@ -33,6 +33,10 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Purge precache entries from superseded builds instead of leaving them
+        // resident. Storage hygiene — it does NOT change which build is served
+        // (registerType "autoUpdate" already swaps the SW on the next load).
+        cleanupOutdatedCaches: true,
         // No runtimeCaching entries for /api or /ws (P29): stale data from a
         // signed-out or offline cache would silently defeat the sign-in/retry
         // gating added in Stage A. Uncached requests fall straight through to
