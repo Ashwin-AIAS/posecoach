@@ -17,6 +17,7 @@ from ultralytics import YOLO
 
 from app import db
 from app.api.v1.auth import router as auth_router
+from app.api.v1.auth_recovery import router as auth_recovery_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.history import router as history_router
 from app.api.v1.model_assets import router as model_assets_router
@@ -209,6 +210,7 @@ async def metrics() -> PlainTextResponse:
 app.include_router(ws_router)
 app.include_router(chat_router)
 app.include_router(auth_router)
+app.include_router(auth_recovery_router)
 app.include_router(history_router)
 app.include_router(workouts_router)
 app.include_router(nutrition_router)

@@ -98,6 +98,27 @@ function AuthModalInner({ auth, onClose }: AuthModalProps): JSX.Element {
           {submitting ? "…" : mode === "login" ? "Sign in" : "Register"}
         </button>
 
+        {/* P33: recovery links — only on the login view. Plain anchors: they do a
+            full page load to the standalone recovery pages (router-less app). */}
+        {mode === "login" && (
+          <div className="flex items-center justify-between text-xs">
+            <a
+              href="/forgot-password"
+              className="rounded text-accent underline transition hover:brightness-110 active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              data-testid="forgot-password-link"
+            >
+              Forgot password?
+            </a>
+            <a
+              href="/forgot-password?mode=username"
+              className="rounded text-gray-400 underline transition hover:text-white active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              data-testid="forgot-username-link"
+            >
+              Forgot username?
+            </a>
+          </div>
+        )}
+
         <p className="text-center text-xs text-gray-400">
           {mode === "login" ? "No account?" : "Already have an account?"}{" "}
           <button
