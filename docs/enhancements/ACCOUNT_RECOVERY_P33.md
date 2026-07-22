@@ -3,7 +3,7 @@
 **Stage:** P33
 **Branch:** `feat/p33-account-recovery`
 **Depends on:** P32 (latest on `main`)
-**Status:** SPEC — ready to run
+**Status:** ✅ DONE (2026-07-22) — all 5 sub-stages shipped; PR self-merged to `main`
 **Owner of record:** the executing agent, acting as senior full-stack engineer
 **Binding parent doc:** `docs/enhancements/WORKOUT_NUTRITION_ROADMAP_P23-P28.md` (guardrails carry forward)
 
@@ -185,3 +185,51 @@ Logged as a **security / product feature** in the evaluation chapter: anti-enume
 - All quality gates green; **PR opened and self-merged to `main`.**
 - **No** frozen-core file touched; **no** existing table altered; **no** paid email provider required.
 - Then **STOP** — the stage is complete.
+
+---
+
+## 13. Completion record (2026-07-22)
+
+Shipped autonomously on `feat/p33-account-recovery`, five commits, gates green at
+every push.
+
+**Migration number:** `0009_password_reset`, not `0008` — `0008_custom_exercises`
+(P29) was already the latest revision, so the spec's "0008 if 0007 is latest"
+assumption was stale. Verified against `alembic/versions/` before writing.
+
+**Backend**
+- `app/models.py` — `PasswordResetToken` (SHA-256-hash-at-rest, single-use
+  `used_at`, `expires_at` TTL) + a cascade relationship on `User`. Migration
+  `0009` is `create_table`-only; `upgrade`/`downgrade` verified clean on SQLite.
+- `app/mail/mailer.py` — `MAIL_BACKEND`-selected transport. `console` (dev) logs
+  the reset link; `smtp` (prod) sends over SMTP+STARTTLS with an env-only Gmail
+  app password. The `smtp` path logs backend+event only — never recipient,
+  token, or body.
+- `app/api/v1/auth_recovery.py` — additive router (auth router untouched):
+  `forgot-password`, `forgot-username`, `reset-password`. Enumeration-safe
+  generic `200`s; work only for real users. Rate-limited `3/hour` per IP **and**
+  per email (per-email keys off the FastAPI-buffered JSON body). Reuses the
+  existing bcrypt hasher. No session invalidation (descoped; short-lived tokens
+  compensate).
+
+**Frontend** — `lib/recoveryApi.ts`, standalone dark `ForgotPasswordPage` /
+`ResetPasswordPage` (+ shared `RecoveryLayout`), `RecoveryRoutes` dispatched in
+`main.tsx` (`recoveryPage ?? <App/>`, so `App.tsx` is byte-for-byte unchanged),
+and login-only "Forgot password/username?" links in `AuthModal`.
+
+**Gates:** backend ruff clean, `mypy --strict` clean (62 files, after a
+`.mypy_cache` clear worked around the known numpy-TypeAlias crash), pytest
+**707 passed** / analysis cov 97.55%. Frontend `tsc` clean, eslint 0-warn,
+vitest **471 passed**, `npm run build` clean, Playwright **37 passed** (3
+prod-smoke skipped).
+
+**Guardrails:** entirely additive (1557 insertions, 5 deletions across only
+`.env.example`, `main.py` +2, `schemas.py`, `rate_limit.py` +1, `models.py`,
+`AuthModal.tsx`, `main.tsx`). No frozen-core file touched; no existing table
+altered; no paid email provider.
+
+**Deploy note:** merged to GitHub `main` only (per the roadmap git rule —
+`origin` per stage, `hf` on prompt completion). The live HF Space still needs a
+manual `git push hf main` + the prod env vars (`MAIL_BACKEND=smtp`, `SMTP_*`,
+`FRONTEND_BASE_URL`) to activate real email; until then the endpoints run with
+the console backend and log the link.
