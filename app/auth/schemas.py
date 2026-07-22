@@ -23,6 +23,25 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 
+class ForgotRequest(BaseModel):
+    """Request a password-reset link or a username reminder (P33)."""
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Complete a password reset with the emailed token (P33)."""
+
+    token: str = Field(min_length=1, max_length=512)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class GenericMessageResponse(BaseModel):
+    """Enumeration-safe response — identical whether or not the account exists."""
+
+    message: str
+
+
 class SessionSummary(BaseModel):
     id: str
     exercise: str

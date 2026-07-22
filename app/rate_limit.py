@@ -23,6 +23,7 @@ from slowapi.util import get_remote_address
 AUTH_RATE_LIMIT = "10/minute"  # login + register, per IP
 CHAT_RATE_LIMIT = "10/minute"  # /chat/stream, per IP (Gemini free tier is 15/min)
 NUTRITION_RATE_LIMIT = "10/minute"  # /nutrition/products lookups (OFF quota is 15/min/IP)
+RECOVERY_RATE_LIMIT = "3/hour"  # forgot-password / forgot-username, per IP + per email (P33)
 
 _RATE_LIMIT_ENABLED = os.environ.get("RATE_LIMIT_ENABLED", "true").lower() == "true"
 
