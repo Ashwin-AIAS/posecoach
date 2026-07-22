@@ -27,6 +27,9 @@ class User(Base):
     prep_cycles: Mapped[list["PrepCycle"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class WorkoutSession(Base):
@@ -310,3 +313,34 @@ class FoodLogEntry(Base):
     )
 
     food_item: Mapped["FoodItem"] = relationship()
+
+
+# ── P33: account recovery (additive; no existing table touched) ───────────────
+#
+# One-time, time-boxed password-reset tokens. Only the SHA-256 hash of the raw
+# token is stored — a leaked DB row is useless because the raw token (mailed to
+# the user) can't be derived from its hash. Single-use: ``used_at`` is stamped
+# on a successful reset so the same link can't be replayed. Short TTL
+# (``expires_at``) is the compensating control for the (descoped) lack of
+# session invalidation on reset.
+
+
+class PasswordResetToken(Base):
+    """A single-use, expiring password-reset token (P33). Hash-at-rest only."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # SHA-256 hex of the raw token; the raw token never lands in the DB or logs.
+    token_hash: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Stamped on a successful reset — presence means the token is spent.
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+    user: Mapped["User"] = relationship(back_populates="password_reset_tokens")
