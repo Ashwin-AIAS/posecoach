@@ -80,7 +80,10 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
   return (
     <div
       className="flex-1 animate-fade-in overflow-y-auto px-4 py-5 sm:px-6"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 5rem)" }}
+      style={{
+        paddingTop: "max(1.25rem, env(safe-area-inset-top))",
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 5rem)",
+      }}
       data-testid="calories-panel"
     >
       <div className="mx-auto max-w-2xl">
@@ -249,7 +252,10 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
             className="mt-8 flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-10 text-center shadow-elev-1"
             data-testid="lookup-error"
           >
-            <p role="alert" className="max-w-xs text-sm text-red-400">
+            <h3 className="font-display text-base font-semibold text-gray-100">
+              Something went wrong
+            </h3>
+            <p role="alert" className="mt-1.5 max-w-xs text-sm text-red-400">
               {error}
             </p>
             <button

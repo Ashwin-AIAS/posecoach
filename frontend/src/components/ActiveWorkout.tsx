@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useState } from "react"
-import { ChevronDown, ChevronUp, Plus, Video } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronUp, Plus, Video } from "lucide-react"
 
 import type { LocalWorkout, UseWorkoutLogResult } from "../hooks/useWorkoutLog"
 import type { Exercise, ExerciseSummary, ExerciseHistoryOut } from "../types"
@@ -22,6 +22,12 @@ interface ActiveWorkoutProps {
   readonly workout: LocalWorkout
   readonly workoutLog: UseWorkoutLogResult
   readonly onFinish: () => void
+  /**
+   * Return to the Workouts landing *without finishing* — the session stays in
+   * `workoutLog` + localStorage so "Resume workout" brings it back. Distinct
+   * from `onFinish`, which ends the workout. Optional: no button when absent.
+   */
+  readonly onMinimize?: () => void
   /** Launch a live form-check for a CV-supported exercise (switches to Coach). */
   readonly onFormCheck?: (loggedExerciseId: string, cvExercise: Exercise) => void
   /** A just-finished form-check: pre-fills the target exercise's next set. */
@@ -34,6 +40,7 @@ function ActiveWorkoutInner({
   workout,
   workoutLog,
   onFinish,
+  onMinimize,
   onFormCheck,
   formCheckResult = null,
   onFormCheckConsumed,
@@ -103,14 +110,31 @@ function ActiveWorkoutInner({
   return (
     <div className="flex h-full flex-col" data-testid="active-workout">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-white/5 px-4 py-3">
-        <div className="min-w-0">
-          <h2 className="font-display text-base font-semibold text-gray-100">
-            {workout.title ?? "Workout"}
-          </h2>
-          <p className="text-[11px] text-gray-500">
-            {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
-          </p>
+      <div
+        className="flex shrink-0 items-center justify-between gap-2 border-b border-white/5 px-4 py-3"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
+        <div className="flex min-w-0 items-center gap-1.5">
+          {onMinimize && (
+            <button
+              type="button"
+              onClick={onMinimize}
+              aria-label="Back to workouts"
+              title="Back to workouts — this workout keeps running"
+              className="grid min-h-11 w-11 shrink-0 place-content-center rounded-full text-gray-400 transition ease-spring hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              data-testid="minimize-workout-btn"
+            >
+              <Icon icon={ChevronLeft} size={18} />
+            </button>
+          )}
+          <div className="min-w-0">
+            <h2 className="font-display text-base font-semibold text-gray-100">
+              {workout.title ?? "Workout"}
+            </h2>
+            <p className="text-[11px] text-gray-500">
+              {workout.exercises.length} exercise{workout.exercises.length !== 1 ? "s" : ""}
+            </p>
+          </div>
         </div>
         <button
           type="button"

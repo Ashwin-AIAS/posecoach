@@ -271,6 +271,16 @@ function WorkoutPanelInner({
     void loadRecent()
   }, [workoutLog, loadRecent, onActiveWorkout])
 
+  // Minimize (P34): leave the active workout for the Workouts landing *without*
+  // finishing it. The session stays in `workoutLog` + the localStorage pointer,
+  // so "Resume workout" reappears; the tab bar unhides via onActiveWorkout(false).
+  const handleMinimize = useCallback((): void => {
+    const active = workoutLog.workout
+    if (active !== null) setResumableId(active.id)
+    setSubView("landing")
+    onActiveWorkout?.(false)
+  }, [workoutLog.workout, onActiveWorkout])
+
   const handleSaveRoutine = async (): Promise<void> => {
     if (routineDraft === null) return
     try {
@@ -288,6 +298,7 @@ function WorkoutPanelInner({
         workout={workoutLog.workout}
         workoutLog={workoutLog}
         onFinish={() => void handleFinishWorkout()}
+        onMinimize={handleMinimize}
         onFormCheck={onFormCheck}
         formCheckResult={formCheckResult}
         onFormCheckConsumed={() => setFormCheckResult(null)}
@@ -321,7 +332,10 @@ function WorkoutPanelInner({
   if (subView === "library") {
     return (
       <div className="flex h-full flex-col overflow-hidden" data-testid="workout-panel">
-        <div className="flex shrink-0 items-center gap-2 border-b border-white/5 px-4 py-3">
+        <div
+          className="flex shrink-0 items-center gap-2 border-b border-white/5 px-4 py-3"
+          style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+        >
           <button
             type="button"
             onClick={() => setSubView("landing")}
@@ -353,7 +367,10 @@ function WorkoutPanelInner({
       data-testid="workout-panel"
     >
       {/* Header */}
-      <div className="shrink-0 border-b border-white/5 px-4 py-4">
+      <div
+        className="shrink-0 border-b border-white/5 px-4 py-4"
+        style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Icon icon={ClipboardList} size={18} className="text-accent" />
