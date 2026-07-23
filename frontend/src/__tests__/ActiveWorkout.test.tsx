@@ -116,6 +116,29 @@ describe("ActiveWorkout", () => {
     expect(onFinish).toHaveBeenCalledOnce()
   })
 
+  it("renders the back control and calls onMinimize (not onFinish) when tapped", () => {
+    const onMinimize = vi.fn()
+    const onFinish = vi.fn()
+    render(
+      <ActiveWorkout
+        workout={EMPTY_WORKOUT}
+        workoutLog={mockWorkoutLog}
+        onFinish={onFinish}
+        onMinimize={onMinimize}
+      />,
+    )
+    fireEvent.click(screen.getByTestId("minimize-workout-btn"))
+    expect(onMinimize).toHaveBeenCalledOnce()
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it("omits the back control when onMinimize is not provided (safe default)", () => {
+    render(
+      <ActiveWorkout workout={EMPTY_WORKOUT} workoutLog={mockWorkoutLog} onFinish={vi.fn()} />,
+    )
+    expect(screen.queryByTestId("minimize-workout-btn")).not.toBeInTheDocument()
+  })
+
   it("calls logSet when a set is submitted via SetRow", () => {
     const workoutWithExercise: LocalWorkout = {
       ...EMPTY_WORKOUT,

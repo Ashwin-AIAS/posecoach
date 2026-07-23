@@ -123,6 +123,26 @@ describe("WorkoutPanel", () => {
     expect(window.localStorage.getItem(ACTIVE_KEY)).toBe("w1")
   })
 
+  it("minimize returns to the landing with the workout still resumable, keeping the pointer", async () => {
+    const onActiveWorkout = vi.fn()
+    render(<WorkoutPanel onActiveWorkout={onActiveWorkout} />)
+
+    fireEvent.click(await screen.findByTestId("start-workout-cta"))
+    await waitFor(() => expect(screen.getByTestId("active-workout")).toBeInTheDocument())
+    expect(onActiveWorkout).toHaveBeenLastCalledWith(true)
+
+    // Minimize (not finish): back to the landing, workout still resumable.
+    fireEvent.click(screen.getByTestId("minimize-workout-btn"))
+    await waitFor(() => expect(screen.getByTestId("resume-workout-btn")).toBeInTheDocument())
+    expect(onActiveWorkout).toHaveBeenLastCalledWith(false)
+    // The pointer is kept (not cleared like finish would) so resume survives.
+    expect(window.localStorage.getItem(ACTIVE_KEY)).toBe("w1")
+
+    // And it resumes straight back into the active workout.
+    fireEvent.click(screen.getByTestId("resume-workout-btn"))
+    await waitFor(() => expect(screen.getByTestId("active-workout")).toBeInTheDocument())
+  })
+
   it("resolves a returning form-check: auto-resumes, matches the session, pre-fills", async () => {
     const startedAt = new Date(Date.now() - 5 * 60_000).toISOString()
     window.localStorage.setItem(ACTIVE_KEY, "w-resume")

@@ -80,7 +80,10 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
   return (
     <div
       className="flex-1 animate-fade-in overflow-y-auto px-4 py-5 sm:px-6"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 5rem)" }}
+      style={{
+        paddingTop: "max(1.25rem, env(safe-area-inset-top))",
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 5rem)",
+      }}
       data-testid="calories-panel"
     >
       <div className="mx-auto max-w-2xl">
