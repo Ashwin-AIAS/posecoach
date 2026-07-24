@@ -268,4 +268,34 @@ describe("CaloriesPanel", () => {
     expect(await screen.findByTestId("log-confirmation")).toBeInTheDocument()
     await waitFor(() => expect(vi.mocked(logFood)).toHaveBeenCalledTimes(2))
   })
+
+  // ── Stage B: regression lock on the refresh path ─────────────────────────────
+  it("diary reflects a newly logged entry + higher totals on return (refresh regression)", async () => {
+    const entry = loggedSnack()
+    const populated: DailyLogOut = {
+      log_date: todayISO(),
+      entries: [entry],
+      totals: { kcal: 80.85, protein_g: 0.95, carbs_g: 8.63, fat_g: 4.64 },
+    }
+    // First diary load is empty; after the log + return it reflects the entry.
+    vi.mocked(getDailyLog).mockReset()
+    vi.mocked(getDailyLog).mockResolvedValueOnce(emptyDay()).mockResolvedValue(populated)
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+    vi.mocked(logFood).mockResolvedValueOnce(entry)
+    render(<CaloriesPanel />)
+
+    // Diary starts empty (zero totals).
+    expect(await screen.findByTestId("totals-kcal")).toHaveTextContent("0")
+
+    await scanOnce()
+    fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
+    // Back to the diary from the confirmation → DiaryDay remounts + refetches.
+    fireEvent.click(await screen.findByTestId("log-done-btn"))
+
+    // The remount refetches and the new entry + higher totals are shown.
+    expect(await screen.findByTestId("meal-section-snack")).toBeInTheDocument()
+    expect(screen.getByTestId("totals-kcal")).toHaveTextContent("80.9")
+    expect(screen.getByText("Nutella")).toBeInTheDocument()
+    expect(vi.mocked(getDailyLog).mock.calls.length).toBeGreaterThanOrEqual(2)
+  })
 })
