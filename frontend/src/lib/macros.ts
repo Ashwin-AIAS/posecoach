@@ -21,6 +21,21 @@ export function asMeal(meal: string): Meal {
   return (MEALS as readonly string[]).includes(meal) ? (meal as Meal) : "snack"
 }
 
+/**
+ * Infer the diary meal from the local time of day (P34.1): breakfast before
+ * 11:00, lunch 11:00–16:00, dinner 16:00–21:00, snack otherwise. Used to
+ * pre-fill a one-tap scan log so a scan writes to a sensible meal without a
+ * second prompt; the user can still change it via "Adjust". Pure — takes the
+ * clock as an argument so it is deterministic under test.
+ */
+export function inferMeal(now: Date = new Date()): Meal {
+  const hour = now.getHours()
+  if (hour < 11) return "breakfast"
+  if (hour < 16) return "lunch"
+  if (hour < 21) return "dinner"
+  return "snack"
+}
+
 /** Compact display number: 1 decimal with a trailing ".0" dropped. */
 export function fmt(n: number): string {
   const rounded = Math.round(n * 10) / 10
