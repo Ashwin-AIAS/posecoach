@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // The scanner needs a camera — replace it with a button that fires a decode.
 vi.mock("../components/BarcodeScanner", () => ({
@@ -24,7 +24,7 @@ vi.mock("../lib/nutritionApi", () => ({
   deleteLogEntry: vi.fn(),
 }))
 
-import { createManualFood, getDailyLog, logFood, lookupBarcode } from "../lib/nutritionApi"
+import { createManualFood, getDailyLog, logFood, lookupBarcode, updateLogEntry } from "../lib/nutritionApi"
 import { CaloriesPanel } from "../components/CaloriesPanel"
 import { todayISO } from "../lib/day"
 import type { DailyLogOut, FoodItemOut, LogEntryOut } from "../types"
@@ -56,6 +56,25 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(getDailyLog).mockResolvedValue(emptyDay())
 })
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+/** A logged snack entry for `FOOD` at its 15 g serving (80.85 kcal). */
+function loggedSnack(): LogEntryOut {
+  return {
+    id: "e1",
+    logged_date: todayISO(),
+    meal: "snack",
+    amount_g: 15,
+    kcal: 80.85,
+    protein_g: 0.95,
+    carbs_g: 8.63,
+    fat_g: 4.64,
+    food: FOOD,
+  }
+}
 
 /** P28: the tab lands on the diary — the add-flow starts from "Add food". */
 async function openAddFlow(): Promise<void> {
@@ -168,47 +187,85 @@ describe("CaloriesPanel", () => {
     expect(await screen.findByTestId("day-nav")).toBeInTheDocument()
   })
 
-  it("product card → Add to diary → sheet logs it → back on the diary (P28)", async () => {
+  it("scan → product → one tap logs immediately with default amount + inferred meal (P34.1)", async () => {
+    // Pin the clock to local lunchtime so the inferred meal is deterministic.
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date(2026, 6, 24, 12, 30))
     vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
-    const entry: LogEntryOut = {
-      id: "e1",
-      logged_date: todayISO(),
-      meal: "snack",
-      amount_g: 15,
-      kcal: 80.85,
-      protein_g: 0.95,
-      carbs_g: 8.63,
-      fat_g: 4.64,
-      food: FOOD,
-    }
-    vi.mocked(logFood).mockResolvedValueOnce(entry)
+    vi.mocked(logFood).mockResolvedValueOnce({ ...loggedSnack(), meal: "lunch" })
     render(<CaloriesPanel />)
 
     await scanOnce()
 
+    // One tap on the product card logs it — no intermediate sheet.
     fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
-    expect(screen.getByTestId("add-to-diary-sheet")).toBeInTheDocument()
+    expect(screen.queryByTestId("add-to-diary-sheet")).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId("atd-submit"))
+    // Default amount = serving_size_g (15), meal inferred from local time (lunch).
+    expect(vi.mocked(logFood)).toHaveBeenCalledWith({
+      food_item_id: "f1",
+      logged_date: todayISO(),
+      meal: "lunch",
+      amount_g: 15,
+    })
 
-    // Success returns to the diary, which refetches the viewed day.
-    expect(await screen.findByTestId("day-nav")).toBeInTheDocument()
-    expect(vi.mocked(logFood)).toHaveBeenCalledWith(
-      expect.objectContaining({ food_item_id: "f1", amount_g: 15, logged_date: todayISO() }),
-    )
-    expect(vi.mocked(getDailyLog).mock.calls.length).toBeGreaterThanOrEqual(2)
+    // Success confirmation renders with the kcal + meal line.
+    expect(await screen.findByTestId("log-confirmation")).toBeInTheDocument()
+    expect(screen.getByTestId("log-confirmation-text")).toHaveTextContent("Added · 80.9 kcal to Lunch")
   })
 
-  it("cancelling the add-to-diary sheet returns to the product card", async () => {
-    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+  it("no serving size → one tap defaults the amount to 100 g", async () => {
+    const noServing = { ...FOOD, serving_size_g: null, serving_label: null }
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(noServing)
+    vi.mocked(logFood).mockResolvedValueOnce({ ...loggedSnack(), amount_g: 100 })
     render(<CaloriesPanel />)
 
     await scanOnce()
-
     fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
-    fireEvent.click(screen.getByTestId("atd-cancel"))
 
-    expect(screen.getByTestId("add-to-diary-btn")).toBeInTheDocument()
-    expect(vi.mocked(logFood)).not.toHaveBeenCalled()
+    expect(vi.mocked(logFood)).toHaveBeenCalledWith(
+      expect.objectContaining({ amount_g: 100 }),
+    )
+  })
+
+  it("confirmation → Adjust opens the edit sheet pre-filled on that entry", async () => {
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+    vi.mocked(logFood).mockResolvedValueOnce(loggedSnack())
+    render(<CaloriesPanel />)
+
+    await scanOnce()
+    fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
+    fireEvent.click(await screen.findByTestId("adjust-btn"))
+
+    // Edit mode: the sheet is pre-filled with the logged amount + meal.
+    expect(screen.getByTestId("add-to-diary-sheet")).toHaveTextContent("Edit entry")
+    expect(screen.getByTestId("atd-amount")).toHaveValue("15")
+    expect(screen.getByTestId("meal-chip-snack")).toHaveAttribute("aria-pressed", "true")
+
+    // Saving PATCHes that entry (not a second log) and returns to the diary.
+    vi.mocked(updateLogEntry).mockResolvedValueOnce({ ...loggedSnack(), amount_g: 30 })
+    fireEvent.click(screen.getByTestId("atd-submit"))
+    expect(await screen.findByTestId("day-nav")).toBeInTheDocument()
+    expect(vi.mocked(updateLogEntry)).toHaveBeenCalledWith("e1", { meal: "snack", amount_g: 15 })
+  })
+
+  it("a failed one-tap log surfaces inline with a retry — never a silent close", async () => {
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+    vi.mocked(logFood)
+      .mockRejectedValueOnce(new Error("network hiccup"))
+      .mockResolvedValueOnce(loggedSnack())
+    render(<CaloriesPanel />)
+
+    await scanOnce()
+    fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
+
+    // Stays on the product card with an inline error — not back on the diary.
+    expect(await screen.findByTestId("log-error")).toHaveTextContent("network hiccup")
+    expect(screen.getByTestId("food-macro-card")).toBeInTheDocument()
+
+    // Tapping the same button retries and succeeds.
+    fireEvent.click(screen.getByTestId("add-to-diary-btn"))
+    expect(await screen.findByTestId("log-confirmation")).toBeInTheDocument()
+    await waitFor(() => expect(vi.mocked(logFood)).toHaveBeenCalledTimes(2))
   })
 })

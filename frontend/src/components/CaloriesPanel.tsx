@@ -1,8 +1,18 @@
 import { memo, useCallback, useState } from "react"
-import { CalendarPlus, ChevronLeft, PencilLine, RefreshCw, ScanBarcode, X } from "lucide-react"
+import {
+  CalendarPlus,
+  CheckCircle2,
+  ChevronLeft,
+  PencilLine,
+  RefreshCw,
+  ScanBarcode,
+  SlidersHorizontal,
+  X,
+} from "lucide-react"
 
-import type { FoodItemOut } from "../types"
-import { lookupBarcode } from "../lib/nutritionApi"
+import type { FoodItemOut, LogEntryOut } from "../types"
+import { logFood, lookupBarcode } from "../lib/nutritionApi"
+import { asMeal, fmt, inferMeal, MEAL_LABELS } from "../lib/macros"
 import { todayISO } from "../lib/day"
 import { AddFoodChooser } from "./AddFoodChooser"
 import { AddToDiarySheet } from "./AddToDiarySheet"
@@ -13,8 +23,22 @@ import { ManualFoodForm } from "./ManualFoodForm"
 import { Icon } from "./ui/Icon"
 
 type View = "diary" | "add"
-/** The P27 scan machine, plus "choose" (the add-food entry point) and "log". */
-type AddMode = "choose" | "scanning" | "loading" | "product" | "not-found" | "manual" | "error" | "log"
+/**
+ * The P27 scan machine, plus "choose" (the add-food entry point), "log" (the
+ * name-search / manual explicit add sheet), and the P34.1 one-tap scan states:
+ * "logged" (post-scan success confirmation) and "adjust" (edit that entry).
+ */
+type AddMode =
+  | "choose"
+  | "scanning"
+  | "loading"
+  | "product"
+  | "not-found"
+  | "manual"
+  | "error"
+  | "log"
+  | "logged"
+  | "adjust"
 
 interface CaloriesPanelProps {
   /** Deep-links to Settings from a "Sign in" card (P29). */
@@ -40,14 +64,47 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
   const [dateISO, setDateISO] = useState<string>(todayISO())
   const [addMode, setAddMode] = useState<AddMode>("choose")
   const [food, setFood] = useState<FoodItemOut | null>(null)
+  const [logged, setLogged] = useState<LogEntryOut | null>(null)
+  const [logging, setLogging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const openAdd = useCallback((): void => {
     setFood(null)
+    setLogged(null)
+    setLogging(false)
     setError(null)
     setAddMode("choose")
     setView("add")
   }, [])
+
+  /**
+   * One-tap commit (P34.1): log the scanned product straight to the viewed day
+   * with a default amount (its serving, else 100 g) and a time-inferred meal —
+   * no second sheet. Success → the confirmation state; a failed POST surfaces
+   * inline on the product card with the button as the retry (never a silent
+   * close). "Adjust" is available afterwards to fix meal/amount.
+   */
+  const logScanned = useCallback((): void => {
+    if (!food || logging) return
+    setLogging(true)
+    setError(null)
+    void (async () => {
+      try {
+        const entry = await logFood({
+          food_item_id: food.id,
+          logged_date: dateISO,
+          meal: inferMeal(),
+          amount_g: food.serving_size_g ?? 100,
+        })
+        setLogged(entry)
+        setAddMode("logged")
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        setLogging(false)
+      }
+    })()
+  }, [food, dateISO, logging])
 
   // DiaryDay remounts on return and refetches — the new row is simply there.
   const closeAdd = useCallback((): void => setView("diary"), [])
@@ -160,20 +217,28 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
         {view === "add" && addMode === "product" && food && (
           <div className="mt-6 space-y-4">
             <FoodMacroCard food={food} />
+            {error && (
+              <p role="alert" className="text-sm text-red-400" data-testid="log-error">
+                Couldn&apos;t add it — {error} Tap &ldquo;Add to diary&rdquo; to try again.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
+              {/* One tap logs it (P34.1) — default amount + time-inferred meal. */}
               <button
                 type="button"
-                onClick={() => setAddMode("log")}
-                className={`${PRIMARY_BTN} flex-1`}
+                onClick={logScanned}
+                disabled={logging}
+                className={`${PRIMARY_BTN} flex-1 disabled:opacity-40`}
                 data-testid="add-to-diary-btn"
               >
                 <Icon icon={CalendarPlus} size={18} />
-                Add to diary
+                {logging ? "Adding…" : "Add to diary"}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setFood(null)
+                  setError(null)
                   setAddMode("scanning")
                 }}
                 className={SECONDARY_BTN}
@@ -182,10 +247,69 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
                 <Icon icon={ScanBarcode} size={16} />
                 Scan another
               </button>
-              <button type="button" onClick={closeAdd} className={SECONDARY_BTN} data-testid="done-btn">
-                Done
+            </div>
+          </div>
+        )}
+
+        {view === "add" && addMode === "logged" && logged && (
+          <div className="mt-6 space-y-4" data-testid="log-confirmation">
+            <div
+              className="flex items-center gap-2 rounded-2xl bg-surface-raised px-4 py-3 shadow-elev-1"
+              role="status"
+            >
+              <Icon icon={CheckCircle2} size={20} className="shrink-0 text-accent" />
+              <p className="text-sm font-medium text-gray-100" data-testid="log-confirmation-text">
+                Added · {fmt(logged.kcal)} kcal to {MEAL_LABELS[asMeal(logged.meal)]}
+              </p>
+            </div>
+            <FoodMacroCard food={logged.food} />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setAddMode("adjust")}
+                className={SECONDARY_BTN}
+                data-testid="adjust-btn"
+              >
+                <Icon icon={SlidersHorizontal} size={16} />
+                Adjust
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFood(null)
+                  setLogged(null)
+                  setError(null)
+                  setAddMode("scanning")
+                }}
+                className={SECONDARY_BTN}
+                data-testid="log-scan-another-btn"
+              >
+                <Icon icon={ScanBarcode} size={16} />
+                Scan another
+              </button>
+              <button
+                type="button"
+                onClick={closeAdd}
+                className={`${PRIMARY_BTN} flex-1`}
+                data-testid="log-done-btn"
+              >
+                Back to diary
               </button>
             </div>
+          </div>
+        )}
+
+        {view === "add" && addMode === "adjust" && logged && (
+          <div className="mt-6 space-y-4">
+            <FoodMacroCard food={logged.food} />
+            {/* Edit mode PATCHes the just-created entry (meal/amount). */}
+            <AddToDiarySheet
+              food={logged.food}
+              dateISO={dateISO}
+              editEntry={logged}
+              onLogged={closeAdd}
+              onCancel={() => setAddMode("logged")}
+            />
           </div>
         )}
 
@@ -196,7 +320,7 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
               food={food}
               dateISO={dateISO}
               onLogged={closeAdd}
-              onCancel={() => setAddMode("product")}
+              onCancel={() => setAddMode("choose")}
             />
           </div>
         )}

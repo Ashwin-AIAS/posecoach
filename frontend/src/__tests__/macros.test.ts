@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { previewMacros } from "../lib/macros"
+import { inferMeal, previewMacros } from "../lib/macros"
 import type { FoodItemOut } from "../types"
 
 const FOOD: FoodItemOut = {
@@ -40,5 +40,33 @@ describe("previewMacros", () => {
 
   it("handles fractional serving amounts", () => {
     expect(previewMacros(FOOD, 15).kcal).toBeCloseTo(80.85, 2)
+  })
+})
+
+describe("inferMeal (P34.1 one-tap default)", () => {
+  /** Build a local-time Date at the given hour (minute optional). */
+  const at = (hour: number, minute = 0): Date => new Date(2026, 6, 24, hour, minute)
+
+  it("before 11:00 is breakfast", () => {
+    expect(inferMeal(at(0))).toBe("breakfast")
+    expect(inferMeal(at(7, 30))).toBe("breakfast")
+    expect(inferMeal(at(10, 59))).toBe("breakfast")
+  })
+
+  it("11:00–15:59 is lunch", () => {
+    expect(inferMeal(at(11))).toBe("lunch")
+    expect(inferMeal(at(13, 30))).toBe("lunch")
+    expect(inferMeal(at(15, 59))).toBe("lunch")
+  })
+
+  it("16:00–20:59 is dinner", () => {
+    expect(inferMeal(at(16))).toBe("dinner")
+    expect(inferMeal(at(19))).toBe("dinner")
+    expect(inferMeal(at(20, 59))).toBe("dinner")
+  })
+
+  it("21:00 onward is snack", () => {
+    expect(inferMeal(at(21))).toBe("snack")
+    expect(inferMeal(at(23, 59))).toBe("snack")
   })
 })
