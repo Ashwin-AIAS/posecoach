@@ -20,10 +20,9 @@ import numpy.typing as npt
 import structlog
 
 if TYPE_CHECKING:
+    import redis.asyncio as redis
     from chromadb.api.models.Collection import Collection
     from sentence_transformers import SentenceTransformer
-
-    import redis.asyncio as redis
 
 logger = structlog.get_logger(__name__)
 
