@@ -12,12 +12,13 @@ import {
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
-import type { DailyLogOut, LogEntryOut, Meal } from "../types"
+import type { DailyLogOut, LogEntryOut, Meal, NutritionGoalOut } from "../types"
 import { UnauthenticatedError, friendlyMessage } from "../lib/api"
 import { deleteLogEntry, getDailyLog } from "../lib/nutritionApi"
 import { addDays, formatDayLabel, isToday, todayISO } from "../lib/day"
 import { asMeal, fmt, MEAL_LABELS, MEALS, sumTotals } from "../lib/macros"
 import { AddToDiarySheet } from "./AddToDiarySheet"
+import { BudgetSummary } from "./BudgetSummary"
 import { DiaryEntryRow } from "./DiaryEntryRow"
 import { SignInPrompt } from "./SignInPrompt"
 import { Icon } from "./ui/Icon"
@@ -30,6 +31,13 @@ interface DiaryDayProps {
   readonly onAddFood: () => void
   /** Deep-links to Settings when the diary load 401s (P29). */
   readonly onSignIn?: () => void
+  /**
+   * The daily budget (P34.2), owned by CaloriesPanel. Absent/null → the header
+   * shows plain totals exactly as P28 did.
+   */
+  readonly goal?: NutritionGoalOut | null
+  /** Opens the target editor; the affordance is hidden when not provided. */
+  readonly onEditTarget?: () => void
 }
 
 /** How long the Undo affordance stays before the DELETE is actually sent. */
@@ -40,47 +48,6 @@ const MEAL_ICONS: Record<Meal, LucideIcon> = {
   lunch: Sun,
   dinner: Moon,
   snack: Cookie,
-}
-
-/** jsdom (tests) and very old browsers lack matchMedia — treat as reduced motion. */
-function prefersReducedMotion(): boolean {
-  if (typeof window.matchMedia !== "function") return true
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
-}
-
-const COUNT_UP_MS = 450
-
-/** Counts from the previous displayed value to `target`; snaps when reduced. */
-function useCountUp(target: number): number {
-  const reduced = prefersReducedMotion()
-  const [value, setValue] = useState(target)
-  const fromRef = useRef(target)
-
-  useEffect(() => {
-    if (reduced) {
-      fromRef.current = target
-      setValue(target)
-      return
-    }
-    const from = fromRef.current
-    if (from === target) return
-    const start = performance.now()
-    let frame = 0
-    const tick = (now: number): void => {
-      const t = Math.min(1, (now - start) / COUNT_UP_MS)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setValue(from + (target - from) * eased)
-      if (t < 1) {
-        frame = requestAnimationFrame(tick)
-      } else {
-        fromRef.current = target
-      }
-    }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [target, reduced])
-
-  return value
 }
 
 const NAV_BTN =
@@ -94,25 +61,21 @@ interface PendingDelete {
   readonly timer: number
 }
 
-function MacroBar({ label, grams, share }: { label: string; grams: number; share: number }): JSX.Element {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-14 shrink-0 text-xs text-gray-400">{label}</span>
-      <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
-        {/* Width is data-driven — proportion of today's macro grams. */}
-        <div className="h-full rounded-full bg-accent" style={{ width: `${share}%` }} />
-      </div>
-      <span className="hud-numerals w-14 shrink-0 text-right text-xs text-gray-300">{fmt(grams)} g</span>
-    </div>
-  )
-}
-
 /**
  * The Calories tab home (P28): one diary day — date navigation (future-capped),
  * kcal + macro totals, entries grouped by meal, and optimistic edit/delete with
- * Undo. Owns the day's data: refetches whenever `dateISO` changes.
+ * Undo. Owns the day's data: refetches whenever `dateISO` changes. The headline
+ * numbers moved into BudgetSummary in P34.2 so they can show remaining-vs-target
+ * when a budget is set.
  */
-function DiaryDayInner({ dateISO, onDateChange, onAddFood, onSignIn }: DiaryDayProps): JSX.Element {
+function DiaryDayInner({
+  dateISO,
+  onDateChange,
+  onAddFood,
+  onSignIn,
+  goal,
+  onEditTarget,
+}: DiaryDayProps): JSX.Element {
   const [day, setDay] = useState<DailyLogOut | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -215,9 +178,6 @@ function DiaryDayInner({ dateISO, onDateChange, onAddFood, onSignIn }: DiaryDayP
   // Totals derive from the rows so optimistic edits/deletes stay consistent;
   // on a fresh fetch this equals the server's totals (same snapshot sums).
   const totals = useMemo(() => sumTotals(current?.entries ?? []), [current])
-  const animatedKcal = useCountUp(totals.kcal)
-  const macroGrams = totals.protein_g + totals.carbs_g + totals.fat_g
-  const share = (g: number): number => (macroGrams > 0 ? (g / macroGrams) * 100 : 0)
 
   const byMeal = useMemo(() => {
     const groups: Record<Meal, LogEntryOut[]> = { breakfast: [], lunch: [], dinner: [], snack: [] }
@@ -305,19 +265,7 @@ function DiaryDayInner({ dateISO, onDateChange, onAddFood, onSignIn }: DiaryDayP
 
           {current && (
             <>
-              <div className="mt-4 rounded-2xl bg-surface-raised p-4 shadow-elev-1" data-testid="daily-totals">
-                <div className="flex items-baseline gap-2">
-                  <span className="hud-numerals text-3xl font-semibold text-accent" data-testid="totals-kcal">
-                    {fmt(animatedKcal)}
-                  </span>
-                  <span className="text-sm text-gray-500">kcal</span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  <MacroBar label="Protein" grams={totals.protein_g} share={share(totals.protein_g)} />
-                  <MacroBar label="Carbs" grams={totals.carbs_g} share={share(totals.carbs_g)} />
-                  <MacroBar label="Fat" grams={totals.fat_g} share={share(totals.fat_g)} />
-                </div>
-              </div>
+              <BudgetSummary totals={totals} goal={goal} onEditTarget={onEditTarget} />
 
               {deleteError && (
                 <p role="alert" className="mt-3 text-xs text-red-400" data-testid="delete-error">

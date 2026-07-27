@@ -22,12 +22,33 @@ vi.mock("../lib/nutritionApi", () => ({
   searchFoods: vi.fn(),
   updateLogEntry: vi.fn(),
   deleteLogEntry: vi.fn(),
+  getGoal: vi.fn(),
+  putGoal: vi.fn(),
 }))
 
-import { createManualFood, getDailyLog, logFood, lookupBarcode, updateLogEntry } from "../lib/nutritionApi"
+import {
+  createManualFood,
+  getDailyLog,
+  getGoal,
+  logFood,
+  lookupBarcode,
+  putGoal,
+  updateLogEntry,
+} from "../lib/nutritionApi"
 import { CaloriesPanel } from "../components/CaloriesPanel"
 import { todayISO } from "../lib/day"
-import type { DailyLogOut, FoodItemOut, LogEntryOut } from "../types"
+import type { DailyLogOut, FoodItemOut, LogEntryOut, NutritionGoalOut } from "../types"
+
+/** P34.2: the default fixture is "no target set" — an all-null goal, not a 404. */
+function noGoal(): NutritionGoalOut {
+  return {
+    kcal_target: null,
+    protein_target_g: null,
+    carbs_target_g: null,
+    fat_target_g: null,
+    updated_at: null,
+  }
+}
 
 const FOOD: FoodItemOut = {
   id: "f1",
@@ -55,6 +76,7 @@ function emptyDay(): DailyLogOut {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(getDailyLog).mockResolvedValue(emptyDay())
+  vi.mocked(getGoal).mockResolvedValue(noGoal())
 })
 
 afterEach(() => {
@@ -189,8 +211,13 @@ describe("CaloriesPanel", () => {
 
   it("scan → product → one tap logs immediately with default amount + inferred meal (P34.1)", async () => {
     // Pin the clock to local lunchtime so the inferred meal is deterministic.
+    // TODAY's date at 12:30, never a hardcoded calendar day: the diary fixture
+    // is keyed on the real `todayISO()`, so a pinned past date would make
+    // DiaryDay reject the day as stale and render a skeleton forever.
     vi.useFakeTimers({ toFake: ["Date"] })
-    vi.setSystemTime(new Date(2026, 6, 24, 12, 30))
+    const lunchtime = new Date()
+    lunchtime.setHours(12, 30, 0, 0)
+    vi.setSystemTime(lunchtime)
     vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
     vi.mocked(logFood).mockResolvedValueOnce({ ...loggedSnack(), meal: "lunch" })
     render(<CaloriesPanel />)
@@ -297,5 +324,89 @@ describe("CaloriesPanel", () => {
     expect(screen.getByTestId("totals-kcal")).toHaveTextContent("80.9")
     expect(screen.getByText("Nutella")).toBeInTheDocument()
     expect(vi.mocked(getDailyLog).mock.calls.length).toBeGreaterThanOrEqual(2)
+  })
+
+  // ── P34.2: the daily budget ─────────────────────────────────────────────────
+  it("no target → the diary offers to set one; saving shows remaining", async () => {
+    vi.mocked(putGoal).mockResolvedValue({
+      kcal_target: 2000,
+      protein_target_g: 150,
+      carbs_target_g: null,
+      fat_target_g: null,
+      updated_at: "2026-07-27T10:00:00Z",
+    })
+    render(<CaloriesPanel />)
+
+    // No target yet → plain totals + the "set one" affordance.
+    fireEvent.click(await screen.findByTestId("set-target-btn"))
+    fireEvent.change(screen.getByTestId("te-kcal"), { target: { value: "2000" } })
+    fireEvent.change(screen.getByTestId("te-protein"), { target: { value: "150" } })
+    fireEvent.click(screen.getByTestId("te-save"))
+
+    await waitFor(() =>
+      expect(vi.mocked(putGoal)).toHaveBeenCalledWith({
+        kcal_target: 2000,
+        protein_target_g: 150,
+        carbs_target_g: undefined,
+        fat_target_g: undefined,
+      }),
+    )
+    // Back on the diary, the hero is now what's left of the target.
+    expect(await screen.findByTestId("remaining-kcal")).toHaveTextContent("2000")
+    expect(screen.getByTestId("remaining-protein")).toHaveTextContent("150 g left")
+  })
+
+  it("a log visibly decrements remaining on return (self-proving save)", async () => {
+    vi.mocked(getGoal).mockResolvedValue({
+      kcal_target: 2000,
+      protein_target_g: null,
+      carbs_target_g: null,
+      fat_target_g: null,
+      updated_at: "2026-07-27T10:00:00Z",
+    })
+    const entry = loggedSnack()
+    const populated: DailyLogOut = {
+      log_date: todayISO(),
+      entries: [entry],
+      totals: { kcal: 80.85, protein_g: 0.95, carbs_g: 8.63, fat_g: 4.64 },
+    }
+    vi.mocked(getDailyLog).mockReset()
+    vi.mocked(getDailyLog).mockResolvedValueOnce(emptyDay()).mockResolvedValue(populated)
+    vi.mocked(lookupBarcode).mockResolvedValueOnce(FOOD)
+    vi.mocked(logFood).mockResolvedValueOnce(entry)
+    render(<CaloriesPanel />)
+
+    expect(await screen.findByTestId("remaining-kcal")).toHaveTextContent("2000")
+
+    await scanOnce()
+    fireEvent.click(await screen.findByTestId("add-to-diary-btn"))
+    fireEvent.click(await screen.findByTestId("log-done-btn"))
+
+    // 2000 − 80.85 = 1919.15 → the number moved, which is the save receipt.
+    expect(await screen.findByTestId("remaining-kcal")).toHaveTextContent("1919.2")
+  })
+
+  it("a failed target save keeps the editor open with an inline retry", async () => {
+    vi.mocked(putGoal)
+      .mockRejectedValueOnce(new Error("network hiccup"))
+      .mockResolvedValueOnce({
+        kcal_target: 2000,
+        protein_target_g: null,
+        carbs_target_g: null,
+        fat_target_g: null,
+        updated_at: "2026-07-27T10:00:00Z",
+      })
+    render(<CaloriesPanel />)
+
+    fireEvent.click(await screen.findByTestId("set-target-btn"))
+    fireEvent.change(screen.getByTestId("te-kcal"), { target: { value: "2000" } })
+    fireEvent.click(screen.getByTestId("te-save"))
+
+    // Never closes as if it worked.
+    expect(await screen.findByTestId("te-error")).toHaveTextContent("network hiccup")
+    expect(screen.getByTestId("target-editor")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId("te-save"))
+    expect(await screen.findByTestId("remaining-kcal")).toHaveTextContent("2000")
   })
 })
