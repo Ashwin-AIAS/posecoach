@@ -1,7 +1,7 @@
 """Pydantic request/response schemas for the nutrition API (P27)."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -92,3 +92,34 @@ class DailyLogOut(BaseModel):
     log_date: date
     entries: list[LogEntryOut]
     totals: DailyTotals
+
+
+# ── P34.2: daily budget ───────────────────────────────────────────────────────
+#
+# The target is a number the user types and the diary subtracts from — nothing
+# more. The server does not derive it from a body model, does not suggest one,
+# and attaches no advice to it. Bounds exist only to reject typos.
+
+# A day's energy target; well above any real intake, so only typos are refused.
+KCAL_TARGET_MAX = 20000
+# No macro target above 1 kg/day is a real number.
+MACRO_TARGET_G_MAX = 1000.0
+
+
+class NutritionGoalIn(BaseModel):
+    """Upsert body for the daily budget — kcal required, macros optional."""
+
+    kcal_target: int = Field(ge=0, le=KCAL_TARGET_MAX)
+    protein_target_g: float | None = Field(default=None, ge=0, le=MACRO_TARGET_G_MAX)
+    carbs_target_g: float | None = Field(default=None, ge=0, le=MACRO_TARGET_G_MAX)
+    fat_target_g: float | None = Field(default=None, ge=0, le=MACRO_TARGET_G_MAX)
+
+
+class NutritionGoalOut(BaseModel):
+    """The caller's daily budget. All-null means "no target set yet" (still 200)."""
+
+    kcal_target: int | None = None
+    protein_target_g: float | None = None
+    carbs_target_g: float | None = None
+    fat_target_g: float | None = None
+    updated_at: datetime | None = None

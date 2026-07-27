@@ -24,7 +24,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.deps import get_current_user
 from app.db import get_db
-from app.models import FoodItem, FoodLogEntry, User
+from app.models import FoodItem, FoodLogEntry, NutritionGoal, User
 from app.nutrition.off_client import OffUnavailableError
 from app.nutrition.schemas import (
     DailyLogOut,
@@ -34,6 +34,8 @@ from app.nutrition.schemas import (
     LogEntryOut,
     LogEntryUpdate,
     ManualFoodCreate,
+    NutritionGoalIn,
+    NutritionGoalOut,
 )
 from app.nutrition.service import (
     get_or_fetch_food,
@@ -270,3 +272,60 @@ async def delete_log_entry(
     await db.delete(entry)
     await db.flush()
     logger.info("food_log_deleted", user_id=current_user.id, entry_id=entry_id)
+
+
+# ── Daily budget (P34.2) ──────────────────────────────────────────────────────
+
+
+def _goal_out(goal: NutritionGoal | None) -> NutritionGoalOut:
+    """A missing goal serialises as all-null rather than 404 — see GET below."""
+    if goal is None:
+        return NutritionGoalOut()
+    return NutritionGoalOut(
+        kcal_target=goal.kcal_target,
+        protein_target_g=goal.protein_target_g,
+        carbs_target_g=goal.carbs_target_g,
+        fat_target_g=goal.fat_target_g,
+        updated_at=goal.updated_at,
+    )
+
+
+async def _load_goal(db: AsyncSession, *, user_id: str) -> NutritionGoal | None:
+    return (
+        await db.execute(select(NutritionGoal).where(NutritionGoal.user_id == user_id))
+    ).scalar_one_or_none()
+
+
+@router.get("/goal", response_model=NutritionGoalOut)
+async def get_nutrition_goal(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> NutritionGoalOut:
+    """The caller's daily budget, or an all-null goal.
+
+    Deliberately 200-with-nulls instead of 404: "no target yet" is a normal
+    first-run state, not an error, and the client renders the "set a target"
+    affordance from it without special-casing a failure.
+    """
+    return _goal_out(await _load_goal(db, user_id=current_user.id))
+
+
+@router.put("/goal", response_model=NutritionGoalOut)
+async def put_nutrition_goal(
+    payload: NutritionGoalIn,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> NutritionGoalOut:
+    """Set or replace the caller's daily budget (one row per user)."""
+    goal = await _load_goal(db, user_id=current_user.id)
+    if goal is None:
+        goal = NutritionGoal(user_id=current_user.id, kcal_target=payload.kcal_target)
+        db.add(goal)
+    else:
+        goal.kcal_target = payload.kcal_target
+    goal.protein_target_g = payload.protein_target_g
+    goal.carbs_target_g = payload.carbs_target_g
+    goal.fat_target_g = payload.fat_target_g
+    await db.flush()
+    logger.info("nutrition_goal_saved", user_id=current_user.id, kcal_target=goal.kcal_target)
+    return _goal_out(goal)
