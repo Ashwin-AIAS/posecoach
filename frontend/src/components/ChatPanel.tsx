@@ -9,7 +9,16 @@ import { Icon } from "./ui/Icon"
 
 interface ChatPanelProps {
   readonly exercise: Exercise
-  readonly videoRef: React.RefObject<HTMLVideoElement>
+  /**
+   * Live camera element used for "+ Frame" snapshots. Optional: the Coach AI
+   * entry point on Home is text-only and never starts a camera session, so the
+   * frame button is simply not offered there.
+   */
+  readonly videoRef?: React.RefObject<HTMLVideoElement> | null
+  /** Render expanded straight away (the Coach AI sheet opens into the chat). */
+  readonly startOpen?: boolean
+  /** Suppress the panel's own header when the host already provides one. */
+  readonly hideHeader?: boolean
 }
 
 const SNAPSHOT_WIDTH = 480
@@ -41,8 +50,13 @@ function captureSnapshot(video: HTMLVideoElement | null): string | null {
   return dataUrl.split(",", 2)[1] ?? null
 }
 
-function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
-  const [open, setOpen] = useState(false)
+function ChatPanelInner({
+  exercise,
+  videoRef,
+  startOpen = false,
+  hideHeader = false,
+}: ChatPanelProps): JSX.Element {
+  const [open, setOpen] = useState(startOpen)
   const [input, setInput] = useState("")
   const { messages, state, error, send, regenerate, setFeedback } = useChat()
   const voice = useVoiceInput()
@@ -74,7 +88,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
     async (withFrame: boolean) => {
       if (!input.trim() || state === "streaming" || state === "thinking") return
       voice.stop() // stop recording if active
-      const frame = withFrame ? captureSnapshot(videoRef.current) : null
+      const frame = withFrame ? captureSnapshot(videoRef?.current ?? null) : null
       const query = input
       setInput("")
       await send({ query, exercise, frame })
@@ -121,7 +135,8 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
       className="flex max-h-[520px] min-h-[320px] flex-col gap-2 rounded-2xl bg-surface-raised/70 p-4 shadow-elev-2 backdrop-blur-md"
       data-testid="chat-panel"
     >
-      {/* Header */}
+      {/* Header — omitted when the host (e.g. the Coach AI sheet) provides one */}
+      {!hideHeader && (
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft">
@@ -138,6 +153,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
           <Icon icon={X} size={16} />
         </button>
       </div>
+      )}
 
       {/* Messages area */}
       <div
@@ -158,7 +174,7 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
               </p>
               <p className="mt-1 text-xs leading-relaxed text-gray-500">
                 Ask me anything about form, programming, or technique.
-                Tap "+ Frame" for visual analysis of your current pose.
+                {videoRef ? ' Tap "+ Frame" for visual analysis of your current pose.' : ""}
               </p>
             </div>
 
@@ -277,16 +293,19 @@ function ChatPanelInner({ exercise, videoRef }: ChatPanelProps): JSX.Element {
           Send
         </button>
 
-        {/* Send with frame */}
-        <button
-          type="button"
-          onClick={() => void submit(true)}
-          disabled={isBusy || !input.trim()}
-          className="flex min-h-11 items-center justify-center rounded-lg border border-accent/40 px-3 text-xs font-medium text-accent transition active:scale-[0.97] hover:bg-accent-soft disabled:cursor-not-allowed disabled:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          title="Send with a snapshot of the current frame"
-        >
-          + Frame
-        </button>
+        {/* Send with frame — only where there is a live camera to snapshot */}
+        {videoRef && (
+          <button
+            type="button"
+            onClick={() => void submit(true)}
+            disabled={isBusy || !input.trim()}
+            className="flex min-h-11 items-center justify-center rounded-lg border border-accent/40 px-3 text-xs font-medium text-accent transition active:scale-[0.97] hover:bg-accent-soft disabled:cursor-not-allowed disabled:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            title="Send with a snapshot of the current frame"
+            data-testid="chat-frame-btn"
+          >
+            + Frame
+          </button>
+        )}
       </div>
     </div>
   )
