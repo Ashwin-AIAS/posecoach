@@ -6,16 +6,21 @@ same sentence-transformers model and the top-K chunks are returned.
 """
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import json
 import os
-from dataclasses import dataclass
+from concurrent.futures import Executor
+from dataclasses import asdict, dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
 import structlog
 
 if TYPE_CHECKING:
+    import redis.asyncio as redis
     from chromadb.api.models.Collection import Collection
     from sentence_transformers import SentenceTransformer
 
@@ -32,6 +37,10 @@ RETRIEVAL_DISTANCE_THRESHOLD = 0.60
 # web fallback is available, citing them would mislead, so we use no context.
 RETRIEVAL_IRRELEVANT_DISTANCE = 0.75
 
+# Redis cache TTL for RAG query results (24 hours).
+_CACHE_TTL_SECONDS = 86400
+_CACHE_PREFIX = "rag:query:"
+
 
 @dataclass(frozen=True)
 class RetrievedChunk:
@@ -43,6 +52,10 @@ class RetrievedChunk:
     url: str
     distance: float
 
+
+# ---------------------------------------------------------------------------
+# Singleton loaders (unchanged — still used by ingest and sync callers)
+# ---------------------------------------------------------------------------
 
 @lru_cache(maxsize=1)
 def _get_embedder() -> SentenceTransformer:
@@ -60,6 +73,10 @@ def _get_collection() -> Collection:
     client = chromadb.PersistentClient(path=chroma_path)
     return client.get_or_create_collection(name=COLLECTION_NAME, metadata={"hnsw:space": "cosine"})
 
+
+# ---------------------------------------------------------------------------
+# Core embedding / retrieval (sync — kept for backward compat & ingest)
+# ---------------------------------------------------------------------------
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
     """Embed a batch of texts with the cached SentenceTransformer."""
@@ -133,6 +150,10 @@ def retrieve_scored(query: str, top_k: int = DEFAULT_TOP_K) -> list[RetrievedChu
         return []
 
 
+# ---------------------------------------------------------------------------
+# Confidence / usability gates (unchanged)
+# ---------------------------------------------------------------------------
+
 def is_confident(chunks: list[RetrievedChunk]) -> bool:
     """True if the best retrieved chunk is within the trust distance threshold."""
     return bool(chunks) and min(c.distance for c in chunks) <= RETRIEVAL_DISTANCE_THRESHOLD
@@ -145,3 +166,87 @@ def is_usable(chunks: list[RetrievedChunk]) -> bool:
     than nothing, but clearly off-topic ones would produce misleading citations.
     """
     return bool(chunks) and min(c.distance for c in chunks) <= RETRIEVAL_IRRELEVANT_DISTANCE
+
+
+# ---------------------------------------------------------------------------
+# Async thread-offloaded retrieval (new — avoids blocking the event loop)
+# ---------------------------------------------------------------------------
+
+async def retrieve_scored_async(
+    query: str,
+    executor: Executor,
+    top_k: int = DEFAULT_TOP_K,
+) -> list[RetrievedChunk]:
+    """Non-blocking ``retrieve_scored`` — runs embedding + ChromaDB in *executor*.
+
+    Drop-in async replacement: same return type, same error-resilience contract.
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(executor, retrieve_scored, query, top_k)
+
+
+# ---------------------------------------------------------------------------
+# Redis caching helpers
+# ---------------------------------------------------------------------------
+
+def _cache_key(query: str) -> str:
+    """Deterministic Redis key for a normalised query string."""
+    normalised = query.strip().lower()
+    digest = hashlib.sha256(normalised.encode()).hexdigest()[:16]
+    return f"{_CACHE_PREFIX}{digest}"
+
+
+def _chunks_to_json(chunks: list[RetrievedChunk]) -> str:
+    """Serialise retrieved chunks to a compact JSON string for Redis."""
+    return json.dumps([asdict(c) for c in chunks])
+
+
+def _chunks_from_json(raw: str) -> list[RetrievedChunk]:
+    """Deserialise a JSON string back to a list of ``RetrievedChunk``."""
+    return [RetrievedChunk(**d) for d in json.loads(raw)]
+
+
+async def get_cached_chunks(
+    redis_client: redis.Redis,
+    query: str,
+) -> list[RetrievedChunk] | None:
+    """Return cached retrieval results, or ``None`` on miss / error."""
+    try:
+        raw: Any = await redis_client.get(_cache_key(query))
+        if raw is None:
+            return None
+        chunks = _chunks_from_json(raw)
+        logger.debug("rag_cache_hit", query_len=len(query), chunks=len(chunks))
+        return chunks
+    except Exception as exc:  # noqa: BLE001 — cache is best-effort
+        logger.warning("rag_cache_get_failed", error=str(exc))
+        return None
+
+
+async def set_cached_chunks(
+    redis_client: redis.Redis,
+    query: str,
+    chunks: list[RetrievedChunk],
+    ttl: int = _CACHE_TTL_SECONDS,
+) -> None:
+    """Store retrieval results in Redis with a TTL (best-effort, never throws)."""
+    try:
+        await redis_client.set(_cache_key(query), _chunks_to_json(chunks), ex=ttl)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("rag_cache_set_failed", error=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Startup warm-up
+# ---------------------------------------------------------------------------
+
+def warmup_rag() -> None:
+    """Pre-load the embedding model and ChromaDB collection into memory.
+
+    Call from the application lifespan (inside the executor) so the first real
+    user query pays zero cold-start cost.
+    """
+    logger.info("rag_warmup_start")
+    _get_embedder()
+    _get_collection()
+    logger.info("rag_warmup_done")

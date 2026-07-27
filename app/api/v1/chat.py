@@ -117,14 +117,42 @@ def _cite_web(result: web_search.WebResult) -> str:
     return f"{result.title} ({result.url})" if result.url else result.title
 
 
-async def _gather_context(query: str) -> tuple[list[str], list[str], str]:
+async def _gather_context(query: str, request: Request) -> tuple[list[str], list[str], str]:
     """Confidence-gated retrieval with a live web fallback.
 
     Returns ``(context_chunks, citations, source_mode)`` where source_mode is
     "rag", "web", or "none". If the KB match is confident, use it; otherwise try
     a live web search; if that is unavailable, fall back to any weak KB chunks.
+
+    Uses Redis to cache RAG results (24-hour TTL) so repeated / common queries
+    skip the embedding + ChromaDB round-trip entirely.  Embedding and vector
+    search run in the app's thread-pool executor to avoid blocking the event loop.
     """
-    scored = rag.retrieve_scored(query, top_k=3)
+    redis_client = getattr(request.app.state, "redis", None)
+    executor = request.app.state.executor
+
+    # --- Fast path: Redis cache hit ---
+    if redis_client is not None:
+        cached = await rag.get_cached_chunks(redis_client, query)
+        if cached is not None:
+            if rag.is_confident(cached):
+                return [c.text for c in cached], [_cite_chunk(c) for c in cached], "rag"
+            # Cached but not confident — still try web, then usable check below.
+            if rag.is_usable(cached):
+                # Attempt web first; if unavailable, use these weak chunks.
+                web = await web_search.search(query, k=4)
+                if web:
+                    context = [f"{r.title}\n{r.snippet}".strip() for r in web]
+                    return context, [_cite_web(r) for r in web], "web"
+                return [c.text for c in cached], [_cite_chunk(c) for c in cached], "rag"
+
+    # --- Slow path: embed + ChromaDB (offloaded to thread pool) ---
+    scored = await rag.retrieve_scored_async(query, executor, top_k=3)
+
+    # Cache the result for next time (best-effort, non-blocking).
+    if redis_client is not None and scored:
+        await rag.set_cached_chunks(redis_client, query, scored)
+
     if rag.is_confident(scored):
         return [c.text for c in scored], [_cite_chunk(c) for c in scored], "rag"
 
@@ -165,7 +193,7 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
         prompt = payload.query  # raw query — the CONVERSATIONAL_SYSTEM_PROMPT handles tone
     else:
         # Confidence-gated RAG with live web fallback — best-effort, never blocks chat.
-        context_chunks, citations, source_mode = await _gather_context(payload.query)
+        context_chunks, citations, source_mode = await _gather_context(payload.query, request)
         prompt = build_user_prompt(
             payload.query, context_chunks,
             exercise=payload.exercise, history=history,
