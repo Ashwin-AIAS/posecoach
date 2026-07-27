@@ -14,15 +14,17 @@ import type { FoodItemOut, LogEntryOut } from "../types"
 import { logFood, lookupBarcode } from "../lib/nutritionApi"
 import { asMeal, fmt, inferMeal, MEAL_LABELS } from "../lib/macros"
 import { todayISO } from "../lib/day"
+import { useNutritionGoal } from "../hooks/useNutritionGoal"
 import { AddFoodChooser } from "./AddFoodChooser"
 import { AddToDiarySheet } from "./AddToDiarySheet"
 import { BarcodeScanner } from "./BarcodeScanner"
 import { DiaryDay } from "./DiaryDay"
 import { FoodMacroCard } from "./FoodMacroCard"
 import { ManualFoodForm } from "./ManualFoodForm"
+import { TargetEditor } from "./TargetEditor"
 import { Icon } from "./ui/Icon"
 
-type View = "diary" | "add"
+type View = "diary" | "add" | "target"
 /**
  * The P27 scan machine, plus "choose" (the add-food entry point), "log" (the
  * name-search / manual explicit add sheet), and the P34.1 one-tap scan states:
@@ -67,6 +69,9 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
   const [logged, setLogged] = useState<LogEntryOut | null>(null)
   const [logging, setLogging] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The daily budget lives here, not in DiaryDay, so the target editor and the
+  // diary share one copy and a save is reflected the moment we return.
+  const { goal, save: saveGoal } = useNutritionGoal()
 
   const openAdd = useCallback((): void => {
     setFood(null)
@@ -106,8 +111,11 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
     })()
   }, [food, dateISO, logging])
 
-  // DiaryDay remounts on return and refetches — the new row is simply there.
+  // DiaryDay remounts on return and refetches — the new row is simply there,
+  // and "remaining" recomputes from the fresh totals against the same target.
   const closeAdd = useCallback((): void => setView("diary"), [])
+
+  const openTarget = useCallback((): void => setView("target"), [])
 
   const handleDecoded = useCallback((digits: string): void => {
     if (!BARCODE_RE.test(digits)) return // not a retail food code — keep scanning
@@ -144,7 +152,7 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
       data-testid="calories-panel"
     >
       <div className="mx-auto max-w-2xl">
-        {view === "add" && (
+        {view !== "diary" && (
           <button
             type="button"
             onClick={closeAdd}
@@ -159,7 +167,9 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
         <p className="mt-1 text-sm text-gray-500">
           {view === "diary"
             ? "Your food diary — running totals for the day."
-            : "Add a food to your diary."}
+            : view === "target"
+              ? "Your daily target — change it whenever you like."
+              : "Add a food to your diary."}
         </p>
 
         {view === "diary" && (
@@ -168,7 +178,20 @@ function CaloriesPanelInner({ onNavigateSettings }: CaloriesPanelProps): JSX.Ele
             onDateChange={setDateISO}
             onAddFood={openAdd}
             onSignIn={onNavigateSettings}
+            goal={goal}
+            onEditTarget={openTarget}
           />
+        )}
+
+        {view === "target" && (
+          <div className="mt-4">
+            <TargetEditor
+              goal={goal}
+              onSave={saveGoal}
+              onSaved={closeAdd}
+              onCancel={closeAdd}
+            />
+          </div>
         )}
 
         {view === "add" && addMode === "choose" && (

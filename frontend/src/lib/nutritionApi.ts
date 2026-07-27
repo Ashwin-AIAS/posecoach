@@ -4,7 +4,14 @@
  */
 
 import { apiFetch, apiJson } from "./api"
-import type { DailyLogOut, FoodItemOut, LogEntryOut, Meal } from "../types"
+import type {
+  DailyLogOut,
+  FoodItemOut,
+  LogEntryOut,
+  Meal,
+  NutritionGoalIn,
+  NutritionGoalOut,
+} from "../types"
 
 /**
  * Barcode → product macros. A miss (OFF doesn't know the code) resolves to
@@ -87,6 +94,24 @@ export async function updateLogEntry(id: string, patch: LogEntryPatch): Promise<
   return apiJson<LogEntryOut>(`/api/v1/nutrition/log/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
+  })
+}
+
+// ── P34.2: daily budget wrappers ──────────────────────────────────────────────
+
+/**
+ * The caller's daily targets. "Not set yet" comes back as an all-null goal with
+ * a 200 — there is no 404 branch to handle.
+ */
+export async function getGoal(): Promise<NutritionGoalOut> {
+  return apiJson<NutritionGoalOut>("/api/v1/nutrition/goal")
+}
+
+/** Set or replace the daily targets (PUT replaces — omitted macros clear). */
+export async function putGoal(body: NutritionGoalIn): Promise<NutritionGoalOut> {
+  return apiJson<NutritionGoalOut>("/api/v1/nutrition/goal", {
+    method: "PUT",
+    body: JSON.stringify(body),
   })
 }
 

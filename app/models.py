@@ -344,3 +344,39 @@ class PasswordResetToken(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="password_reset_tokens")
+
+
+# ── P34.2: calorie budget (additive; no existing table touched) ───────────────
+#
+# One row per user holding the daily energy/macro targets the diary counts down
+# from. Deliberately a separate table rather than columns on ``users``: the
+# targets are a nutrition-feature concern, and keeping them here means the auth
+# schema (and its migration history) stays untouched. ``kcal_target`` is the
+# only required number; the macro targets are optional and simply not tracked
+# when null. The value is user-entered — the server never derives, suggests, or
+# validates it against a body model.
+
+
+class NutritionGoal(Base):
+    """A user's daily energy + macro targets (P34.2). One row per user."""
+
+    __tablename__ = "nutrition_goals"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    # Unique — the upsert relies on there being at most one goal per user.
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    kcal_target: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Null = "not tracked" — the UI shows no remaining line for that macro.
+    protein_target_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    carbs_target_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fat_target_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )

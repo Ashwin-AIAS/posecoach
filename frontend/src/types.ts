@@ -375,3 +375,26 @@ export interface DailyLogOut {
   readonly entries: readonly LogEntryOut[]
   readonly totals: DailyTotals
 }
+
+// ── P34.2: daily budget (additive — mirrors app/nutrition/schemas.py) ────────
+
+/**
+ * The user's daily targets. Every field is nullable: an all-null goal is the
+ * normal "no target set yet" state (the API answers 200, not 404), and a null
+ * macro target means that macro simply isn't tracked.
+ */
+export interface NutritionGoalOut {
+  readonly kcal_target: number | null
+  readonly protein_target_g: number | null
+  readonly carbs_target_g: number | null
+  readonly fat_target_g: number | null
+  readonly updated_at: string | null
+}
+
+/** Upsert body for `PUT /nutrition/goal` — kcal required, macros optional. */
+export interface NutritionGoalIn {
+  readonly kcal_target: number
+  readonly protein_target_g?: number
+  readonly carbs_target_g?: number
+  readonly fat_target_g?: number
+}
