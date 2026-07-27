@@ -15,6 +15,7 @@ import asyncio
 import os
 from collections.abc import AsyncIterator
 from concurrent.futures import Executor
+from functools import lru_cache
 from typing import Any
 
 import structlog
@@ -68,8 +69,14 @@ class _GeminiStreamer:
         )
 
 
-def _build_model() -> _GeminiStreamer:
-    """Build a streaming client bound to the configured model.
+@lru_cache(maxsize=1)
+def _get_genai_client() -> Any:
+    """Process-wide ``genai.Client`` singleton (same pattern as ``_get_embedder``).
+
+    Building a client per request re-ran SDK setup (and its underlying HTTP
+    client) on every chat call; the client is stateless across requests, so it
+    is built lazily once and reused. Failures are not cached — ``lru_cache``
+    only stores successful returns — so a late-set API key still works.
 
     Raises:
         RuntimeError: If ``GEMINI_API_KEY`` is not set in the environment.
@@ -79,8 +86,20 @@ def _build_model() -> _GeminiStreamer:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not set")
-    client = genai.Client(api_key=api_key)
-    return _GeminiStreamer(client, MODEL_NAME)
+    logger.info("gemini_client_created", model=MODEL_NAME)
+    return genai.Client(api_key=api_key)
+
+
+def _build_model() -> _GeminiStreamer:
+    """Bind the cached client to the configured model.
+
+    Kept as a cheap, patchable seam for the unit tests; the expensive part (the
+    SDK client) lives in :func:`_get_genai_client`.
+
+    Raises:
+        RuntimeError: If ``GEMINI_API_KEY`` is not set in the environment.
+    """
+    return _GeminiStreamer(_get_genai_client(), MODEL_NAME)
 
 
 async def stream_chat(

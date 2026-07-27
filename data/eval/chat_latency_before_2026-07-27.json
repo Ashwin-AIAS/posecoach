@@ -1,0 +1,80 @@
+{
+  "label": "before",
+  "mode": "local",
+  "timestamp": "2026-07-27T19:42:51.649167+00:00",
+  "host": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.9"
+  },
+  "config": {
+    "samples": 12,
+    "retrieval_ms": 700,
+    "web_ms": 1500,
+    "llm_ttft_ms": 600,
+    "token_gap_ms": 25,
+    "tokens": 20
+  },
+  "paths": {
+    "conversational": {
+      "available": true,
+      "samples": 12,
+      "ttft_ms": {
+        "mean": 0.86,
+        "p50": 0.49,
+        "p95": 0.57,
+        "min": 0.34,
+        "max": 4.99
+      },
+      "total_ms": {
+        "mean": 1193.97,
+        "p50": 1193.39,
+        "p95": 1199.33,
+        "min": 1187.56,
+        "max": 1203.17
+      }
+    },
+    "kb_confident": {
+      "available": true,
+      "samples": 12,
+      "ttft_ms": {
+        "mean": 701.11,
+        "p50": 701.1,
+        "p95": 701.29,
+        "min": 700.85,
+        "max": 701.36
+      },
+      "total_ms": {
+        "mean": 1897.71,
+        "p50": 1897.57,
+        "p95": 1904.7,
+        "min": 1888.71,
+        "max": 1906.36
+      }
+    },
+    "web_fallback": {
+      "available": true,
+      "samples": 12,
+      "ttft_ms": {
+        "mean": 2209.17,
+        "p50": 2209.42,
+        "p95": 2213.28,
+        "min": 2201.79,
+        "max": 2214.79
+      },
+      "total_ms": {
+        "mean": 3402.15,
+        "p50": 3399.67,
+        "p95": 3413.61,
+        "min": 3396.49,
+        "max": 3414.03
+      }
+    },
+    "cached": {
+      "available": false,
+      "reason": "no answer cache on this build"
+    }
+  },
+  "worst_ttft_p95_ms": 2213.28,
+  "ttft_gate_ms": 200.0,
+  "ttft_gate_passed": false
+}

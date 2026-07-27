@@ -74,6 +74,31 @@ def _get_collection() -> Collection:
     return client.get_or_create_collection(name=COLLECTION_NAME, metadata={"hnsw:space": "cosine"})
 
 
+# Memoized "the collection has documents" flag. ``count()`` was an extra Chroma
+# round-trip on *every* retrieval; a populated index never empties inside a
+# running process, so a True result is cached for the process lifetime. A False
+# result is deliberately NOT cached — at startup the index may still be building
+# in the background, and the next query must see it once it lands.
+_COLLECTION_POPULATED = False
+
+
+def _collection_has_docs(collection: Collection) -> bool:
+    """True if the KB collection holds any chunks (count memoized once true)."""
+    global _COLLECTION_POPULATED
+    if _COLLECTION_POPULATED:
+        return True
+    if collection.count() > 0:
+        _COLLECTION_POPULATED = True
+        return True
+    return False
+
+
+def reset_collection_state() -> None:
+    """Forget the memoized populated-flag — call after an ingest or a reset."""
+    global _COLLECTION_POPULATED
+    _COLLECTION_POPULATED = False
+
+
 # ---------------------------------------------------------------------------
 # Core embedding / retrieval (sync — kept for backward compat & ingest)
 # ---------------------------------------------------------------------------
@@ -95,7 +120,7 @@ def retrieve(query: str, top_k: int = DEFAULT_TOP_K) -> list[str]:
 
     try:
         collection = _get_collection()
-        if collection.count() == 0:
+        if not _collection_has_docs(collection):
             logger.warning("rag_collection_empty")
             return []
         query_embedding = embed_texts([query])[0]
@@ -120,7 +145,7 @@ def retrieve_scored(query: str, top_k: int = DEFAULT_TOP_K) -> list[RetrievedChu
         return []
     try:
         collection = _get_collection()
-        if collection.count() == 0:
+        if not _collection_has_docs(collection):
             logger.warning("rag_collection_empty")
             return []
         query_embedding = embed_texts([query])[0]
@@ -248,5 +273,6 @@ def warmup_rag() -> None:
     """
     logger.info("rag_warmup_start")
     _get_embedder()
-    _get_collection()
-    logger.info("rag_warmup_done")
+    # Also primes the memoized populated-flag so the first query skips count().
+    populated = _collection_has_docs(_get_collection())
+    logger.info("rag_warmup_done", populated=populated)

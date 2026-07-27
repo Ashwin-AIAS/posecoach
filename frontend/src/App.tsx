@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
+  Bot,
   ChevronLeft,
   MessageCircle,
   PlayCircle,
@@ -11,6 +12,7 @@ import {
 import { CameraFeed } from "./components/CameraFeed"
 import { CameraHud } from "./components/CameraHud"
 import { ChatPanel } from "./components/ChatPanel"
+import { CoachAiSheet } from "./components/CoachAiSheet"
 import { CoachingCues } from "./components/CoachingCues"
 import { CaloriesPanel } from "./components/CaloriesPanel"
 import { WorkoutPanel } from "./components/WorkoutPanel"
@@ -100,6 +102,24 @@ export default function App(): JSX.Element {
   // reference video are both on-demand sheets rather than permanent stacks.
   const [traySheetOpen, setTraySheetOpen] = useState(false)
   const [referenceOpen, setReferenceOpen] = useState(false)
+  // P35: the AI coach used to be reachable only via a live session → tray →
+  // Chat sub-tab. Coach AI is now one tap from Home (text-only sheet, no
+  // camera) and one tap in the live view (opens the tray straight on Chat).
+  const [coachAiOpen, setCoachAiOpen] = useState(false)
+  // True when the tray was opened *by* the Coach AI button — the chat then
+  // renders expanded instead of behind its own "Ask the coach" toggle, so the
+  // entry point really is one tap. Opening the tray the old way is unchanged.
+  const [chatDirect, setChatDirect] = useState(false)
+  const openCoachAi = useCallback((): void => setCoachAiOpen(true), [])
+  const openTray = useCallback((): void => {
+    setChatDirect(false)
+    setTraySheetOpen(true)
+  }, [])
+  const openTrayChat = useCallback((): void => {
+    setMobileTab("chat")
+    setChatDirect(true)
+    setTraySheetOpen(true)
+  }, [])
   const [showHistory, setShowHistory] = useState(false)
   const [showPrep, setShowPrep] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
@@ -306,6 +326,9 @@ export default function App(): JSX.Element {
         <RecordingPreview session={recorder.lastRecording} onClose={recorder.clearRecording} />
       )}
       <InstallBanner />
+      {coachAiOpen && (
+        <CoachAiSheet exercise={exercise} onClose={() => setCoachAiOpen(false)} />
+      )}
 
       {view === "home" ? (
         <Home
@@ -313,6 +336,7 @@ export default function App(): JSX.Element {
           lastExercise={exercise}
           onStart={() => setView("live")}
           onShowHistory={() => setShowHistory(true)}
+          onOpenCoachAi={openCoachAi}
         />
       ) : (
         <div className="flex min-h-0 flex-1 animate-fade-in flex-col">
@@ -426,7 +450,7 @@ export default function App(): JSX.Element {
           <div className="absolute right-3 top-40 z-20 flex flex-col gap-2 lg:hidden">
             <button
               type="button"
-              onClick={() => setTraySheetOpen(true)}
+              onClick={openTray}
               aria-label="Open coaching and chat"
               title="Coaching / Chat"
               className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -446,6 +470,18 @@ export default function App(): JSX.Element {
                 <Icon icon={PlayCircle} size={16} />
               </button>
             )}
+            {/* P35: a direct route to the chat — the tray opens on the Chat
+                sub-tab, expanded, instead of on Cues behind another toggle. */}
+            <button
+              type="button"
+              onClick={openTrayChat}
+              aria-label="Open Coach AI"
+              title="Coach AI — ask about form, sets, nutrition"
+              className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              data-testid="coach-ai-trigger"
+            >
+              <Icon icon={Bot} size={16} />
+            </button>
           </div>
         </div>
 
@@ -524,7 +560,11 @@ export default function App(): JSX.Element {
                 error={pose.error}
               />
             ) : (
-              <ChatPanel exercise={exercise} videoRef={camera.videoRef} />
+              <ChatPanel
+                exercise={exercise}
+                videoRef={camera.videoRef}
+                startOpen={chatDirect}
+              />
             )}
           </div>
         </div>

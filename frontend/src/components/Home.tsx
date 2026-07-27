@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react"
-import { Play } from "lucide-react"
+import { Bot, ChevronRight, Play } from "lucide-react"
 
 import type { AuthUser } from "../hooks/useAuth"
 import { useHistorySessions, type HistorySessionRow } from "../hooks/useHistorySessions"
@@ -14,6 +14,11 @@ interface HomeProps {
   readonly lastExercise: Exercise
   readonly onStart: () => void
   readonly onShowHistory: () => void
+  /**
+   * Opens the Coach AI chat (P35). Text-only — no camera session is started.
+   * Optional so the card only appears where a host wires it up.
+   */
+  readonly onOpenCoachAi?: () => void
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -49,7 +54,13 @@ function formatShortDate(iso: string): string {
  * CTA, and a recent-sessions strip. The live workout flow is unchanged — this
  * view only decides when it's shown (App owns the `view` state).
  */
-function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): JSX.Element {
+function HomeInner({
+  user,
+  lastExercise,
+  onStart,
+  onShowHistory,
+  onOpenCoachAi,
+}: HomeProps): JSX.Element {
   const { sessions, loading, authed } = useHistorySessions()
 
   const todayCount = useMemo(
@@ -102,6 +113,27 @@ function HomeInner({ user, lastExercise, onStart, onShowHistory }: HomeProps): J
           <Icon icon={Play} size={18} />
           {sessions.length > 0 ? `Resume ${exerciseLabel(lastExercise)}` : `Start ${exerciseLabel(lastExercise)}`}
         </button>
+
+        {/* Coach AI — one tap to ask a question, no camera session needed (P35). */}
+        {onOpenCoachAi && (
+          <button
+            type="button"
+            onClick={onOpenCoachAi}
+            className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-surface-raised p-3.5 text-left shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            data-testid="coach-ai-btn"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+              <Icon icon={Bot} size={19} className="text-accent" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-gray-100">Coach AI</span>
+              <span className="block text-xs text-gray-500">
+                Ask about form, sets, nutrition
+              </span>
+            </span>
+            <Icon icon={ChevronRight} size={18} className="shrink-0 text-gray-500" />
+          </button>
+        )}
 
         <div className="mt-8">
           <div className="mb-2 flex items-center justify-between">

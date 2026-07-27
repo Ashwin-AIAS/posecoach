@@ -20,6 +20,9 @@ logger = structlog.get_logger(__name__)
 # Tavily exposes a simple POST search API that returns clean snippets + URLs.
 DEFAULT_SEARCH_URL = "https://api.tavily.com/search"
 _TIMEOUT = httpx.Timeout(connect=2.0, read=2.0, write=2.0, pool=2.0)
+# Small pool — the fallback is bursty but low-volume (rate-limited to 10 chat
+# req/min), and keep-alive is what actually saves the TLS handshake.
+_LIMITS = httpx.Limits(max_keepalive_connections=4, max_connections=8)
 
 
 @dataclass(frozen=True)
@@ -31,11 +34,36 @@ class WebResult:
     snippet: str
 
 
-async def search(query: str, k: int = 4) -> list[WebResult]:
+def create_shared_client() -> httpx.AsyncClient:
+    """Build the long-lived pooled client the app lifespan owns.
+
+    A fresh ``AsyncClient`` per search paid a full TLS handshake on every
+    fallback; one pooled client keeps the connection warm across requests.
+    """
+    return httpx.AsyncClient(timeout=_TIMEOUT, limits=_LIMITS)
+
+
+def is_available() -> bool:
+    """True if a web-search provider key is configured (env only, never hardcoded)."""
+    return bool(os.environ.get("WEB_SEARCH_API_KEY"))
+
+
+async def search(
+    query: str,
+    k: int = 4,
+    client: httpx.AsyncClient | None = None,
+) -> list[WebResult]:
     """Return up to ``k`` web results for ``query``; [] if unavailable.
 
     Never raises — a missing key, network error, or bad response yields [] so the
     chat stream always continues.
+
+    Args:
+        query: The user question to search for.
+        k: Maximum number of results to return.
+        client: Optional shared pooled client (``app.state.http``). When omitted
+            a short-lived client is created, preserving the original behaviour
+            for callers outside the request path.
     """
     api_key = os.environ.get("WEB_SEARCH_API_KEY")
     if not api_key or not query.strip():
@@ -48,10 +76,13 @@ async def search(query: str, k: int = 4) -> list[WebResult]:
         "search_depth": "basic",
     }
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.post(search_url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+        if client is not None:
+            resp = await client.post(search_url, json=payload, timeout=_TIMEOUT)
+        else:
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as owned:
+                resp = await owned.post(search_url, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
     except Exception as exc:  # noqa: BLE001 — fallback must never crash chat
         logger.warning("web_search_failed", error=str(exc))
         return []
