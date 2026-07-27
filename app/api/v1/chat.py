@@ -15,6 +15,7 @@ On LLM failure, a single FALLBACK_MESSAGE event is emitted before completion.
 # rate-limited @router.post("/stream") endpoint, and on the prod image's older
 # FastAPI/pydantic, lazy string annotations fail to resolve through the wrapper.
 import asyncio
+import contextlib
 import json
 from collections.abc import AsyncIterator, Coroutine
 from typing import Any
@@ -24,7 +25,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.chatbot import gemini_client, qwen_client, rag, web_search
+from app.chatbot import answer_cache, gemini_client, qwen_client, rag, web_search
 from app.chatbot import router as chat_router
 from app.chatbot.prompts import (
     CONVERSATIONAL_SYSTEM_PROMPT,
@@ -86,6 +87,91 @@ def _is_conversational(query: str) -> bool:
     if len(normalized.split()) > _CONVERSATIONAL_MAX_WORDS:
         return False
     return normalized.startswith(_CONVERSATIONAL_PREFIXES)
+
+
+# ---------------------------------------------------------------------------
+# Speculative web-search heuristic (P35 finding #5)
+# ---------------------------------------------------------------------------
+# In the not-confident path the request pays retrieval *then* up to 2 s of web
+# search before token one. Launching the search concurrently with retrieval
+# hides that latency — but a speculative call that turns out unnecessary is a
+# wasted (paid) request, so it only fires when a cheap signal says the KB is
+# unlikely to answer. Two signals, deliberately conservative:
+#
+#   1. Recency / consumer intent — the curated KB is evergreen technique and
+#      exercise-science content and can never answer these.
+#   2. No in-domain vocabulary at all — a question with none of the words the
+#      KB is written about ("what's the capital of France") will miss it.
+#
+# A confident KB hit cancels the task before its result is ever used.
+_RECENCY_TERMS: frozenset[str] = frozenset(
+    {
+        "latest", "newest", "current", "currently", "today", "recent", "recently",
+        "news", "released", "upcoming", "2024", "2025", "2026", "2027",
+        "price", "prices", "cost", "cheapest", "buy", "review", "reviews",
+        "brand", "brands", "record", "champion", "won",
+    }
+)
+
+# Vocabulary the ingested knowledge base actually covers (technique, injury,
+# supplements, nutrition, programming, recovery, sports science, posing).
+_KB_DOMAIN_TERMS: frozenset[str] = frozenset(
+    {
+        # movements & equipment
+        "squat", "squats", "deadlift", "deadlifts", "bench", "press", "curl", "curls",
+        "ohp", "overhead", "lunge", "lunges", "plank", "row", "rows", "pullup", "pullups",
+        "chinup", "pushup", "pushups", "barbell", "dumbbell", "kettlebell", "machine",
+        "bar", "grip", "stance", "rack", "belt", "shoes", "cable",
+        # anatomy
+        "knee", "knees", "hip", "hips", "back", "spine", "shoulder", "shoulders",
+        "elbow", "wrist", "ankle", "core", "glute", "glutes", "hamstring", "hamstrings",
+        "quad", "quads", "lat", "lats", "chest", "bicep", "biceps", "tricep", "triceps",
+        "joint", "tendon", "muscle", "muscles",
+        # form & training
+        "form", "technique", "depth", "rom", "range", "tempo", "rep", "reps", "set",
+        "sets", "volume", "intensity", "load", "weight", "lift", "lifting", "warmup",
+        "warm", "stretch", "mobility", "posture", "brace", "bracing", "breathing",
+        "program", "programming", "routine", "split", "periodization", "progression",
+        "overload", "plateau", "deload", "rpe", "1rm", "strength", "hypertrophy",
+        "cardio", "conditioning", "training", "workout", "gym", "exercise", "exercises",
+        # recovery / nutrition / health
+        "recovery", "rest", "sleep", "soreness", "doms", "fatigue", "injury", "injuries",
+        "pain", "hurt", "hurts", "sore", "strain", "sprain", "rehab", "prehab",
+        "protein", "carbs", "carbohydrate", "fat", "calorie", "calories", "macro",
+        "macros", "diet", "nutrition", "hydration", "creatine", "supplement",
+        "supplements", "caffeine", "cutting", "bulking", "deficit", "surplus",
+        # posing / physique
+        "posing", "pose", "physique", "symmetry", "mandatory", "quarter", "turns",
+        "bodybuilding", "contest", "prep", "division", "classic",
+    }
+)
+
+
+def _should_speculate_web(query: str) -> bool:
+    """True if a web fallback is likely needed, so it can start during retrieval.
+
+    Wrong-way costs are asymmetric — a false positive is one wasted search call,
+    a false negative just means today's serial behaviour — so the signals stay
+    narrow. Returns False when no provider key is configured (nothing to gain).
+    """
+    if not web_search.is_available():
+        return False
+    words = {w.strip(".,!?;:'\"") for w in query.lower().split()}
+    if words & _RECENCY_TERMS:
+        return True
+    return not (words & _KB_DOMAIN_TERMS)
+
+
+async def _cancel_task(task: asyncio.Task[list[web_search.WebResult]] | None) -> None:
+    """Cancel a speculative task and await it so nothing is left pending."""
+    if task is None:
+        return
+    if task.done():
+        task.exception()  # retrieve so asyncio does not log it as never-retrieved
+        return
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +249,12 @@ async def _gather_context(query: str, request: Request) -> tuple[list[str], list
                 return [c.text for c in cached], [_cite_chunk(c) for c in cached], "rag"
 
     # --- Slow path: embed + ChromaDB (offloaded to thread pool) ---
+    # Overlap the (likely) web fallback with retrieval instead of paying them
+    # back-to-back. Cancelled below the moment the KB comes back confident.
+    speculative: asyncio.Task[list[web_search.WebResult]] | None = None
+    if _should_speculate_web(query):
+        speculative = asyncio.create_task(web_search.search(query, k=4, client=http_client))
+
     scored = await rag.retrieve_scored_async(query, executor, top_k=3)
 
     # Cache the result for next time (best-effort, off the critical path — the
@@ -171,9 +263,14 @@ async def _gather_context(query: str, request: Request) -> tuple[list[str], list
         _spawn(rag.set_cached_chunks(redis_client, query, scored))
 
     if rag.is_confident(scored):
+        await _cancel_task(speculative)
         return [c.text for c in scored], [_cite_chunk(c) for c in scored], "rag"
 
-    web = await web_search.search(query, k=4, client=http_client)
+    web = (
+        await speculative
+        if speculative is not None
+        else await web_search.search(query, k=4, client=http_client)
+    )
     if web:
         context = [f"{r.title}\n{r.snippet}".strip() for r in web]
         return context, [_cite_web(r) for r in web], "web"
@@ -183,6 +280,26 @@ async def _gather_context(query: str, request: Request) -> tuple[list[str], list
     if rag.is_usable(scored):
         return [c.text for c in scored], [_cite_chunk(c) for c in scored], "rag"
     return [], [], "none"
+
+
+# Replayed answers are chopped into small pieces so a cache hit still renders
+# progressively in the UI instead of landing as one wall of text.
+_REPLAY_CHUNK_CHARS = 160
+
+
+def _replay_chunks(text: str) -> list[str]:
+    """Split a cached answer into SSE-sized pieces (order/content preserved)."""
+    return [text[i : i + _REPLAY_CHUNK_CHARS] for i in range(0, len(text), _REPLAY_CHUNK_CHARS)]
+
+
+def _is_cacheable(payload: ChatRequest, conversational: bool) -> bool:
+    """True if this turn may be served from / written to the answer cache.
+
+    Personalized turns are excluded outright: a frame is user imagery, history
+    is that user's conversation, and small talk should stay varied. What is left
+    is a plain question keyed only by (query, exercise) — safe to share.
+    """
+    return not payload.frame and not payload.history and not conversational
 
 
 def _history_dicts(history: list[HistoryMessage] | None) -> list[dict[str, str]] | None:
@@ -208,6 +325,26 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
 
     # --- Conversational shortcut: skip RAG / web for greetings & small-talk ---
     conversational = _is_conversational(payload.query) and not has_frame
+
+    # --- Answer cache: replay an identical, non-personalized turn ---
+    redis_client = getattr(request.app.state, "redis", None)
+    cacheable = _is_cacheable(payload, conversational)
+    if cacheable and redis_client is not None:
+        cached_answer = await answer_cache.load(redis_client, payload.query, payload.exercise)
+        if cached_answer is not None:
+            logger.info(
+                "chat_request",
+                provider=provider,
+                source_mode=cached_answer.source_mode,
+                cached=True,
+                exercise=payload.exercise,
+                query_len=len(payload.query),
+            )
+            yield _sse_meta(cached_answer.source_mode)
+            for part in _replay_chunks(cached_answer.text):
+                yield _sse_event(part)
+            yield _sse_event("", done=True)
+            return
 
     if conversational:
         source_mode = "conversational"
@@ -238,6 +375,9 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
     yield _sse_meta(source_mode)
 
     emitted_any = False
+    # Everything the client receives for this answer, so a cache replay is
+    # byte-identical — citations footer and safety note included.
+    answer_parts: list[str] = []
     try:
         if provider == "qwen":
             async for token in qwen_client.stream_chat(
@@ -249,6 +389,7 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
                 ) if conversational else None,
             ):
                 emitted_any = True
+                answer_parts.append(token)
                 yield _sse_event(token)
         else:
             executor = request.app.state.executor
@@ -261,14 +402,29 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
                 ),
             ):
                 emitted_any = True
+                answer_parts.append(token)
                 yield _sse_event(token)
         # Streamed cleanly — append the citations that grounded the answer.
         footer = build_sources_footer(citations)
         if footer:
+            answer_parts.append(footer)
             yield _sse_event(footer)
         # Injury / supplement questions get a brief educational-safety note.
         if is_safety_sensitive(payload.query):
+            answer_parts.append(SAFETY_NOTE)
             yield _sse_event(SAFETY_NOTE)
+        # Only a complete, cleanly-streamed answer is worth replaying.
+        if cacheable and redis_client is not None and emitted_any:
+            _spawn(
+                answer_cache.store(
+                    redis_client,
+                    payload.query,
+                    payload.exercise,
+                    answer_cache.CachedAnswer(
+                        text="".join(answer_parts), source_mode=source_mode
+                    ),
+                )
+            )
     except Exception as exc:  # noqa: BLE001 — never crash the SSE stream
         logger.error("chat_stream_failed", provider=provider, error=str(exc))
         if not emitted_any:
