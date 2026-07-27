@@ -135,6 +135,11 @@ def ingest(source_dir: Path, reset: bool = False) -> int:
 
     embeddings: npt.NDArray[np.float32] = np.asarray(embed_texts(documents), dtype=np.float32)
     collection.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
+    # The retrieval path memoizes "collection is populated" to skip a count()
+    # round-trip per query — invalidate it so this ingest is picked up at once.
+    from app.chatbot.rag import reset_collection_state
+
+    reset_collection_state()
     logger.info("ingest_complete", total_chunks=len(documents))
     return len(documents)
 

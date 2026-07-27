@@ -25,6 +25,7 @@ from app.api.v1.nutrition import router as nutrition_router
 from app.api.v1.workouts import router as workouts_router
 from app.api.v1.ws_inference import router as ws_router
 from app.cache import create_redis_client
+from app.chatbot import web_search
 from app.inference.onnx_session import OnnxPoseSession
 from app.logging_config import setup_logging
 from app.metrics import registry as metrics_registry
@@ -147,6 +148,11 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     application.state.redis = await create_redis_client()
     log.info("redis_connected")
 
+    # One pooled HTTP client for outbound calls made on the request path (the
+    # chatbot's web-search fallback). A per-call client paid a fresh TLS
+    # handshake every time; this keeps the connection warm.
+    application.state.http = web_search.create_shared_client()
+
     # Build the RAG index in the background (non-blocking) if it is empty.
     application.state.rag_task = asyncio.create_task(_ensure_rag_index(application))
 
@@ -167,6 +173,9 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     application.state.executor.shutdown(wait=True)
     await db.engine.dispose()
     await application.state.redis.aclose()
+    http_client = getattr(application.state, "http", None)
+    if http_client is not None:
+        await http_client.aclose()
     log.info("shutdown_complete")
 
 

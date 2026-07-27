@@ -14,8 +14,10 @@ On LLM failure, a single FALLBACK_MESSAGE event is emitted before completion.
 # NOTE: no `from __future__ import annotations` here — slowapi wraps the
 # rate-limited @router.post("/stream") endpoint, and on the prod image's older
 # FastAPI/pydantic, lazy string annotations fail to resolve through the wrapper.
+import asyncio
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Coroutine
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Request
@@ -62,6 +64,18 @@ _CONVERSATIONAL_PREFIXES: tuple[str, ...] = (
 # Max word count to consider for conversational classification — longer queries
 # are likely real questions even if they start with "hey".
 _CONVERSATIONAL_MAX_WORDS = 8
+
+
+# Strong references to fire-and-forget background tasks (cache writes). Without
+# this the event loop may garbage-collect a pending task mid-flight.
+_background_tasks: set[asyncio.Task[None]] = set()
+
+
+def _spawn(coro: Coroutine[Any, Any, None]) -> None:
+    """Run a best-effort coroutine off the critical path (never awaited)."""
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 def _is_conversational(query: str) -> bool:
@@ -130,6 +144,8 @@ async def _gather_context(query: str, request: Request) -> tuple[list[str], list
     """
     redis_client = getattr(request.app.state, "redis", None)
     executor = request.app.state.executor
+    # Shared pooled client (set in the app lifespan); None outside a full app.
+    http_client = getattr(request.app.state, "http", None)
 
     # --- Fast path: Redis cache hit ---
     if redis_client is not None:
@@ -140,7 +156,7 @@ async def _gather_context(query: str, request: Request) -> tuple[list[str], list
             # Cached but not confident — still try web, then usable check below.
             if rag.is_usable(cached):
                 # Attempt web first; if unavailable, use these weak chunks.
-                web = await web_search.search(query, k=4)
+                web = await web_search.search(query, k=4, client=http_client)
                 if web:
                     context = [f"{r.title}\n{r.snippet}".strip() for r in web]
                     return context, [_cite_web(r) for r in web], "web"
@@ -149,14 +165,15 @@ async def _gather_context(query: str, request: Request) -> tuple[list[str], list
     # --- Slow path: embed + ChromaDB (offloaded to thread pool) ---
     scored = await rag.retrieve_scored_async(query, executor, top_k=3)
 
-    # Cache the result for next time (best-effort, non-blocking).
+    # Cache the result for next time (best-effort, off the critical path — the
+    # answer must never wait on a Redis write).
     if redis_client is not None and scored:
-        await rag.set_cached_chunks(redis_client, query, scored)
+        _spawn(rag.set_cached_chunks(redis_client, query, scored))
 
     if rag.is_confident(scored):
         return [c.text for c in scored], [_cite_chunk(c) for c in scored], "rag"
 
-    web = await web_search.search(query, k=4)
+    web = await web_search.search(query, k=4, client=http_client)
     if web:
         context = [f"{r.title}\n{r.snippet}".strip() for r in web]
         return context, [_cite_web(r) for r in web], "web"
@@ -177,6 +194,13 @@ def _history_dicts(history: list[HistoryMessage] | None) -> list[dict[str, str]]
 
 
 async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterator[str]:
+    # The status event is the FIRST thing on the wire — before any await. It
+    # used to be emitted after _gather_context(), so the client sat blank
+    # through embedding + ChromaDB + (worst case) a 2 s web-search round-trip
+    # even though the server was already working. Nothing below may move above
+    # this line.
+    yield _sse_status("thinking")
+
     has_frame = bool(payload.frame)
     provider = chat_router.route(payload.query, has_frame=has_frame)
     chat_requests_total.labels(provider=provider).inc()
@@ -210,8 +234,7 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
         history_turns=len(history) if history else 0,
     )
 
-    # Emit status + meta events before the LLM starts streaming
-    yield _sse_status("thinking")
+    # How the answer is grounded — known only once retrieval has settled.
     yield _sse_meta(source_mode)
 
     emitted_any = False

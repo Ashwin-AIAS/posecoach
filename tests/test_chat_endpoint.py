@@ -138,7 +138,9 @@ def _kb_chunk(distance: float) -> object:
     )
 
 
-async def _fake_web_search(query: str, k: int = 4) -> list[object]:
+async def _fake_web_search(query: str, k: int = 4, client: object = None) -> list[object]:
+    # `client` mirrors the shared-pool parameter added in P35 (web_search.search
+    # now accepts an optional pooled httpx client).
     from app.chatbot.web_search import WebResult
 
     return [WebResult(title="ACSM Position Stand", url="https://acsm.org/x", snippet="Guidance.")]
@@ -216,7 +218,7 @@ async def test_off_topic_without_web_yields_no_misleading_citation(
     far = _kb_chunk(0.88)
     monkeypatch.setattr(chat_module.rag, "retrieve_scored", lambda q, top_k=3: [far])
 
-    async def _no_web(query: str, k: int = 4) -> list[object]:
+    async def _no_web(query: str, k: int = 4, client: object = None) -> list[object]:
         return []
 
     monkeypatch.setattr(chat_module.web_search, "search", _no_web)
