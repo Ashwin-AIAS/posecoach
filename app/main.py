@@ -49,13 +49,17 @@ async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSON
 
 
 async def _ensure_rag_index(application: FastAPI) -> None:
-    """Populate the RAG vector index at startup if it is empty.
+    """Populate the RAG vector index at startup if it is empty, then warm up.
 
     Moved out of the Docker build (was a fragile network dependency at build
     time). Runs in the executor so it never blocks the event loop, and is
     scheduled as a background task so startup/health checks are not delayed.
     ``retrieve()`` returns no chunks while the index is empty, so the chatbot
     degrades gracefully to the web/general-knowledge fallback until it is ready.
+
+    After the index check, ``warmup_rag()`` pre-loads the SentenceTransformer
+    model weights and ChromaDB collection handle so the first real user query
+    pays zero cold-start cost.
     """
     log = structlog.get_logger(__name__)
     loop = asyncio.get_running_loop()
@@ -76,6 +80,14 @@ async def _ensure_rag_index(application: FastAPI) -> None:
             log.info("rag_index_built", chunks=count)
     except Exception as exc:  # noqa: BLE001 — never crash startup over the KB
         log.error("rag_index_build_failed", error=repr(exc))
+
+    # Pre-warm embedder + collection handle (best-effort, non-fatal).
+    try:
+        from app.chatbot.rag import warmup_rag
+
+        await loop.run_in_executor(application.state.executor, warmup_rag)
+    except Exception as exc:  # noqa: BLE001
+        log.error("rag_warmup_failed", error=repr(exc))
 
 
 async def _ensure_exercise_catalog() -> None:

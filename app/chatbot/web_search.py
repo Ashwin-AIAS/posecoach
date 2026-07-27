@@ -19,7 +19,7 @@ logger = structlog.get_logger(__name__)
 
 # Tavily exposes a simple POST search API that returns clean snippets + URLs.
 DEFAULT_SEARCH_URL = "https://api.tavily.com/search"
-_TIMEOUT = httpx.Timeout(connect=5.0, read=15.0, write=5.0, pool=5.0)
+_TIMEOUT = httpx.Timeout(connect=2.0, read=2.0, write=2.0, pool=2.0)
 
 
 @dataclass(frozen=True)

@@ -208,6 +208,9 @@ async def test_off_topic_without_web_yields_no_misleading_citation(
 ) -> None:
     # Off-topic chunks (distance beyond the irrelevant bound) + no web key must
     # NOT be cited — answer from general knowledge with mode "none".
+    from concurrent.futures import ThreadPoolExecutor
+    from types import SimpleNamespace
+
     from app.api.v1 import chat as chat_module
 
     far = _kb_chunk(0.88)
@@ -218,7 +221,12 @@ async def test_off_topic_without_web_yields_no_misleading_citation(
 
     monkeypatch.setattr(chat_module.web_search, "search", _no_web)
 
-    context, citations, mode = await chat_module._gather_context("capital of France")
+    # Build a minimal mock Request with app.state.redis and executor.
+    app_state = SimpleNamespace(redis=None, executor=ThreadPoolExecutor(max_workers=1))
+    app = SimpleNamespace(state=app_state)
+    mock_request = SimpleNamespace(app=app)
+
+    context, citations, mode = await chat_module._gather_context("capital of France", mock_request)
     assert mode == "none"
     assert context == []
     assert citations == []
