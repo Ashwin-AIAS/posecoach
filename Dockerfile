@@ -62,18 +62,20 @@ COPY --from=frontend-build /frontend/dist ./static
 # downloaded at runtime regardless (query-time embedding), so baking the index
 # at build added a fragile network dependency for no real benefit.
 
+# Boot-resilience entrypoint — see docker-entrypoint.sh for the sequence.
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
 # Non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000
 
-# Apply DB migrations before serving (matches docker-compose). The `alembic`
-# console script needs the app importable, so PYTHONPATH must include /app.
-# Assumes the database is reachable at container start (it is, per the deploy
-# topology); a failed migration intentionally aborts startup rather than serving
-# against a stale schema.
+# The `alembic` console script needs the app importable, so PYTHONPATH must
+# include /app.
 ENV PYTHONPATH=/app
 
-# Production: no --reload flag
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"]
+# docker-entrypoint.sh: waits for the DB (Neon cold start), runs migrations
+# once, then execs uvicorn as PID 1. No --reload flag (production).
+CMD ["./docker-entrypoint.sh"]
