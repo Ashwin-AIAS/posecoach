@@ -6,7 +6,13 @@ from __future__ import annotations
 
 import pytest
 
+import app.core.db_url as db_url_module
 from app.core.db_url import normalize_asyncpg_url
+
+NEON_POOLED_URL = (
+    "postgresql://u:p@ep-cool-shape-123456-pooler.us-east-2.aws.neon.tech/"
+    "neondb?sslmode=require&channel_binding=require"
+)
 
 
 @pytest.mark.parametrize(
@@ -57,12 +63,55 @@ def test_unknown_sslmode_value_defaults_to_encrypted() -> None:
     assert connect_args == {"ssl": True}
 
 
-def test_sslmode_stripped_but_other_query_params_kept() -> None:
-    url = "postgresql://u:p@host/db?sslmode=require&application_name=posecoach"
+def test_channel_binding_is_stripped() -> None:
+    url = "postgresql://u:p@host/db?sslmode=require&channel_binding=require"
     clean_url, connect_args = normalize_asyncpg_url(url)
     assert connect_args == {"ssl": True}
+    assert "channel_binding" not in clean_url
     assert "sslmode" not in clean_url
-    assert "application_name=posecoach" in clean_url
+
+
+def test_full_neon_shaped_url_has_no_query_params_left_and_correct_ssl() -> None:
+    clean_url, connect_args = normalize_asyncpg_url(NEON_POOLED_URL)
+    assert clean_url.startswith("postgresql+asyncpg://")
+    assert "?" not in clean_url
+    assert connect_args == {"ssl": True}
+
+
+def test_unknown_query_param_is_dropped_and_warned(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Assert against the module's own logger call rather than caplog: structlog
+    # only routes through stdlib `logging` (which caplog hooks) once
+    # `setup_logging()` has run, and this unit test must not depend on that.
+    calls: list[tuple[str, dict[str, object]]] = []
+    monkeypatch.setattr(
+        db_url_module.logger,
+        "warning",
+        lambda event, **kw: calls.append((event, kw)),
+    )
+
+    url = "postgresql://u:p@host/db?sslmode=require&application_name=posecoach"
+    clean_url, connect_args = normalize_asyncpg_url(url)
+
+    assert connect_args == {"ssl": True}
+    assert "application_name" not in clean_url
+    assert "sslmode" not in clean_url
+    assert "?" not in clean_url
+    assert calls == [("db_url_unknown_query_param_dropped", {"param": "application_name"})]
+
+
+def test_known_drop_param_alone_does_not_warn(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+    monkeypatch.setattr(
+        db_url_module.logger,
+        "warning",
+        lambda event, **kw: calls.append((event, kw)),
+    )
+
+    clean_url, connect_args = normalize_asyncpg_url("postgresql://u:p@host/db?channel_binding=require")
+
+    assert connect_args == {}
+    assert "channel_binding" not in clean_url
+    assert calls == []
 
 
 def test_legacy_postgres_scheme_with_sslmode() -> None:
