@@ -6,9 +6,12 @@ any real or fictional person. See
 ``docs/prompts/P29_VOICE_COACH_PERSONAS.md`` §0 and §2 for the rationale and
 the persona table this module implements.
 
-Voice IDs are config, not code: they are placeholders here and get resolved
-to a real provider voice at clip-generation time (``scripts/gen_voice_clips.py``,
-S2), so swapping voice or provider never touches this module.
+Voice IDs are deliberately NOT modeled here — a single `voice_id: str` field
+can't represent them correctly anyway, since Kokoro and ElevenLabs use
+incompatible id schemes per provider. They live in
+``data/voice/voice_ids.yaml`` (config, not code — see
+``app/voice/voice_ids.py``), keyed by (provider, persona), so swapping voice
+or provider is a config edit that never touches this module.
 """
 
 from __future__ import annotations
@@ -34,9 +37,6 @@ class Persona(BaseModel):
     # Shapes the RAG system-prompt tone only (S7) — never alters retrieved
     # facts or safety behaviour (P29 spec §7).
     prompt_fragment: str
-    # Provider-specific voice id, resolved at clip-generation time (S2).
-    # Untuned placeholder — pick a real voice id before running S2.
-    voice_id: str
 
 
 PERSONAS: dict[PersonaKey, Persona] = {
@@ -50,7 +50,6 @@ PERSONAS: dict[PersonaKey, Persona] = {
             "to one or two sentences. Never invent facts or soften a safety "
             "warning to sound hype."
         ),
-        voice_id="TBD_VOICE_ID_ATLAS",
     ),
     "forge": Persona(
         key="forge",
@@ -61,7 +60,6 @@ PERSONAS: dict[PersonaKey, Persona] = {
             "Speak like FORGE: slow, gravelly, mind-muscle focus, cue-heavy. "
             "Favor concrete technique cues over hype. Never invent facts."
         ),
-        voice_id="TBD_VOICE_ID_FORGE",
     ),
     "vector": Persona(
         key="vector",
@@ -73,6 +71,5 @@ PERSONAS: dict[PersonaKey, Persona] = {
             "plainly (joint, side, rep number) where relevant. Never invent "
             "facts or numbers not present in the retrieved context."
         ),
-        voice_id="TBD_VOICE_ID_VECTOR",
     ),
 }
