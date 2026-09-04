@@ -7,6 +7,11 @@ on:
     - cron: "0 3 * * 0"
   workflow_dispatch: {}
 
+env:
+  # Must match the Neon server's Postgres MAJOR version — pg_dump refuses to
+  # dump a server newer than itself. Bump this (only) when Neon upgrades.
+  PG_MAJOR: "18"
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -14,14 +19,34 @@ jobs:
     steps:
       - name: Install postgresql-client
         run: |
+          set -euo pipefail
+
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y curl ca-certificates gnupg lsb-release
+
+          # Ubuntu's own repo lags Postgres releases, so pull from the
+          # official PGDG apt repo instead to get postgresql-client-$PG_MAJOR.
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+
+          sudo apt-get update
+          sudo apt-get install -y "postgresql-client-${PG_MAJOR}"
+
+          # Put the pinned major version's bin dir first on PATH for all
+          # later steps, so the plain `pg_dump` call below is the 18 one
+          # (not any older postgresql-client Ubuntu may also have installed).
+          echo "/usr/lib/postgresql/${PG_MAJOR}/bin" >> "$GITHUB_PATH"
 
       - name: Run pg_dump
         env:
           NEON_DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
         run: |
           set -euo pipefail
+
+          echo "Using: $(command -v pg_dump) ($(pg_dump --version))"
 
           if [ -z "${NEON_DIRECT_URL:-}" ]; then
             echo "::error::NEON_DIRECT_URL secret is not set — cannot back up."
