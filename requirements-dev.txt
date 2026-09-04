@@ -4,3 +4,4 @@
 
 locust==2.32.4            # P09 load test (scripts/load_test.py)
 websocket-client==1.8.0   # synchronous WS client used by the InferenceUser
+types-PyYAML==6.0.12.20250915  # mypy --strict stubs for app/voice/schemas.py (P29)

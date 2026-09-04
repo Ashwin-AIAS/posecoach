@@ -1,0 +1,254 @@
+# P29 Voice Coach — persona cue lines.
+#
+# Fault-id mapping is OWNED BY P29 — it is not enumerated from any identifier
+# in app/analysis/**, which emits only free-text cue sentences and a handful
+# of result-level `status` strings, never a stable per-fault key (verified by
+# reading app/analysis/form_scorer.py, posing_scorer.py and
+# exercise_verifier.py before S1 began). Movement fault ids follow
+# {exercise}.{joint_base}.{direction}, mechanically derived from the _CUES
+# dict keys in app/analysis/form_scorer.py by app/voice/fault_taxonomy.py —
+# see that module's docstring for the exact derivation and the guarantees it
+# checks at import time (identical left/right cue text per joint, no
+# within-exercise cue-text collisions). Status fault ids are the bare
+# STATUS_* values from form_scorer.py / posing_scorer.py.
+#
+# Side-agnostic templating (S1 amendment B): every movement fault below is
+# authored ONCE per (exercise, joint_base, direction) rather than once per
+# side, because _CUES gives left_/right_ joints identical cue text. A line
+# MAY contain a literal "{side}" placeholder, substituted with "left"/"right"
+# at clip-generation time (S2, scripts/gen_voice_clips.py); using it is a
+# per-persona style choice. VECTOR (clipped, numeric, "reads state back")
+# uses it consistently; ATLAS and FORGE do not, matching the example lines
+# in the P29 spec's persona table, neither of which names a side. Status
+# faults have no side (sides: []) and so never contain "{side}".
+#
+# Severity is intentionally NOT represented anywhere in this file. Per S1
+# amendments 3/4: severity (high/medium/low) is computed client-side from
+# the WS frame's joint_scores deficit; it only gates whether/which cue fires
+# and never selects audio. Clip key = {persona}.{fault_id} — no severity
+# dimension. See app/voice/fault_taxonomy.py and the cueArbiter (S5).
+#
+# `modes` marks which WS stream a fault can appear on: "coach" (the
+# rep-based Coach-tab exercise stream, WS `mode == "exercise"`), "posing"
+# (the posing-mode stream, WS `mode == "posing"`), or both. All 22 movement
+# faults below are coach-only (posing mode does not use form_scorer/_CUES).
+# insufficient_confidence is genuinely emitted on both streams (independently
+# defined with the same string value in both scorer modules, sent verbatim
+# as the WS `status` field from both branches of ws_inference.py) — see
+# app/voice/schemas.py's FaultLines docstring for why this is a tuple rather
+# than the single-value field the spec sketch implied.
+#
+# Six-exercise scope (S1, confirmed pre-generation): bench, front_raise and
+# overhead_triceps are named directly in the P29 spec; squat, deadlift, curl
+# were confirmed as "the three Fit3D-native exercises used in the thesis
+# evaluation" — the rest of form_scorer's "Original 7" once bench (already
+# listed) and plank (not Fit3D-sourced — hardcoded _PLANK_RANGES, no
+# angle_ranges.json lookup) are excluded. All other supported exercises get
+# no lines for v1; per the P29 spec, the arbiter falls back to the visual
+# lane for them.
+#
+# app/analysis/**, app/inference/**, and app/api/v1/ws_inference.py were
+# read but never modified to produce this file.
+
+scope_exercises:
+  - bench
+  - front_raise
+  - overhead_triceps
+  - squat
+  - deadlift
+  - curl
+
+personas:
+  - atlas
+  - forge
+  - vector
+
+faults:
+  # ── bench ──────────────────────────────────────────────────────────────
+  bench.elbow_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "All the way down! Do not cut it short!"
+      forge: "Take the bar all the way to your chest."
+      vector: "Elbow depth short, {side}. Extend the descent."
+  bench.elbow_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Lock it out! Finish the rep!"
+      forge: "Press it out full. Do not leave it short."
+      vector: "Lockout incomplete, {side}. Extend the press."
+  bench.shoulder_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Tuck those elbows! Tighter!"
+      forge: "Bring the elbows in. Protect that shoulder."
+      vector: "Elbow flare, {side}. Tuck in."
+  bench.shoulder_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Open up! Let the elbows breathe!"
+      forge: "Ease the elbows out a touch."
+      vector: "Elbow angle tight, {side}. Flare slightly."
+
+  # ── front_raise ────────────────────────────────────────────────────────
+  front_raise.shoulder_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Higher! All the way to shoulder height!"
+      forge: "Bring it up level with your shoulder."
+      vector: "Raise short, {side}. Reach shoulder height."
+  front_raise.shoulder_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "That is the top! Stop right there!"
+      forge: "Cap it at shoulder height. No higher."
+      vector: "Overshoot, {side}. Cap at shoulder height."
+  front_raise.elbow_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Straighten it out! Full arm!"
+      forge: "Keep that elbow long, not bent."
+      vector: "Elbow bend, {side}. Straighten the arm."
+  front_raise.elbow_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Ease off! Soft elbow!"
+      forge: "Take the lock out of that elbow."
+      vector: "Elbow locked, {side}. Soften slightly."
+
+  # ── overhead_triceps ───────────────────────────────────────────────────
+  overhead_triceps.elbow_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Deeper stretch! Reach back!"
+      forge: "Let it drop deeper behind your head."
+      vector: "Stretch shallow, {side}. Reach deeper."
+  overhead_triceps.elbow_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Extend it! Full lockout!"
+      forge: "Press it out straight. Full extension."
+      vector: "Extension incomplete, {side}. Lock out."
+  overhead_triceps.shoulder_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Elbow up! Point it skyward!"
+      forge: "Keep that elbow pointed at the ceiling."
+      vector: "Elbow drop, {side}. Point up."
+  overhead_triceps.shoulder_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Tuck it in! Tighter!"
+      forge: "Bring the elbow in toward your head."
+      vector: "Elbow wide, {side}. Tuck in."
+
+  # ── squat ──────────────────────────────────────────────────────────────
+  squat.knee_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Knees out! Track those toes!"
+      forge: "Drive the knees out over your toes."
+      vector: "Knee collapse, {side}. Track wider."
+  squat.knee_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Deeper! Own that bottom!"
+      forge: "Sit deeper. Own the bottom position."
+      vector: "Depth short, {side}. Squat deeper."
+  squat.hip_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Chest up! Stay tall!"
+      forge: "Keep that chest proud through the whole rep."
+      vector: "Torso fold, {side}. Chest up."
+  squat.hip_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Hinge more! Sit back!"
+      forge: "Push the hips back further into it."
+      vector: "Hip hinge shallow, {side}. Sit back."
+
+  # ── deadlift ───────────────────────────────────────────────────────────
+  deadlift.hip_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Flat back! Brace it!"
+      forge: "Keep that spine neutral. Brace your core."
+      vector: "Back round, {side}. Reset neutral."
+  deadlift.hip_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Hips back! Load the hamstrings!"
+      forge: "Push those hips back deeper into the hinge."
+      vector: "Hip hinge shallow, {side}. Push back."
+  deadlift.knee_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Shins vertical! Stack it up!"
+      forge: "Keep those shins stacked straight up."
+      vector: "Shin drift, {side}. Reset vertical."
+  deadlift.knee_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Bend those knees! Use your legs!"
+      forge: "Let the knees bend. Drive with the legs."
+      vector: "Knee lockout, {side}. Bend to engage."
+
+  # ── curl ───────────────────────────────────────────────────────────────
+  curl.elbow_angle.low:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "All the way down! Full stretch!"
+      forge: "Lower it all the way. Full extension."
+      vector: "Extension short, {side}. Lower fully."
+  curl.elbow_angle.high:
+    modes: [coach]
+    sides: [left, right]
+    lines:
+      atlas: "Squeeze at the top! Higher!"
+      forge: "Curl it up. Squeeze at the peak."
+      vector: "Peak short, {side}. Curl higher."
+
+  # ── status faults (no exercise, no side) ──────────────────────────────
+  mismatch:
+    modes: [coach]
+    sides: []
+    lines:
+      atlas: "Hold up. That is not the lift we picked!"
+      forge: "That is not the exercise we set up for."
+      vector: "Exercise mismatch. Reselect or adjust form."
+  insufficient_confidence:
+    modes: [coach, posing]
+    sides: []
+    lines:
+      atlas: "Cannot see you clearly. Step it up!"
+      forge: "Get fully in frame so I can see you."
+      vector: "Confidence low. Reposition in frame."
+  wrong_orientation:
+    modes: [posing]
+    sides: []
+    lines:
+      atlas: "Wrong way! Turn and face me!"
+      forge: "Turn to face the camera for this pose."
+      vector: "Orientation mismatch. Rotate to required stance."
