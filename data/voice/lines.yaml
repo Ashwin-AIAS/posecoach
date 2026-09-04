@@ -69,15 +69,15 @@ faults:
     modes: [coach]
     sides: [left, right]
     lines:
-      atlas: "All the way down! Do not cut it short!"
-      forge: "Take the bar all the way to your chest."
+      atlas: "All the way down! Every rep!"
+      forge: "Bring the bar to your chest."
       vector: "Elbow depth short, {side}. Extend the descent."
   bench.elbow_angle.high:
     modes: [coach]
     sides: [left, right]
     lines:
       atlas: "Lock it out! Finish the rep!"
-      forge: "Press it out full. Do not leave it short."
+      forge: "Press it out. Full lockout."
       vector: "Lockout incomplete, {side}. Extend the press."
   bench.shoulder_angle.low:
     modes: [coach]
@@ -92,7 +92,7 @@ faults:
     lines:
       atlas: "Open up! Let the elbows breathe!"
       forge: "Ease the elbows out a touch."
-      vector: "Elbow angle tight, {side}. Flare slightly."
+      vector: "Elbow angle narrow, {side}. Flare out."
 
   # ── front_raise ────────────────────────────────────────────────────────
   front_raise.shoulder_angle.low:
@@ -174,7 +174,7 @@ faults:
     sides: [left, right]
     lines:
       atlas: "Chest up! Stay tall!"
-      forge: "Keep that chest proud through the whole rep."
+      forge: "Keep that chest proud and tall."
       vector: "Torso fold, {side}. Chest up."
   squat.hip_angle.high:
     modes: [coach]
@@ -182,7 +182,7 @@ faults:
     lines:
       atlas: "Hinge more! Sit back!"
       forge: "Push the hips back further into it."
-      vector: "Hip hinge shallow, {side}. Sit back."
+      vector: "Hip angle high, {side}. Hinge deeper."
 
   # ── deadlift ───────────────────────────────────────────────────────────
   deadlift.hip_angle.low:
@@ -197,8 +197,8 @@ faults:
     sides: [left, right]
     lines:
       atlas: "Hips back! Load the hamstrings!"
-      forge: "Push those hips back deeper into the hinge."
-      vector: "Hip hinge shallow, {side}. Push back."
+      forge: "Push the hips back deeper."
+      vector: "Hips too high, {side}. Push back."
   deadlift.knee_angle.low:
     modes: [coach]
     sides: [left, right]
@@ -211,7 +211,7 @@ faults:
     sides: [left, right]
     lines:
       atlas: "Bend those knees! Use your legs!"
-      forge: "Let the knees bend. Drive with the legs."
+      forge: "Let those knees bend and drive."
       vector: "Knee lockout, {side}. Bend to engage."
 
   # ── curl ───────────────────────────────────────────────────────────────
@@ -235,20 +235,20 @@ faults:
     modes: [coach]
     sides: []
     lines:
-      atlas: "Hold up. That is not the lift we picked!"
-      forge: "That is not the exercise we set up for."
+      atlas: "Hold up. That is not the lift!"
+      forge: "That is not the exercise we picked."
       vector: "Exercise mismatch. Reselect or adjust form."
   insufficient_confidence:
     modes: [coach, posing]
     sides: []
     lines:
       atlas: "Cannot see you clearly. Step it up!"
-      forge: "Get fully in frame so I can see you."
+      forge: "Step fully into the frame."
       vector: "Confidence low. Reposition in frame."
   wrong_orientation:
     modes: [posing]
     sides: []
     lines:
       atlas: "Wrong way! Turn and face me!"
-      forge: "Turn to face the camera for this pose."
+      forge: "Turn and face the camera."
       vector: "Orientation mismatch. Rotate to required stance."
