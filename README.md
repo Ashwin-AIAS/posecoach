@@ -216,3 +216,13 @@ Invoke with `@agent-name` in Claude Code:
 | Context too long | Run `/compact` or `/clear` |
 | Training OOM on Colab | Switch runtime to T4; `/run-colab` for guidance |
 | YOLO keypoints all wrong | Check `end2end=False` is ABSENT from all predict calls |
+
+---
+
+## Database Backups
+
+A weekly `pg_dump` backup runs via `.github/workflows/db-backup.yml`
+(Sundays 03:00 UTC, or on demand from the Actions tab) and uploads the dump
+as a 90-day workflow artifact. See
+[`docs/DB_BACKUP_RESTORE.md`](docs/DB_BACKUP_RESTORE.md) for the
+`pg_restore` command to restore from one.

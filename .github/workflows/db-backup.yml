@@ -1,0 +1,52 @@
+name: Weekly Database Backup
+
+# Weekly pg_dump of the Neon Postgres database, uploaded as a workflow
+# artifact. Runs Sunday 03:00 UTC, or on demand via workflow_dispatch.
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install postgresql-client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run pg_dump
+        env:
+          NEON_DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${NEON_DIRECT_URL:-}" ]; then
+            echo "::error::NEON_DIRECT_URL secret is not set — cannot back up."
+            exit 1
+          fi
+
+          DUMP_DATE="$(date -u +%Y-%m-%d)"
+          DUMP_FILE="posecoach-${DUMP_DATE}.dump"
+
+          # -Fc (custom format) is already compressed internally, so a
+          # separate gzip pass isn't needed on top of it.
+          if pg_dump "$NEON_DIRECT_URL" -Fc -f "$DUMP_FILE"; then
+            echo "pg_dump succeeded: ${DUMP_FILE}"
+          else
+            STATUS=$?
+            echo "::error::pg_dump failed with exit code ${STATUS} — backup NOT created."
+            exit "$STATUS"
+          fi
+
+          echo "DUMP_FILE=${DUMP_FILE}" >> "$GITHUB_ENV"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DUMP_FILE }}
+          path: ${{ env.DUMP_FILE }}
+          retention-days: 90
+          if-no-files-found: error
