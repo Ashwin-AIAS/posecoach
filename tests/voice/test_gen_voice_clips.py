@@ -9,6 +9,7 @@ against a stubbed provider."
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -170,6 +171,59 @@ def test_mp3_duration_estimate_is_consistent_with_bitrate() -> None:
     # 64kbps for 1 second = 8000 bytes
     fake_mp3 = b"\x00" * 8000
     assert gvc._mp3_duration_ms(fake_mp3, 64) == 1000
+
+
+def test_faults_section_matches_the_s1_cue_text_lookup() -> None:
+    """S8: manifest.json's `faults` map must be exactly CUE_TEXT_LOOKUP, joined."""
+    from app.voice.fault_taxonomy import CUE_TEXT_LOOKUP
+
+    section = gvc.faults_section()
+    assert len(section) == len(CUE_TEXT_LOOKUP)
+    for (exercise, cue_text), fault_id in CUE_TEXT_LOOKUP.items():
+        assert section[f"{exercise}::{cue_text}"] == fault_id
+
+
+def test_clips_section_extracts_the_clips_map_from_an_s8_envelope() -> None:
+    envelope: dict[str, object] = {"version": 2, "clips": {"atlas.mismatch": {"hash": "x"}}, "faults": {}}
+    assert gvc._clips_section(envelope) == {"atlas.mismatch": {"hash": "x"}}
+
+
+def test_clips_section_is_empty_for_a_legacy_flat_manifest_or_fresh_checkout() -> None:
+    """A pre-S8 flat manifest has no `clips` key -- treated as empty, not misread as clips."""
+    legacy_flat: dict[str, object] = {"atlas.mismatch": {"hash": "x"}}
+    assert gvc._clips_section(legacy_flat) == {}
+    assert gvc._clips_section({}) == {}
+
+
+def test_main_writes_version_and_faults_and_regenerates_zero_clips_on_rerun(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """End-to-end `main()`, S8 goal condition: a second run regenerates zero
+    audio clips, and the manifest keeps its version/faults on every run."""
+    from app.voice.fault_taxonomy import CUE_TEXT_LOOKUP
+
+    output_dir = tmp_path / "voice"
+    monkeypatch.setattr(gvc, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(gvc, "MANIFEST_PATH", output_dir / "manifest.json")
+    monkeypatch.setattr(gvc, "PROVIDERS", {"stub": StubProvider})
+    monkeypatch.setattr(gvc, "load_voice_ids", lambda: _stub_voice_ids("stub"))
+
+    rc1 = gvc.main(["--provider", "stub"])
+    assert rc1 == 0
+    capsys.readouterr()  # discard first-run output
+    manifest_1 = json.loads(gvc.MANIFEST_PATH.read_text(encoding="utf-8"))
+    assert manifest_1["version"] == gvc.MANIFEST_SCHEMA_VERSION
+    assert len(manifest_1["clips"]) == TOTAL_CLIP_COUNT
+    assert len(manifest_1["faults"]) == len(CUE_TEXT_LOOKUP)
+
+    rc2 = gvc.main(["--provider", "stub"])
+    assert rc2 == 0
+    out2 = capsys.readouterr().out
+    assert "to_generate=0" in out2
+    assert "generated 0 clip(s)" in out2
+
+    manifest_2 = json.loads(gvc.MANIFEST_PATH.read_text(encoding="utf-8"))
+    assert manifest_2 == manifest_1  # idempotent rewrite
 
 
 def test_cue_key_and_relpath_format_for_sided_and_status_faults() -> None:

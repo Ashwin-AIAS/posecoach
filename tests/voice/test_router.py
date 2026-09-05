@@ -52,7 +52,13 @@ async def test_get_manifest_returns_parsed_manifest_when_present(
 ) -> None:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(
-        json.dumps({"atlas.mismatch": {"file": "atlas/mismatch.mp3", "hash": "abc123", "dur_ms": 1200}}),
+        json.dumps(
+            {
+                "version": 2,
+                "clips": {"atlas.mismatch": {"file": "atlas/mismatch.mp3", "hash": "abc123", "dur_ms": 1200}},
+                "faults": {"squat::Squat deeper for full range": "squat.knee_angle.high"},
+            }
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(voice_router_module, "MANIFEST_PATH", manifest_path)
@@ -61,14 +67,32 @@ async def test_get_manifest_returns_parsed_manifest_when_present(
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body == {"atlas.mismatch": {"file": "atlas/mismatch.mp3", "hash": "abc123", "dur_ms": 1200}}
+    assert body == {
+        "version": 2,
+        "clips": {"atlas.mismatch": {"file": "atlas/mismatch.mp3", "hash": "abc123", "dur_ms": 1200}},
+        "faults": {"squat::Squat deeper for full range": "squat.knee_angle.high"},
+    }
+
+
+async def test_get_manifest_defaults_faults_to_empty_when_absent(
+    client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A legacy pre-S8 manifest with no `faults` key still parses (backward compatible)."""
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps({"version": 2, "clips": {}}), encoding="utf-8")
+    monkeypatch.setattr(voice_router_module, "MANIFEST_PATH", manifest_path)
+
+    resp = await client.get("/api/v1/voice/manifest")
+
+    assert resp.status_code == 200
+    assert resp.json()["faults"] == {}
 
 
 async def test_get_manifest_sets_cache_control_header(
     client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     manifest_path = tmp_path / "manifest.json"
-    manifest_path.write_text(json.dumps({}), encoding="utf-8")
+    manifest_path.write_text(json.dumps({"version": 2, "clips": {}, "faults": {}}), encoding="utf-8")
     monkeypatch.setattr(voice_router_module, "MANIFEST_PATH", manifest_path)
 
     resp = await client.get("/api/v1/voice/manifest")
@@ -87,15 +111,47 @@ async def test_get_manifest_missing_file_returns_404(
 
 
 async def test_get_manifest_reflects_the_real_committed_manifest(client: AsyncClient) -> None:
-    """Sanity check against the real S2 output — no monkeypatching."""
+    """Sanity check against the real S2/S8 output — no monkeypatching."""
+    from app.voice.fault_taxonomy import CUE_TEXT_LOOKUP
+    from app.voice.manifest_schema import MANIFEST_SCHEMA_VERSION
+
     resp = await client.get("/api/v1/voice/manifest")
 
     assert resp.status_code == 200
     body = resp.json()
-    assert len(body) == 141
-    assert "atlas.mismatch" in body
-    entry = body["atlas.mismatch"]
+    assert body["version"] == MANIFEST_SCHEMA_VERSION
+    clips = body["clips"]
+    assert len(clips) == 141
+    assert "atlas.mismatch" in clips
+    entry = clips["atlas.mismatch"]
     assert set(entry) == {"file", "hash", "dur_ms"}
+
+    faults = body["faults"]
+    assert len(faults) == len(CUE_TEXT_LOOKUP)
+    for (exercise, cue_text), fault_id in CUE_TEXT_LOOKUP.items():
+        assert faults[f"{exercise}::{cue_text}"] == fault_id
+
+
+async def test_get_manifest_version_mismatch_logs_a_warning_but_still_serves(
+    client: AsyncClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    recording_logger: _RecordingLogger,
+) -> None:
+    """A committed manifest that predates a schema bump is an ops signal, not a hard failure."""
+    from app.voice.manifest_schema import MANIFEST_SCHEMA_VERSION
+
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps({"version": MANIFEST_SCHEMA_VERSION - 1, "clips": {}, "faults": {}}), encoding="utf-8"
+    )
+    monkeypatch.setattr(voice_router_module, "MANIFEST_PATH", manifest_path)
+
+    resp = await client.get("/api/v1/voice/manifest")
+
+    assert resp.status_code == 200
+    warnings = [call for call in recording_logger.calls if call[0] == "voice_manifest_version_mismatch"]
+    assert len(warnings) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +172,9 @@ class _RecordingLogger:
         self.calls: list[tuple[str, dict[str, object]]] = []
 
     def info(self, event: str, **kwargs: object) -> None:
+        self.calls.append((event, kwargs))
+
+    def warning(self, event: str, **kwargs: object) -> None:
         self.calls.append((event, kwargs))
 
 

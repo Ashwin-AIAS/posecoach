@@ -93,6 +93,16 @@ export type SuppressReason =
   | "budget_exhausted"
   | "severity_not_allowed"
   | "no_candidates"
+  /**
+   * S8: an incoming WS cue's text had no entry in the S1 fault-taxonomy
+   * lookup (an out-of-scope exercise — spec's SCOPED_EXERCISES gap, a
+   * deliberate scope cut, not a bug). Never returned by
+   * `CueArbiter.evaluate()` itself — the bridge (`cueBridge.ts`) reports it
+   * directly, before arbitration runs, so the coverage gap shows up in the
+   * §11 suppression-rate metric instead of silently vanishing into
+   * "no_candidates".
+   */
+  | "fault_lookup_miss"
 
 export interface CueDecision {
   readonly fire: boolean

@@ -3,7 +3,7 @@
 **Place at:** `docs/prompts/P29_VOICE_COACH_PERSONAS.md`
 **Branch:** `feat/p29-voice-coach`
 **Depends on:** P23–P28 merged (PR #9), all four tabs live
-**Status:** S1–S7 implemented on `feat/p29-voice-coach` (not merged to `main`, not deployed to HF)
+**Status:** S1–S8 implemented on `feat/p29-voice-coach` (not merged to `main`, not deployed to HF)
 
 ---
 
@@ -480,6 +480,81 @@ unchanged and passing.
     repo's convention keeps that kind of incremental feature progress in
     `CLAUDE.local.md` instead (see its P29 section), which this stage did
     update.
+
+---
+
+### S8 — Live wiring (added after S7; not in the original 8-stage plan)
+
+**Orientation (required before any code — see the transcript for the full
+a/b/c/d report):** confirmed `usePoseStream`/`useWebSocket` can be read
+read-only from `App.tsx` exactly like the pre-existing `useCueVoice` call
+already does (no frozen-file edit needed), but found the S1 cue-text →
+fault-id lookup (`app/voice/fault_taxonomy.CUE_TEXT_LOOKUP`) was **not**
+reachable at runtime by the frontend at all — Python-only, no endpoint, no
+static asset. Decided (by the user, after the orientation report) to extend
+the existing `manifest.json` with a `faults` section rather than add a new
+route or a second static asset, arbitrate on `cues[0]` + `worst_joint` only
+(ignore `cues[1]` — no side attribution, unreachable under the 1-cue-per-rep
+cap), treat the SCOPED_EXERCISES gap as intentional with its own distinct
+suppression reason, and follow the `useCueVoice` precedent exactly for the
+bridge hook.
+
+**Do:**
+- `manifest.json` schema bump (`app/voice/manifest_schema.py` — single
+  source of truth for both the writer and the reader): top level becomes
+  `{version, clips, faults}`. `faults` is `CUE_TEXT_LOOKUP` joined into
+  `"{exercise}::{cueText}"` -> fault_id string keys.
+  `scripts/gen_voice_clips.py` always (re)writes `version`/`faults` now, even
+  on a run that regenerates zero audio clips — the real committed
+  `frontend/public/voice/manifest.json` was migrated once by hand (clips
+  byte-identical, only the envelope shape changed) since this dev machine
+  has neither `kokoro` nor `lameenc` installed to run a real synth pass.
+  `GET /api/v1/voice/manifest` (`app/voice/router.py`) now returns that
+  envelope; a version mismatch logs `voice_manifest_version_mismatch` but
+  still serves (an ops signal, not a hard failure).
+- `frontend/src/features/voice/cueBridge.ts` — pure functions
+  (`buildFaultCandidate`, `severityFromDeficit`, `sideOf`,
+  `isNewRepBoundary`), fully unit-testable with plain frame fixtures.
+  Severity = `100 - joint_scores[worst_joint]` bucketed by
+  `SEVERITY_DEFICIT_THRESHOLDS` (⚠️ untuned, like every other P29 constant).
+- `frontend/src/features/voice/useVoiceCueBridge.ts` — the React hook.
+  Takes `result`/`exercise` as plain arguments from `App.tsx`, exactly like
+  `useCueVoice`; owns one `CueArbiter` for its lifetime; on a rep boundary,
+  routes the decision to `useCoachVoice.play()` and
+  `reportFired`/`reportSuppressed`, and returns the current `CueToast` twin.
+- `cueArbiter.ts`'s `SuppressReason` gained `"fault_lookup_miss"` — emitted
+  by the bridge (not the arbiter itself) so an out-of-scope exercise's cue
+  shows up in the §11 suppression-rate metric instead of vanishing into the
+  generic `"no_candidates"`.
+- `useCoachVoice.ts` gained `resolveFaultId(exercise, cueText)`, backed by
+  the manifest's new `faults` map, and a manifest-version gate
+  (`EXPECTED_MANIFEST_VERSION`) — a wrong-version fetch is treated exactly
+  like "not generated yet."
+- `App.tsx`: mounts `<BootCard>` (persona pick + unmute gate, shown once per
+  session on entering the live view) and `<CueToast>` (inside the camera
+  stage, below the header), and instantiates `useVoiceCueBridge` with its
+  own `useCoachVoice()` instance (separate from `SettingsPanel`'s — S6's
+  localStorage-sync design, no shared context).
+- `frontend/src/features/voice/flag.ts` (`VITE_VOICE_BOOT_CARD`) — mirrors
+  `features/coach/overlay/flag.ts`'s `VITE_OVERLAY_NEON` precedent exactly.
+  Needed because mounting the boot card unconditionally blocked every
+  pre-P29 e2e spec that clicks into the live view (its fixed full-screen
+  backdrop intercepted the click) — pinned off in `playwright.config.ts`'s
+  shared e2e server, with a `?voiceBoot=1` query-param override (persisted
+  to `localStorage`, same convention as `useLatencyProbe`'s `?diag=`) for
+  `e2e/voice-live-wiring.spec.ts` to force it back on.
+
+**Gate:** backend pytest 812/812 (97.55% analysis cov), frontend vitest
+594/594, full Playwright suite 55/55 (3 pre-existing skips), ruff clean,
+mypy --strict clean (73 files), tsc clean, eslint 0 warnings. `git status`
+confirms no frozen file modified.
+
+**Commit:** `[P29] feat: live-wire boot card, cue toast, and cue arbitration into the Coach view`
+
+**Still open after S8:** shared `voice_id` for RAG audio and "RAG audio
+suppressed during a set" remain unimplemented (no RAG-answer TTS subsystem
+exists yet, per S7's note). `CLAUDE.md` left untouched for the same reason
+as S7; `CLAUDE.local.md`'s P29 section updated instead.
 
 ---
 

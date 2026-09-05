@@ -1,707 +1,734 @@
 {
-  "atlas.bench.elbow_angle.high.left": {
-    "dur_ms": 2592,
-    "file": "atlas/bench.elbow_angle.high.left.mp3",
-    "hash": "61176142fb31"
-  },
-  "atlas.bench.elbow_angle.high.right": {
-    "dur_ms": 2592,
-    "file": "atlas/bench.elbow_angle.high.right.mp3",
-    "hash": "61176142fb31"
-  },
-  "atlas.bench.elbow_angle.low.left": {
-    "dur_ms": 2712,
-    "file": "atlas/bench.elbow_angle.low.left.mp3",
-    "hash": "f533ac04591c"
-  },
-  "atlas.bench.elbow_angle.low.right": {
-    "dur_ms": 2712,
-    "file": "atlas/bench.elbow_angle.low.right.mp3",
-    "hash": "f533ac04591c"
-  },
-  "atlas.bench.shoulder_angle.high.left": {
-    "dur_ms": 2904,
-    "file": "atlas/bench.shoulder_angle.high.left.mp3",
-    "hash": "24c804edfaf6"
-  },
-  "atlas.bench.shoulder_angle.high.right": {
-    "dur_ms": 2904,
-    "file": "atlas/bench.shoulder_angle.high.right.mp3",
-    "hash": "24c804edfaf6"
-  },
-  "atlas.bench.shoulder_angle.low.left": {
-    "dur_ms": 2712,
-    "file": "atlas/bench.shoulder_angle.low.left.mp3",
-    "hash": "20239383e030"
-  },
-  "atlas.bench.shoulder_angle.low.right": {
-    "dur_ms": 2712,
-    "file": "atlas/bench.shoulder_angle.low.right.mp3",
-    "hash": "20239383e030"
-  },
-  "atlas.curl.elbow_angle.high.left": {
-    "dur_ms": 2400,
-    "file": "atlas/curl.elbow_angle.high.left.mp3",
-    "hash": "aba889918b60"
-  },
-  "atlas.curl.elbow_angle.high.right": {
-    "dur_ms": 2400,
-    "file": "atlas/curl.elbow_angle.high.right.mp3",
-    "hash": "aba889918b60"
-  },
-  "atlas.curl.elbow_angle.low.left": {
-    "dur_ms": 2856,
-    "file": "atlas/curl.elbow_angle.low.left.mp3",
-    "hash": "cb0805c24b01"
-  },
-  "atlas.curl.elbow_angle.low.right": {
-    "dur_ms": 2856,
-    "file": "atlas/curl.elbow_angle.low.right.mp3",
-    "hash": "cb0805c24b01"
-  },
-  "atlas.deadlift.hip_angle.high.left": {
-    "dur_ms": 2856,
-    "file": "atlas/deadlift.hip_angle.high.left.mp3",
-    "hash": "675f8471dfaa"
-  },
-  "atlas.deadlift.hip_angle.high.right": {
-    "dur_ms": 2856,
-    "file": "atlas/deadlift.hip_angle.high.right.mp3",
-    "hash": "675f8471dfaa"
-  },
-  "atlas.deadlift.hip_angle.low.left": {
-    "dur_ms": 2064,
-    "file": "atlas/deadlift.hip_angle.low.left.mp3",
-    "hash": "a886112327f5"
-  },
-  "atlas.deadlift.hip_angle.low.right": {
-    "dur_ms": 2064,
-    "file": "atlas/deadlift.hip_angle.low.right.mp3",
-    "hash": "a886112327f5"
-  },
-  "atlas.deadlift.knee_angle.high.left": {
-    "dur_ms": 2904,
-    "file": "atlas/deadlift.knee_angle.high.left.mp3",
-    "hash": "48e9d3c71920"
-  },
-  "atlas.deadlift.knee_angle.high.right": {
-    "dur_ms": 2904,
-    "file": "atlas/deadlift.knee_angle.high.right.mp3",
-    "hash": "48e9d3c71920"
-  },
-  "atlas.deadlift.knee_angle.low.left": {
-    "dur_ms": 2640,
-    "file": "atlas/deadlift.knee_angle.low.left.mp3",
-    "hash": "66193e398b63"
-  },
-  "atlas.deadlift.knee_angle.low.right": {
-    "dur_ms": 2640,
-    "file": "atlas/deadlift.knee_angle.low.right.mp3",
-    "hash": "66193e398b63"
-  },
-  "atlas.front_raise.elbow_angle.high.left": {
-    "dur_ms": 2424,
-    "file": "atlas/front_raise.elbow_angle.high.left.mp3",
-    "hash": "3f31cde6f089"
-  },
-  "atlas.front_raise.elbow_angle.high.right": {
-    "dur_ms": 2424,
-    "file": "atlas/front_raise.elbow_angle.high.right.mp3",
-    "hash": "3f31cde6f089"
-  },
-  "atlas.front_raise.elbow_angle.low.left": {
-    "dur_ms": 2520,
-    "file": "atlas/front_raise.elbow_angle.low.left.mp3",
-    "hash": "c6d1f2f43fdb"
-  },
-  "atlas.front_raise.elbow_angle.low.right": {
-    "dur_ms": 2520,
-    "file": "atlas/front_raise.elbow_angle.low.right.mp3",
-    "hash": "c6d1f2f43fdb"
-  },
-  "atlas.front_raise.shoulder_angle.high.left": {
-    "dur_ms": 2976,
-    "file": "atlas/front_raise.shoulder_angle.high.left.mp3",
-    "hash": "091372586cd8"
-  },
-  "atlas.front_raise.shoulder_angle.high.right": {
-    "dur_ms": 2976,
-    "file": "atlas/front_raise.shoulder_angle.high.right.mp3",
-    "hash": "091372586cd8"
-  },
-  "atlas.front_raise.shoulder_angle.low.left": {
-    "dur_ms": 2856,
-    "file": "atlas/front_raise.shoulder_angle.low.left.mp3",
-    "hash": "062b88c20b72"
-  },
-  "atlas.front_raise.shoulder_angle.low.right": {
-    "dur_ms": 2856,
-    "file": "atlas/front_raise.shoulder_angle.low.right.mp3",
-    "hash": "062b88c20b72"
-  },
-  "atlas.insufficient_confidence": {
-    "dur_ms": 2904,
-    "file": "atlas/insufficient_confidence.mp3",
-    "hash": "d09168ce270d"
-  },
-  "atlas.mismatch": {
-    "dur_ms": 2856,
-    "file": "atlas/mismatch.mp3",
-    "hash": "4b5bc5bd02db"
-  },
-  "atlas.overhead_triceps.elbow_angle.high.left": {
-    "dur_ms": 2400,
-    "file": "atlas/overhead_triceps.elbow_angle.high.left.mp3",
-    "hash": "fb183747ada9"
-  },
-  "atlas.overhead_triceps.elbow_angle.high.right": {
-    "dur_ms": 2400,
-    "file": "atlas/overhead_triceps.elbow_angle.high.right.mp3",
-    "hash": "fb183747ada9"
-  },
-  "atlas.overhead_triceps.elbow_angle.low.left": {
-    "dur_ms": 2376,
-    "file": "atlas/overhead_triceps.elbow_angle.low.left.mp3",
-    "hash": "5ff95fa130a7"
-  },
-  "atlas.overhead_triceps.elbow_angle.low.right": {
-    "dur_ms": 2376,
-    "file": "atlas/overhead_triceps.elbow_angle.low.right.mp3",
-    "hash": "5ff95fa130a7"
-  },
-  "atlas.overhead_triceps.shoulder_angle.high.left": {
-    "dur_ms": 2040,
-    "file": "atlas/overhead_triceps.shoulder_angle.high.left.mp3",
-    "hash": "f9551b833c98"
-  },
-  "atlas.overhead_triceps.shoulder_angle.high.right": {
-    "dur_ms": 2040,
-    "file": "atlas/overhead_triceps.shoulder_angle.high.right.mp3",
-    "hash": "f9551b833c98"
-  },
-  "atlas.overhead_triceps.shoulder_angle.low.left": {
-    "dur_ms": 2736,
-    "file": "atlas/overhead_triceps.shoulder_angle.low.left.mp3",
-    "hash": "28fc328c6e8c"
-  },
-  "atlas.overhead_triceps.shoulder_angle.low.right": {
-    "dur_ms": 2736,
-    "file": "atlas/overhead_triceps.shoulder_angle.low.right.mp3",
-    "hash": "28fc328c6e8c"
-  },
-  "atlas.squat.hip_angle.high.left": {
-    "dur_ms": 2328,
-    "file": "atlas/squat.hip_angle.high.left.mp3",
-    "hash": "3e5d17e99f46"
-  },
-  "atlas.squat.hip_angle.high.right": {
-    "dur_ms": 2328,
-    "file": "atlas/squat.hip_angle.high.right.mp3",
-    "hash": "3e5d17e99f46"
-  },
-  "atlas.squat.hip_angle.low.left": {
-    "dur_ms": 2040,
-    "file": "atlas/squat.hip_angle.low.left.mp3",
-    "hash": "5c7bdfa6519f"
-  },
-  "atlas.squat.hip_angle.low.right": {
-    "dur_ms": 2040,
-    "file": "atlas/squat.hip_angle.low.right.mp3",
-    "hash": "5c7bdfa6519f"
-  },
-  "atlas.squat.knee_angle.high.left": {
-    "dur_ms": 2592,
-    "file": "atlas/squat.knee_angle.high.left.mp3",
-    "hash": "dd93ff823b59"
-  },
-  "atlas.squat.knee_angle.high.right": {
-    "dur_ms": 2592,
-    "file": "atlas/squat.knee_angle.high.right.mp3",
-    "hash": "dd93ff823b59"
-  },
-  "atlas.squat.knee_angle.low.left": {
-    "dur_ms": 2664,
-    "file": "atlas/squat.knee_angle.low.left.mp3",
-    "hash": "3387e4bb1175"
-  },
-  "atlas.squat.knee_angle.low.right": {
-    "dur_ms": 2664,
-    "file": "atlas/squat.knee_angle.low.right.mp3",
-    "hash": "3387e4bb1175"
-  },
-  "atlas.wrong_orientation": {
-    "dur_ms": 2688,
-    "file": "atlas/wrong_orientation.mp3",
-    "hash": "15389f4b25ee"
-  },
-  "forge.bench.elbow_angle.high.left": {
-    "dur_ms": 2568,
-    "file": "forge/bench.elbow_angle.high.left.mp3",
-    "hash": "92e0bf02f708"
-  },
-  "forge.bench.elbow_angle.high.right": {
-    "dur_ms": 2568,
-    "file": "forge/bench.elbow_angle.high.right.mp3",
-    "hash": "92e0bf02f708"
-  },
-  "forge.bench.elbow_angle.low.left": {
-    "dur_ms": 2304,
-    "file": "forge/bench.elbow_angle.low.left.mp3",
-    "hash": "47a12f5e13dd"
-  },
-  "forge.bench.elbow_angle.low.right": {
-    "dur_ms": 2304,
-    "file": "forge/bench.elbow_angle.low.right.mp3",
-    "hash": "47a12f5e13dd"
-  },
-  "forge.bench.shoulder_angle.high.left": {
-    "dur_ms": 2520,
-    "file": "forge/bench.shoulder_angle.high.left.mp3",
-    "hash": "30bf7a2acbed"
-  },
-  "forge.bench.shoulder_angle.high.right": {
-    "dur_ms": 2520,
-    "file": "forge/bench.shoulder_angle.high.right.mp3",
-    "hash": "30bf7a2acbed"
-  },
-  "forge.bench.shoulder_angle.low.left": {
-    "dur_ms": 3648,
-    "file": "forge/bench.shoulder_angle.low.left.mp3",
-    "hash": "b551f120c473"
-  },
-  "forge.bench.shoulder_angle.low.right": {
-    "dur_ms": 3648,
-    "file": "forge/bench.shoulder_angle.low.right.mp3",
-    "hash": "b551f120c473"
-  },
-  "forge.curl.elbow_angle.high.left": {
-    "dur_ms": 2616,
-    "file": "forge/curl.elbow_angle.high.left.mp3",
-    "hash": "ae320ae89acd"
-  },
-  "forge.curl.elbow_angle.high.right": {
-    "dur_ms": 2616,
-    "file": "forge/curl.elbow_angle.high.right.mp3",
-    "hash": "ae320ae89acd"
-  },
-  "forge.curl.elbow_angle.low.left": {
-    "dur_ms": 3288,
-    "file": "forge/curl.elbow_angle.low.left.mp3",
-    "hash": "c65472f7af29"
-  },
-  "forge.curl.elbow_angle.low.right": {
-    "dur_ms": 3288,
-    "file": "forge/curl.elbow_angle.low.right.mp3",
-    "hash": "c65472f7af29"
-  },
-  "forge.deadlift.hip_angle.high.left": {
-    "dur_ms": 2328,
-    "file": "forge/deadlift.hip_angle.high.left.mp3",
-    "hash": "b70c8b6d539b"
-  },
-  "forge.deadlift.hip_angle.high.right": {
-    "dur_ms": 2328,
-    "file": "forge/deadlift.hip_angle.high.right.mp3",
-    "hash": "b70c8b6d539b"
-  },
-  "forge.deadlift.hip_angle.low.left": {
-    "dur_ms": 3456,
-    "file": "forge/deadlift.hip_angle.low.left.mp3",
-    "hash": "1d3c1b5daf12"
-  },
-  "forge.deadlift.hip_angle.low.right": {
-    "dur_ms": 3456,
-    "file": "forge/deadlift.hip_angle.low.right.mp3",
-    "hash": "1d3c1b5daf12"
-  },
-  "forge.deadlift.knee_angle.high.left": {
-    "dur_ms": 2784,
-    "file": "forge/deadlift.knee_angle.high.left.mp3",
-    "hash": "6b5cf75eadfd"
-  },
-  "forge.deadlift.knee_angle.high.right": {
-    "dur_ms": 2784,
-    "file": "forge/deadlift.knee_angle.high.right.mp3",
-    "hash": "6b5cf75eadfd"
-  },
-  "forge.deadlift.knee_angle.low.left": {
-    "dur_ms": 2688,
-    "file": "forge/deadlift.knee_angle.low.left.mp3",
-    "hash": "016eec7721b2"
-  },
-  "forge.deadlift.knee_angle.low.right": {
-    "dur_ms": 2688,
-    "file": "forge/deadlift.knee_angle.low.right.mp3",
-    "hash": "016eec7721b2"
-  },
-  "forge.front_raise.elbow_angle.high.left": {
-    "dur_ms": 2664,
-    "file": "forge/front_raise.elbow_angle.high.left.mp3",
-    "hash": "b54b01497d89"
-  },
-  "forge.front_raise.elbow_angle.high.right": {
-    "dur_ms": 2664,
-    "file": "forge/front_raise.elbow_angle.high.right.mp3",
-    "hash": "b54b01497d89"
-  },
-  "forge.front_raise.elbow_angle.low.left": {
-    "dur_ms": 2784,
-    "file": "forge/front_raise.elbow_angle.low.left.mp3",
-    "hash": "cee5e6cfff95"
-  },
-  "forge.front_raise.elbow_angle.low.right": {
-    "dur_ms": 2784,
-    "file": "forge/front_raise.elbow_angle.low.right.mp3",
-    "hash": "cee5e6cfff95"
-  },
-  "forge.front_raise.shoulder_angle.high.left": {
-    "dur_ms": 3168,
-    "file": "forge/front_raise.shoulder_angle.high.left.mp3",
-    "hash": "aab36b7e2653"
-  },
-  "forge.front_raise.shoulder_angle.high.right": {
-    "dur_ms": 3168,
-    "file": "forge/front_raise.shoulder_angle.high.right.mp3",
-    "hash": "aab36b7e2653"
-  },
-  "forge.front_raise.shoulder_angle.low.left": {
-    "dur_ms": 2712,
-    "file": "forge/front_raise.shoulder_angle.low.left.mp3",
-    "hash": "0eb7d8838265"
-  },
-  "forge.front_raise.shoulder_angle.low.right": {
-    "dur_ms": 2712,
-    "file": "forge/front_raise.shoulder_angle.low.right.mp3",
-    "hash": "0eb7d8838265"
-  },
-  "forge.insufficient_confidence": {
-    "dur_ms": 2376,
-    "file": "forge/insufficient_confidence.mp3",
-    "hash": "6cc2d136a06d"
-  },
-  "forge.mismatch": {
-    "dur_ms": 3048,
-    "file": "forge/mismatch.mp3",
-    "hash": "341120909bcd"
-  },
-  "forge.overhead_triceps.elbow_angle.high.left": {
-    "dur_ms": 3144,
-    "file": "forge/overhead_triceps.elbow_angle.high.left.mp3",
-    "hash": "35a7323fc466"
-  },
-  "forge.overhead_triceps.elbow_angle.high.right": {
-    "dur_ms": 3144,
-    "file": "forge/overhead_triceps.elbow_angle.high.right.mp3",
-    "hash": "35a7323fc466"
-  },
-  "forge.overhead_triceps.elbow_angle.low.left": {
-    "dur_ms": 2832,
-    "file": "forge/overhead_triceps.elbow_angle.low.left.mp3",
-    "hash": "423bb5cdbefe"
-  },
-  "forge.overhead_triceps.elbow_angle.low.right": {
-    "dur_ms": 2832,
-    "file": "forge/overhead_triceps.elbow_angle.low.right.mp3",
-    "hash": "423bb5cdbefe"
-  },
-  "forge.overhead_triceps.shoulder_angle.high.left": {
-    "dur_ms": 2832,
-    "file": "forge/overhead_triceps.shoulder_angle.high.left.mp3",
-    "hash": "db054eaf2278"
-  },
-  "forge.overhead_triceps.shoulder_angle.high.right": {
-    "dur_ms": 2832,
-    "file": "forge/overhead_triceps.shoulder_angle.high.right.mp3",
-    "hash": "db054eaf2278"
-  },
-  "forge.overhead_triceps.shoulder_angle.low.left": {
-    "dur_ms": 3024,
-    "file": "forge/overhead_triceps.shoulder_angle.low.left.mp3",
-    "hash": "1ad2bc1fa360"
-  },
-  "forge.overhead_triceps.shoulder_angle.low.right": {
-    "dur_ms": 3024,
-    "file": "forge/overhead_triceps.shoulder_angle.low.right.mp3",
-    "hash": "1ad2bc1fa360"
-  },
-  "forge.squat.hip_angle.high.left": {
-    "dur_ms": 2760,
-    "file": "forge/squat.hip_angle.high.left.mp3",
-    "hash": "801c7fdee223"
-  },
-  "forge.squat.hip_angle.high.right": {
-    "dur_ms": 2760,
-    "file": "forge/squat.hip_angle.high.right.mp3",
-    "hash": "801c7fdee223"
-  },
-  "forge.squat.hip_angle.low.left": {
-    "dur_ms": 2712,
-    "file": "forge/squat.hip_angle.low.left.mp3",
-    "hash": "f02e7c889f09"
-  },
-  "forge.squat.hip_angle.low.right": {
-    "dur_ms": 2712,
-    "file": "forge/squat.hip_angle.low.right.mp3",
-    "hash": "f02e7c889f09"
-  },
-  "forge.squat.knee_angle.high.left": {
-    "dur_ms": 3240,
-    "file": "forge/squat.knee_angle.high.left.mp3",
-    "hash": "2d797958dd4a"
-  },
-  "forge.squat.knee_angle.high.right": {
-    "dur_ms": 3240,
-    "file": "forge/squat.knee_angle.high.right.mp3",
-    "hash": "2d797958dd4a"
-  },
-  "forge.squat.knee_angle.low.left": {
-    "dur_ms": 2808,
-    "file": "forge/squat.knee_angle.low.left.mp3",
-    "hash": "a7715b810a24"
-  },
-  "forge.squat.knee_angle.low.right": {
-    "dur_ms": 2808,
-    "file": "forge/squat.knee_angle.low.right.mp3",
-    "hash": "a7715b810a24"
-  },
-  "forge.wrong_orientation": {
-    "dur_ms": 2328,
-    "file": "forge/wrong_orientation.mp3",
-    "hash": "dc99a0d944bc"
-  },
-  "vector.bench.elbow_angle.high.left": {
-    "dur_ms": 5160,
-    "file": "vector/bench.elbow_angle.high.left.mp3",
-    "hash": "f36d46fb0146"
-  },
-  "vector.bench.elbow_angle.high.right": {
-    "dur_ms": 4992,
-    "file": "vector/bench.elbow_angle.high.right.mp3",
-    "hash": "f4d5031f4a50"
-  },
-  "vector.bench.elbow_angle.low.left": {
-    "dur_ms": 5208,
-    "file": "vector/bench.elbow_angle.low.left.mp3",
-    "hash": "2f8799594ad6"
-  },
-  "vector.bench.elbow_angle.low.right": {
-    "dur_ms": 4992,
-    "file": "vector/bench.elbow_angle.low.right.mp3",
-    "hash": "3a8a4ed694a8"
-  },
-  "vector.bench.shoulder_angle.high.left": {
-    "dur_ms": 4416,
-    "file": "vector/bench.shoulder_angle.high.left.mp3",
-    "hash": "42621ba4d346"
-  },
-  "vector.bench.shoulder_angle.high.right": {
-    "dur_ms": 4032,
-    "file": "vector/bench.shoulder_angle.high.right.mp3",
-    "hash": "0aa5a30854ad"
-  },
-  "vector.bench.shoulder_angle.low.left": {
-    "dur_ms": 3456,
-    "file": "vector/bench.shoulder_angle.low.left.mp3",
-    "hash": "65ac6c0173b2"
-  },
-  "vector.bench.shoulder_angle.low.right": {
-    "dur_ms": 3120,
-    "file": "vector/bench.shoulder_angle.low.right.mp3",
-    "hash": "871f60189f8b"
-  },
-  "vector.curl.elbow_angle.high.left": {
-    "dur_ms": 3456,
-    "file": "vector/curl.elbow_angle.high.left.mp3",
-    "hash": "169067c5273b"
-  },
-  "vector.curl.elbow_angle.high.right": {
-    "dur_ms": 3192,
-    "file": "vector/curl.elbow_angle.high.right.mp3",
-    "hash": "41136c19fe0e"
-  },
-  "vector.curl.elbow_angle.low.left": {
-    "dur_ms": 4512,
-    "file": "vector/curl.elbow_angle.low.left.mp3",
-    "hash": "71a39533d4eb"
-  },
-  "vector.curl.elbow_angle.low.right": {
-    "dur_ms": 4200,
-    "file": "vector/curl.elbow_angle.low.right.mp3",
-    "hash": "1527efcbd81e"
-  },
-  "vector.deadlift.hip_angle.high.left": {
-    "dur_ms": 3552,
-    "file": "vector/deadlift.hip_angle.high.left.mp3",
-    "hash": "85e26e05bcc0"
-  },
-  "vector.deadlift.hip_angle.high.right": {
-    "dur_ms": 3264,
-    "file": "vector/deadlift.hip_angle.high.right.mp3",
-    "hash": "fbdd664fb8b4"
-  },
-  "vector.deadlift.hip_angle.low.left": {
-    "dur_ms": 3936,
-    "file": "vector/deadlift.hip_angle.low.left.mp3",
-    "hash": "26c03b3d762f"
-  },
-  "vector.deadlift.hip_angle.low.right": {
-    "dur_ms": 3720,
-    "file": "vector/deadlift.hip_angle.low.right.mp3",
-    "hash": "96fb1674b33f"
-  },
-  "vector.deadlift.knee_angle.high.left": {
-    "dur_ms": 4344,
-    "file": "vector/deadlift.knee_angle.high.left.mp3",
-    "hash": "8dfb4955080f"
-  },
-  "vector.deadlift.knee_angle.high.right": {
-    "dur_ms": 4104,
-    "file": "vector/deadlift.knee_angle.high.right.mp3",
-    "hash": "0970eed341c9"
-  },
-  "vector.deadlift.knee_angle.low.left": {
-    "dur_ms": 4416,
-    "file": "vector/deadlift.knee_angle.low.left.mp3",
-    "hash": "48c1f47d021a"
-  },
-  "vector.deadlift.knee_angle.low.right": {
-    "dur_ms": 4224,
-    "file": "vector/deadlift.knee_angle.low.right.mp3",
-    "hash": "3442cda353f1"
-  },
-  "vector.front_raise.elbow_angle.high.left": {
-    "dur_ms": 4296,
-    "file": "vector/front_raise.elbow_angle.high.left.mp3",
-    "hash": "fe17b908a0ee"
-  },
-  "vector.front_raise.elbow_angle.high.right": {
-    "dur_ms": 4128,
-    "file": "vector/front_raise.elbow_angle.high.right.mp3",
-    "hash": "890972d829f5"
-  },
-  "vector.front_raise.elbow_angle.low.left": {
-    "dur_ms": 4464,
-    "file": "vector/front_raise.elbow_angle.low.left.mp3",
-    "hash": "e09f25d8e650"
-  },
-  "vector.front_raise.elbow_angle.low.right": {
-    "dur_ms": 4296,
-    "file": "vector/front_raise.elbow_angle.low.right.mp3",
-    "hash": "cc5d58a35307"
-  },
-  "vector.front_raise.shoulder_angle.high.left": {
-    "dur_ms": 4416,
-    "file": "vector/front_raise.shoulder_angle.high.left.mp3",
-    "hash": "e3bdbc17f27c"
-  },
-  "vector.front_raise.shoulder_angle.high.right": {
-    "dur_ms": 4248,
-    "file": "vector/front_raise.shoulder_angle.high.right.mp3",
-    "hash": "33bf7a6efd8e"
-  },
-  "vector.front_raise.shoulder_angle.low.left": {
-    "dur_ms": 4536,
-    "file": "vector/front_raise.shoulder_angle.low.left.mp3",
-    "hash": "7716b23e0b54"
-  },
-  "vector.front_raise.shoulder_angle.low.right": {
-    "dur_ms": 4368,
-    "file": "vector/front_raise.shoulder_angle.low.right.mp3",
-    "hash": "12d947753257"
-  },
-  "vector.insufficient_confidence": {
-    "dur_ms": 4464,
-    "file": "vector/insufficient_confidence.mp3",
-    "hash": "c62fbec5bcda"
-  },
-  "vector.mismatch": {
-    "dur_ms": 5328,
-    "file": "vector/mismatch.mp3",
-    "hash": "8a02b612826e"
-  },
-  "vector.overhead_triceps.elbow_angle.high.left": {
-    "dur_ms": 4728,
-    "file": "vector/overhead_triceps.elbow_angle.high.left.mp3",
-    "hash": "4d1910a897f1"
-  },
-  "vector.overhead_triceps.elbow_angle.high.right": {
-    "dur_ms": 4536,
-    "file": "vector/overhead_triceps.elbow_angle.high.right.mp3",
-    "hash": "881e356b542b"
-  },
-  "vector.overhead_triceps.elbow_angle.low.left": {
-    "dur_ms": 4056,
-    "file": "vector/overhead_triceps.elbow_angle.low.left.mp3",
-    "hash": "b131a3ee4d8f"
-  },
-  "vector.overhead_triceps.elbow_angle.low.right": {
-    "dur_ms": 3696,
-    "file": "vector/overhead_triceps.elbow_angle.low.right.mp3",
-    "hash": "dc50ec81dc7b"
-  },
-  "vector.overhead_triceps.shoulder_angle.high.left": {
-    "dur_ms": 3408,
-    "file": "vector/overhead_triceps.shoulder_angle.high.left.mp3",
-    "hash": "0e2c41a44d37"
-  },
-  "vector.overhead_triceps.shoulder_angle.high.right": {
-    "dur_ms": 3048,
-    "file": "vector/overhead_triceps.shoulder_angle.high.right.mp3",
-    "hash": "0dc9d47cc516"
-  },
-  "vector.overhead_triceps.shoulder_angle.low.left": {
-    "dur_ms": 3504,
-    "file": "vector/overhead_triceps.shoulder_angle.low.left.mp3",
-    "hash": "dedd226c68ec"
-  },
-  "vector.overhead_triceps.shoulder_angle.low.right": {
-    "dur_ms": 3048,
-    "file": "vector/overhead_triceps.shoulder_angle.low.right.mp3",
-    "hash": "4f895cc23d52"
-  },
-  "vector.squat.hip_angle.high.left": {
-    "dur_ms": 4224,
-    "file": "vector/squat.hip_angle.high.left.mp3",
-    "hash": "9f337151131c"
-  },
-  "vector.squat.hip_angle.high.right": {
-    "dur_ms": 4032,
-    "file": "vector/squat.hip_angle.high.right.mp3",
-    "hash": "e1c391f38bfa"
-  },
-  "vector.squat.hip_angle.low.left": {
-    "dur_ms": 3720,
-    "file": "vector/squat.hip_angle.low.left.mp3",
-    "hash": "14e03a11358b"
-  },
-  "vector.squat.hip_angle.low.right": {
-    "dur_ms": 3360,
-    "file": "vector/squat.hip_angle.low.right.mp3",
-    "hash": "5daaa6062c61"
-  },
-  "vector.squat.knee_angle.high.left": {
-    "dur_ms": 3912,
-    "file": "vector/squat.knee_angle.high.left.mp3",
-    "hash": "1a367f4dae34"
-  },
-  "vector.squat.knee_angle.high.right": {
-    "dur_ms": 3648,
-    "file": "vector/squat.knee_angle.high.right.mp3",
-    "hash": "c9a5fad61ebc"
-  },
-  "vector.squat.knee_angle.low.left": {
-    "dur_ms": 3864,
-    "file": "vector/squat.knee_angle.low.left.mp3",
-    "hash": "3b0c3d4ee93c"
-  },
-  "vector.squat.knee_angle.low.right": {
-    "dur_ms": 3720,
-    "file": "vector/squat.knee_angle.low.right.mp3",
-    "hash": "b247c952d59b"
-  },
-  "vector.wrong_orientation": {
-    "dur_ms": 5904,
-    "file": "vector/wrong_orientation.mp3",
-    "hash": "0a3248bc4e69"
-  }
+  "clips": {
+    "atlas.bench.elbow_angle.high.left": {
+      "dur_ms": 2592,
+      "file": "atlas/bench.elbow_angle.high.left.mp3",
+      "hash": "61176142fb31"
+    },
+    "atlas.bench.elbow_angle.high.right": {
+      "dur_ms": 2592,
+      "file": "atlas/bench.elbow_angle.high.right.mp3",
+      "hash": "61176142fb31"
+    },
+    "atlas.bench.elbow_angle.low.left": {
+      "dur_ms": 2712,
+      "file": "atlas/bench.elbow_angle.low.left.mp3",
+      "hash": "f533ac04591c"
+    },
+    "atlas.bench.elbow_angle.low.right": {
+      "dur_ms": 2712,
+      "file": "atlas/bench.elbow_angle.low.right.mp3",
+      "hash": "f533ac04591c"
+    },
+    "atlas.bench.shoulder_angle.high.left": {
+      "dur_ms": 2904,
+      "file": "atlas/bench.shoulder_angle.high.left.mp3",
+      "hash": "24c804edfaf6"
+    },
+    "atlas.bench.shoulder_angle.high.right": {
+      "dur_ms": 2904,
+      "file": "atlas/bench.shoulder_angle.high.right.mp3",
+      "hash": "24c804edfaf6"
+    },
+    "atlas.bench.shoulder_angle.low.left": {
+      "dur_ms": 2712,
+      "file": "atlas/bench.shoulder_angle.low.left.mp3",
+      "hash": "20239383e030"
+    },
+    "atlas.bench.shoulder_angle.low.right": {
+      "dur_ms": 2712,
+      "file": "atlas/bench.shoulder_angle.low.right.mp3",
+      "hash": "20239383e030"
+    },
+    "atlas.curl.elbow_angle.high.left": {
+      "dur_ms": 2400,
+      "file": "atlas/curl.elbow_angle.high.left.mp3",
+      "hash": "aba889918b60"
+    },
+    "atlas.curl.elbow_angle.high.right": {
+      "dur_ms": 2400,
+      "file": "atlas/curl.elbow_angle.high.right.mp3",
+      "hash": "aba889918b60"
+    },
+    "atlas.curl.elbow_angle.low.left": {
+      "dur_ms": 2856,
+      "file": "atlas/curl.elbow_angle.low.left.mp3",
+      "hash": "cb0805c24b01"
+    },
+    "atlas.curl.elbow_angle.low.right": {
+      "dur_ms": 2856,
+      "file": "atlas/curl.elbow_angle.low.right.mp3",
+      "hash": "cb0805c24b01"
+    },
+    "atlas.deadlift.hip_angle.high.left": {
+      "dur_ms": 2856,
+      "file": "atlas/deadlift.hip_angle.high.left.mp3",
+      "hash": "675f8471dfaa"
+    },
+    "atlas.deadlift.hip_angle.high.right": {
+      "dur_ms": 2856,
+      "file": "atlas/deadlift.hip_angle.high.right.mp3",
+      "hash": "675f8471dfaa"
+    },
+    "atlas.deadlift.hip_angle.low.left": {
+      "dur_ms": 2064,
+      "file": "atlas/deadlift.hip_angle.low.left.mp3",
+      "hash": "a886112327f5"
+    },
+    "atlas.deadlift.hip_angle.low.right": {
+      "dur_ms": 2064,
+      "file": "atlas/deadlift.hip_angle.low.right.mp3",
+      "hash": "a886112327f5"
+    },
+    "atlas.deadlift.knee_angle.high.left": {
+      "dur_ms": 2904,
+      "file": "atlas/deadlift.knee_angle.high.left.mp3",
+      "hash": "48e9d3c71920"
+    },
+    "atlas.deadlift.knee_angle.high.right": {
+      "dur_ms": 2904,
+      "file": "atlas/deadlift.knee_angle.high.right.mp3",
+      "hash": "48e9d3c71920"
+    },
+    "atlas.deadlift.knee_angle.low.left": {
+      "dur_ms": 2640,
+      "file": "atlas/deadlift.knee_angle.low.left.mp3",
+      "hash": "66193e398b63"
+    },
+    "atlas.deadlift.knee_angle.low.right": {
+      "dur_ms": 2640,
+      "file": "atlas/deadlift.knee_angle.low.right.mp3",
+      "hash": "66193e398b63"
+    },
+    "atlas.front_raise.elbow_angle.high.left": {
+      "dur_ms": 2424,
+      "file": "atlas/front_raise.elbow_angle.high.left.mp3",
+      "hash": "3f31cde6f089"
+    },
+    "atlas.front_raise.elbow_angle.high.right": {
+      "dur_ms": 2424,
+      "file": "atlas/front_raise.elbow_angle.high.right.mp3",
+      "hash": "3f31cde6f089"
+    },
+    "atlas.front_raise.elbow_angle.low.left": {
+      "dur_ms": 2520,
+      "file": "atlas/front_raise.elbow_angle.low.left.mp3",
+      "hash": "c6d1f2f43fdb"
+    },
+    "atlas.front_raise.elbow_angle.low.right": {
+      "dur_ms": 2520,
+      "file": "atlas/front_raise.elbow_angle.low.right.mp3",
+      "hash": "c6d1f2f43fdb"
+    },
+    "atlas.front_raise.shoulder_angle.high.left": {
+      "dur_ms": 2976,
+      "file": "atlas/front_raise.shoulder_angle.high.left.mp3",
+      "hash": "091372586cd8"
+    },
+    "atlas.front_raise.shoulder_angle.high.right": {
+      "dur_ms": 2976,
+      "file": "atlas/front_raise.shoulder_angle.high.right.mp3",
+      "hash": "091372586cd8"
+    },
+    "atlas.front_raise.shoulder_angle.low.left": {
+      "dur_ms": 2856,
+      "file": "atlas/front_raise.shoulder_angle.low.left.mp3",
+      "hash": "062b88c20b72"
+    },
+    "atlas.front_raise.shoulder_angle.low.right": {
+      "dur_ms": 2856,
+      "file": "atlas/front_raise.shoulder_angle.low.right.mp3",
+      "hash": "062b88c20b72"
+    },
+    "atlas.insufficient_confidence": {
+      "dur_ms": 2904,
+      "file": "atlas/insufficient_confidence.mp3",
+      "hash": "d09168ce270d"
+    },
+    "atlas.mismatch": {
+      "dur_ms": 2856,
+      "file": "atlas/mismatch.mp3",
+      "hash": "4b5bc5bd02db"
+    },
+    "atlas.overhead_triceps.elbow_angle.high.left": {
+      "dur_ms": 2400,
+      "file": "atlas/overhead_triceps.elbow_angle.high.left.mp3",
+      "hash": "fb183747ada9"
+    },
+    "atlas.overhead_triceps.elbow_angle.high.right": {
+      "dur_ms": 2400,
+      "file": "atlas/overhead_triceps.elbow_angle.high.right.mp3",
+      "hash": "fb183747ada9"
+    },
+    "atlas.overhead_triceps.elbow_angle.low.left": {
+      "dur_ms": 2376,
+      "file": "atlas/overhead_triceps.elbow_angle.low.left.mp3",
+      "hash": "5ff95fa130a7"
+    },
+    "atlas.overhead_triceps.elbow_angle.low.right": {
+      "dur_ms": 2376,
+      "file": "atlas/overhead_triceps.elbow_angle.low.right.mp3",
+      "hash": "5ff95fa130a7"
+    },
+    "atlas.overhead_triceps.shoulder_angle.high.left": {
+      "dur_ms": 2040,
+      "file": "atlas/overhead_triceps.shoulder_angle.high.left.mp3",
+      "hash": "f9551b833c98"
+    },
+    "atlas.overhead_triceps.shoulder_angle.high.right": {
+      "dur_ms": 2040,
+      "file": "atlas/overhead_triceps.shoulder_angle.high.right.mp3",
+      "hash": "f9551b833c98"
+    },
+    "atlas.overhead_triceps.shoulder_angle.low.left": {
+      "dur_ms": 2736,
+      "file": "atlas/overhead_triceps.shoulder_angle.low.left.mp3",
+      "hash": "28fc328c6e8c"
+    },
+    "atlas.overhead_triceps.shoulder_angle.low.right": {
+      "dur_ms": 2736,
+      "file": "atlas/overhead_triceps.shoulder_angle.low.right.mp3",
+      "hash": "28fc328c6e8c"
+    },
+    "atlas.squat.hip_angle.high.left": {
+      "dur_ms": 2328,
+      "file": "atlas/squat.hip_angle.high.left.mp3",
+      "hash": "3e5d17e99f46"
+    },
+    "atlas.squat.hip_angle.high.right": {
+      "dur_ms": 2328,
+      "file": "atlas/squat.hip_angle.high.right.mp3",
+      "hash": "3e5d17e99f46"
+    },
+    "atlas.squat.hip_angle.low.left": {
+      "dur_ms": 2040,
+      "file": "atlas/squat.hip_angle.low.left.mp3",
+      "hash": "5c7bdfa6519f"
+    },
+    "atlas.squat.hip_angle.low.right": {
+      "dur_ms": 2040,
+      "file": "atlas/squat.hip_angle.low.right.mp3",
+      "hash": "5c7bdfa6519f"
+    },
+    "atlas.squat.knee_angle.high.left": {
+      "dur_ms": 2592,
+      "file": "atlas/squat.knee_angle.high.left.mp3",
+      "hash": "dd93ff823b59"
+    },
+    "atlas.squat.knee_angle.high.right": {
+      "dur_ms": 2592,
+      "file": "atlas/squat.knee_angle.high.right.mp3",
+      "hash": "dd93ff823b59"
+    },
+    "atlas.squat.knee_angle.low.left": {
+      "dur_ms": 2664,
+      "file": "atlas/squat.knee_angle.low.left.mp3",
+      "hash": "3387e4bb1175"
+    },
+    "atlas.squat.knee_angle.low.right": {
+      "dur_ms": 2664,
+      "file": "atlas/squat.knee_angle.low.right.mp3",
+      "hash": "3387e4bb1175"
+    },
+    "atlas.wrong_orientation": {
+      "dur_ms": 2688,
+      "file": "atlas/wrong_orientation.mp3",
+      "hash": "15389f4b25ee"
+    },
+    "forge.bench.elbow_angle.high.left": {
+      "dur_ms": 2568,
+      "file": "forge/bench.elbow_angle.high.left.mp3",
+      "hash": "92e0bf02f708"
+    },
+    "forge.bench.elbow_angle.high.right": {
+      "dur_ms": 2568,
+      "file": "forge/bench.elbow_angle.high.right.mp3",
+      "hash": "92e0bf02f708"
+    },
+    "forge.bench.elbow_angle.low.left": {
+      "dur_ms": 2304,
+      "file": "forge/bench.elbow_angle.low.left.mp3",
+      "hash": "47a12f5e13dd"
+    },
+    "forge.bench.elbow_angle.low.right": {
+      "dur_ms": 2304,
+      "file": "forge/bench.elbow_angle.low.right.mp3",
+      "hash": "47a12f5e13dd"
+    },
+    "forge.bench.shoulder_angle.high.left": {
+      "dur_ms": 2520,
+      "file": "forge/bench.shoulder_angle.high.left.mp3",
+      "hash": "30bf7a2acbed"
+    },
+    "forge.bench.shoulder_angle.high.right": {
+      "dur_ms": 2520,
+      "file": "forge/bench.shoulder_angle.high.right.mp3",
+      "hash": "30bf7a2acbed"
+    },
+    "forge.bench.shoulder_angle.low.left": {
+      "dur_ms": 3648,
+      "file": "forge/bench.shoulder_angle.low.left.mp3",
+      "hash": "b551f120c473"
+    },
+    "forge.bench.shoulder_angle.low.right": {
+      "dur_ms": 3648,
+      "file": "forge/bench.shoulder_angle.low.right.mp3",
+      "hash": "b551f120c473"
+    },
+    "forge.curl.elbow_angle.high.left": {
+      "dur_ms": 2616,
+      "file": "forge/curl.elbow_angle.high.left.mp3",
+      "hash": "ae320ae89acd"
+    },
+    "forge.curl.elbow_angle.high.right": {
+      "dur_ms": 2616,
+      "file": "forge/curl.elbow_angle.high.right.mp3",
+      "hash": "ae320ae89acd"
+    },
+    "forge.curl.elbow_angle.low.left": {
+      "dur_ms": 3288,
+      "file": "forge/curl.elbow_angle.low.left.mp3",
+      "hash": "c65472f7af29"
+    },
+    "forge.curl.elbow_angle.low.right": {
+      "dur_ms": 3288,
+      "file": "forge/curl.elbow_angle.low.right.mp3",
+      "hash": "c65472f7af29"
+    },
+    "forge.deadlift.hip_angle.high.left": {
+      "dur_ms": 2328,
+      "file": "forge/deadlift.hip_angle.high.left.mp3",
+      "hash": "b70c8b6d539b"
+    },
+    "forge.deadlift.hip_angle.high.right": {
+      "dur_ms": 2328,
+      "file": "forge/deadlift.hip_angle.high.right.mp3",
+      "hash": "b70c8b6d539b"
+    },
+    "forge.deadlift.hip_angle.low.left": {
+      "dur_ms": 3456,
+      "file": "forge/deadlift.hip_angle.low.left.mp3",
+      "hash": "1d3c1b5daf12"
+    },
+    "forge.deadlift.hip_angle.low.right": {
+      "dur_ms": 3456,
+      "file": "forge/deadlift.hip_angle.low.right.mp3",
+      "hash": "1d3c1b5daf12"
+    },
+    "forge.deadlift.knee_angle.high.left": {
+      "dur_ms": 2784,
+      "file": "forge/deadlift.knee_angle.high.left.mp3",
+      "hash": "6b5cf75eadfd"
+    },
+    "forge.deadlift.knee_angle.high.right": {
+      "dur_ms": 2784,
+      "file": "forge/deadlift.knee_angle.high.right.mp3",
+      "hash": "6b5cf75eadfd"
+    },
+    "forge.deadlift.knee_angle.low.left": {
+      "dur_ms": 2688,
+      "file": "forge/deadlift.knee_angle.low.left.mp3",
+      "hash": "016eec7721b2"
+    },
+    "forge.deadlift.knee_angle.low.right": {
+      "dur_ms": 2688,
+      "file": "forge/deadlift.knee_angle.low.right.mp3",
+      "hash": "016eec7721b2"
+    },
+    "forge.front_raise.elbow_angle.high.left": {
+      "dur_ms": 2664,
+      "file": "forge/front_raise.elbow_angle.high.left.mp3",
+      "hash": "b54b01497d89"
+    },
+    "forge.front_raise.elbow_angle.high.right": {
+      "dur_ms": 2664,
+      "file": "forge/front_raise.elbow_angle.high.right.mp3",
+      "hash": "b54b01497d89"
+    },
+    "forge.front_raise.elbow_angle.low.left": {
+      "dur_ms": 2784,
+      "file": "forge/front_raise.elbow_angle.low.left.mp3",
+      "hash": "cee5e6cfff95"
+    },
+    "forge.front_raise.elbow_angle.low.right": {
+      "dur_ms": 2784,
+      "file": "forge/front_raise.elbow_angle.low.right.mp3",
+      "hash": "cee5e6cfff95"
+    },
+    "forge.front_raise.shoulder_angle.high.left": {
+      "dur_ms": 3168,
+      "file": "forge/front_raise.shoulder_angle.high.left.mp3",
+      "hash": "aab36b7e2653"
+    },
+    "forge.front_raise.shoulder_angle.high.right": {
+      "dur_ms": 3168,
+      "file": "forge/front_raise.shoulder_angle.high.right.mp3",
+      "hash": "aab36b7e2653"
+    },
+    "forge.front_raise.shoulder_angle.low.left": {
+      "dur_ms": 2712,
+      "file": "forge/front_raise.shoulder_angle.low.left.mp3",
+      "hash": "0eb7d8838265"
+    },
+    "forge.front_raise.shoulder_angle.low.right": {
+      "dur_ms": 2712,
+      "file": "forge/front_raise.shoulder_angle.low.right.mp3",
+      "hash": "0eb7d8838265"
+    },
+    "forge.insufficient_confidence": {
+      "dur_ms": 2376,
+      "file": "forge/insufficient_confidence.mp3",
+      "hash": "6cc2d136a06d"
+    },
+    "forge.mismatch": {
+      "dur_ms": 3048,
+      "file": "forge/mismatch.mp3",
+      "hash": "341120909bcd"
+    },
+    "forge.overhead_triceps.elbow_angle.high.left": {
+      "dur_ms": 3144,
+      "file": "forge/overhead_triceps.elbow_angle.high.left.mp3",
+      "hash": "35a7323fc466"
+    },
+    "forge.overhead_triceps.elbow_angle.high.right": {
+      "dur_ms": 3144,
+      "file": "forge/overhead_triceps.elbow_angle.high.right.mp3",
+      "hash": "35a7323fc466"
+    },
+    "forge.overhead_triceps.elbow_angle.low.left": {
+      "dur_ms": 2832,
+      "file": "forge/overhead_triceps.elbow_angle.low.left.mp3",
+      "hash": "423bb5cdbefe"
+    },
+    "forge.overhead_triceps.elbow_angle.low.right": {
+      "dur_ms": 2832,
+      "file": "forge/overhead_triceps.elbow_angle.low.right.mp3",
+      "hash": "423bb5cdbefe"
+    },
+    "forge.overhead_triceps.shoulder_angle.high.left": {
+      "dur_ms": 2832,
+      "file": "forge/overhead_triceps.shoulder_angle.high.left.mp3",
+      "hash": "db054eaf2278"
+    },
+    "forge.overhead_triceps.shoulder_angle.high.right": {
+      "dur_ms": 2832,
+      "file": "forge/overhead_triceps.shoulder_angle.high.right.mp3",
+      "hash": "db054eaf2278"
+    },
+    "forge.overhead_triceps.shoulder_angle.low.left": {
+      "dur_ms": 3024,
+      "file": "forge/overhead_triceps.shoulder_angle.low.left.mp3",
+      "hash": "1ad2bc1fa360"
+    },
+    "forge.overhead_triceps.shoulder_angle.low.right": {
+      "dur_ms": 3024,
+      "file": "forge/overhead_triceps.shoulder_angle.low.right.mp3",
+      "hash": "1ad2bc1fa360"
+    },
+    "forge.squat.hip_angle.high.left": {
+      "dur_ms": 2760,
+      "file": "forge/squat.hip_angle.high.left.mp3",
+      "hash": "801c7fdee223"
+    },
+    "forge.squat.hip_angle.high.right": {
+      "dur_ms": 2760,
+      "file": "forge/squat.hip_angle.high.right.mp3",
+      "hash": "801c7fdee223"
+    },
+    "forge.squat.hip_angle.low.left": {
+      "dur_ms": 2712,
+      "file": "forge/squat.hip_angle.low.left.mp3",
+      "hash": "f02e7c889f09"
+    },
+    "forge.squat.hip_angle.low.right": {
+      "dur_ms": 2712,
+      "file": "forge/squat.hip_angle.low.right.mp3",
+      "hash": "f02e7c889f09"
+    },
+    "forge.squat.knee_angle.high.left": {
+      "dur_ms": 3240,
+      "file": "forge/squat.knee_angle.high.left.mp3",
+      "hash": "2d797958dd4a"
+    },
+    "forge.squat.knee_angle.high.right": {
+      "dur_ms": 3240,
+      "file": "forge/squat.knee_angle.high.right.mp3",
+      "hash": "2d797958dd4a"
+    },
+    "forge.squat.knee_angle.low.left": {
+      "dur_ms": 2808,
+      "file": "forge/squat.knee_angle.low.left.mp3",
+      "hash": "a7715b810a24"
+    },
+    "forge.squat.knee_angle.low.right": {
+      "dur_ms": 2808,
+      "file": "forge/squat.knee_angle.low.right.mp3",
+      "hash": "a7715b810a24"
+    },
+    "forge.wrong_orientation": {
+      "dur_ms": 2328,
+      "file": "forge/wrong_orientation.mp3",
+      "hash": "dc99a0d944bc"
+    },
+    "vector.bench.elbow_angle.high.left": {
+      "dur_ms": 5160,
+      "file": "vector/bench.elbow_angle.high.left.mp3",
+      "hash": "f36d46fb0146"
+    },
+    "vector.bench.elbow_angle.high.right": {
+      "dur_ms": 4992,
+      "file": "vector/bench.elbow_angle.high.right.mp3",
+      "hash": "f4d5031f4a50"
+    },
+    "vector.bench.elbow_angle.low.left": {
+      "dur_ms": 5208,
+      "file": "vector/bench.elbow_angle.low.left.mp3",
+      "hash": "2f8799594ad6"
+    },
+    "vector.bench.elbow_angle.low.right": {
+      "dur_ms": 4992,
+      "file": "vector/bench.elbow_angle.low.right.mp3",
+      "hash": "3a8a4ed694a8"
+    },
+    "vector.bench.shoulder_angle.high.left": {
+      "dur_ms": 4416,
+      "file": "vector/bench.shoulder_angle.high.left.mp3",
+      "hash": "42621ba4d346"
+    },
+    "vector.bench.shoulder_angle.high.right": {
+      "dur_ms": 4032,
+      "file": "vector/bench.shoulder_angle.high.right.mp3",
+      "hash": "0aa5a30854ad"
+    },
+    "vector.bench.shoulder_angle.low.left": {
+      "dur_ms": 3456,
+      "file": "vector/bench.shoulder_angle.low.left.mp3",
+      "hash": "65ac6c0173b2"
+    },
+    "vector.bench.shoulder_angle.low.right": {
+      "dur_ms": 3120,
+      "file": "vector/bench.shoulder_angle.low.right.mp3",
+      "hash": "871f60189f8b"
+    },
+    "vector.curl.elbow_angle.high.left": {
+      "dur_ms": 3456,
+      "file": "vector/curl.elbow_angle.high.left.mp3",
+      "hash": "169067c5273b"
+    },
+    "vector.curl.elbow_angle.high.right": {
+      "dur_ms": 3192,
+      "file": "vector/curl.elbow_angle.high.right.mp3",
+      "hash": "41136c19fe0e"
+    },
+    "vector.curl.elbow_angle.low.left": {
+      "dur_ms": 4512,
+      "file": "vector/curl.elbow_angle.low.left.mp3",
+      "hash": "71a39533d4eb"
+    },
+    "vector.curl.elbow_angle.low.right": {
+      "dur_ms": 4200,
+      "file": "vector/curl.elbow_angle.low.right.mp3",
+      "hash": "1527efcbd81e"
+    },
+    "vector.deadlift.hip_angle.high.left": {
+      "dur_ms": 3552,
+      "file": "vector/deadlift.hip_angle.high.left.mp3",
+      "hash": "85e26e05bcc0"
+    },
+    "vector.deadlift.hip_angle.high.right": {
+      "dur_ms": 3264,
+      "file": "vector/deadlift.hip_angle.high.right.mp3",
+      "hash": "fbdd664fb8b4"
+    },
+    "vector.deadlift.hip_angle.low.left": {
+      "dur_ms": 3936,
+      "file": "vector/deadlift.hip_angle.low.left.mp3",
+      "hash": "26c03b3d762f"
+    },
+    "vector.deadlift.hip_angle.low.right": {
+      "dur_ms": 3720,
+      "file": "vector/deadlift.hip_angle.low.right.mp3",
+      "hash": "96fb1674b33f"
+    },
+    "vector.deadlift.knee_angle.high.left": {
+      "dur_ms": 4344,
+      "file": "vector/deadlift.knee_angle.high.left.mp3",
+      "hash": "8dfb4955080f"
+    },
+    "vector.deadlift.knee_angle.high.right": {
+      "dur_ms": 4104,
+      "file": "vector/deadlift.knee_angle.high.right.mp3",
+      "hash": "0970eed341c9"
+    },
+    "vector.deadlift.knee_angle.low.left": {
+      "dur_ms": 4416,
+      "file": "vector/deadlift.knee_angle.low.left.mp3",
+      "hash": "48c1f47d021a"
+    },
+    "vector.deadlift.knee_angle.low.right": {
+      "dur_ms": 4224,
+      "file": "vector/deadlift.knee_angle.low.right.mp3",
+      "hash": "3442cda353f1"
+    },
+    "vector.front_raise.elbow_angle.high.left": {
+      "dur_ms": 4296,
+      "file": "vector/front_raise.elbow_angle.high.left.mp3",
+      "hash": "fe17b908a0ee"
+    },
+    "vector.front_raise.elbow_angle.high.right": {
+      "dur_ms": 4128,
+      "file": "vector/front_raise.elbow_angle.high.right.mp3",
+      "hash": "890972d829f5"
+    },
+    "vector.front_raise.elbow_angle.low.left": {
+      "dur_ms": 4464,
+      "file": "vector/front_raise.elbow_angle.low.left.mp3",
+      "hash": "e09f25d8e650"
+    },
+    "vector.front_raise.elbow_angle.low.right": {
+      "dur_ms": 4296,
+      "file": "vector/front_raise.elbow_angle.low.right.mp3",
+      "hash": "cc5d58a35307"
+    },
+    "vector.front_raise.shoulder_angle.high.left": {
+      "dur_ms": 4416,
+      "file": "vector/front_raise.shoulder_angle.high.left.mp3",
+      "hash": "e3bdbc17f27c"
+    },
+    "vector.front_raise.shoulder_angle.high.right": {
+      "dur_ms": 4248,
+      "file": "vector/front_raise.shoulder_angle.high.right.mp3",
+      "hash": "33bf7a6efd8e"
+    },
+    "vector.front_raise.shoulder_angle.low.left": {
+      "dur_ms": 4536,
+      "file": "vector/front_raise.shoulder_angle.low.left.mp3",
+      "hash": "7716b23e0b54"
+    },
+    "vector.front_raise.shoulder_angle.low.right": {
+      "dur_ms": 4368,
+      "file": "vector/front_raise.shoulder_angle.low.right.mp3",
+      "hash": "12d947753257"
+    },
+    "vector.insufficient_confidence": {
+      "dur_ms": 4464,
+      "file": "vector/insufficient_confidence.mp3",
+      "hash": "c62fbec5bcda"
+    },
+    "vector.mismatch": {
+      "dur_ms": 5328,
+      "file": "vector/mismatch.mp3",
+      "hash": "8a02b612826e"
+    },
+    "vector.overhead_triceps.elbow_angle.high.left": {
+      "dur_ms": 4728,
+      "file": "vector/overhead_triceps.elbow_angle.high.left.mp3",
+      "hash": "4d1910a897f1"
+    },
+    "vector.overhead_triceps.elbow_angle.high.right": {
+      "dur_ms": 4536,
+      "file": "vector/overhead_triceps.elbow_angle.high.right.mp3",
+      "hash": "881e356b542b"
+    },
+    "vector.overhead_triceps.elbow_angle.low.left": {
+      "dur_ms": 4056,
+      "file": "vector/overhead_triceps.elbow_angle.low.left.mp3",
+      "hash": "b131a3ee4d8f"
+    },
+    "vector.overhead_triceps.elbow_angle.low.right": {
+      "dur_ms": 3696,
+      "file": "vector/overhead_triceps.elbow_angle.low.right.mp3",
+      "hash": "dc50ec81dc7b"
+    },
+    "vector.overhead_triceps.shoulder_angle.high.left": {
+      "dur_ms": 3408,
+      "file": "vector/overhead_triceps.shoulder_angle.high.left.mp3",
+      "hash": "0e2c41a44d37"
+    },
+    "vector.overhead_triceps.shoulder_angle.high.right": {
+      "dur_ms": 3048,
+      "file": "vector/overhead_triceps.shoulder_angle.high.right.mp3",
+      "hash": "0dc9d47cc516"
+    },
+    "vector.overhead_triceps.shoulder_angle.low.left": {
+      "dur_ms": 3504,
+      "file": "vector/overhead_triceps.shoulder_angle.low.left.mp3",
+      "hash": "dedd226c68ec"
+    },
+    "vector.overhead_triceps.shoulder_angle.low.right": {
+      "dur_ms": 3048,
+      "file": "vector/overhead_triceps.shoulder_angle.low.right.mp3",
+      "hash": "4f895cc23d52"
+    },
+    "vector.squat.hip_angle.high.left": {
+      "dur_ms": 4224,
+      "file": "vector/squat.hip_angle.high.left.mp3",
+      "hash": "9f337151131c"
+    },
+    "vector.squat.hip_angle.high.right": {
+      "dur_ms": 4032,
+      "file": "vector/squat.hip_angle.high.right.mp3",
+      "hash": "e1c391f38bfa"
+    },
+    "vector.squat.hip_angle.low.left": {
+      "dur_ms": 3720,
+      "file": "vector/squat.hip_angle.low.left.mp3",
+      "hash": "14e03a11358b"
+    },
+    "vector.squat.hip_angle.low.right": {
+      "dur_ms": 3360,
+      "file": "vector/squat.hip_angle.low.right.mp3",
+      "hash": "5daaa6062c61"
+    },
+    "vector.squat.knee_angle.high.left": {
+      "dur_ms": 3912,
+      "file": "vector/squat.knee_angle.high.left.mp3",
+      "hash": "1a367f4dae34"
+    },
+    "vector.squat.knee_angle.high.right": {
+      "dur_ms": 3648,
+      "file": "vector/squat.knee_angle.high.right.mp3",
+      "hash": "c9a5fad61ebc"
+    },
+    "vector.squat.knee_angle.low.left": {
+      "dur_ms": 3864,
+      "file": "vector/squat.knee_angle.low.left.mp3",
+      "hash": "3b0c3d4ee93c"
+    },
+    "vector.squat.knee_angle.low.right": {
+      "dur_ms": 3720,
+      "file": "vector/squat.knee_angle.low.right.mp3",
+      "hash": "b247c952d59b"
+    },
+    "vector.wrong_orientation": {
+      "dur_ms": 5904,
+      "file": "vector/wrong_orientation.mp3",
+      "hash": "0a3248bc4e69"
+    }
+  },
+  "faults": {
+    "bench::Flare elbows slightly out": "bench.shoulder_angle.high",
+    "bench::Lower bar all the way down": "bench.elbow_angle.low",
+    "bench::Press to full lockout": "bench.elbow_angle.high",
+    "bench::Tuck elbows closer in": "bench.shoulder_angle.low",
+    "curl::Curl higher for peak squeeze": "curl.elbow_angle.high",
+    "curl::Lower to full arm extension": "curl.elbow_angle.low",
+    "deadlift::Bend knees to engage legs": "deadlift.knee_angle.high",
+    "deadlift::Keep back flat and neutral": "deadlift.hip_angle.low",
+    "deadlift::Keep shins vertical": "deadlift.knee_angle.low",
+    "deadlift::Push hips back further": "deadlift.hip_angle.high",
+    "front_raise::Keep arms nearly straight": "front_raise.elbow_angle.low",
+    "front_raise::Raise arms to shoulder height": "front_raise.shoulder_angle.low",
+    "front_raise::Soften your elbows slightly": "front_raise.elbow_angle.high",
+    "front_raise::Stop at shoulder height": "front_raise.shoulder_angle.high",
+    "overhead_triceps::Extend to full lockout": "overhead_triceps.elbow_angle.high",
+    "overhead_triceps::Keep elbows pointing up": "overhead_triceps.shoulder_angle.low",
+    "overhead_triceps::Stretch deeper behind your head": "overhead_triceps.elbow_angle.low",
+    "overhead_triceps::Tuck elbows closer in": "overhead_triceps.shoulder_angle.high",
+    "squat::Drive knees out wider": "squat.knee_angle.low",
+    "squat::Hinge deeper at your hips": "squat.hip_angle.high",
+    "squat::Keep chest up and tall": "squat.hip_angle.low",
+    "squat::Squat deeper for full range": "squat.knee_angle.high"
+  },
+  "version": 2
 }

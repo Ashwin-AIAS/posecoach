@@ -22,6 +22,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
+from app.voice.manifest_schema import MANIFEST_SCHEMA_VERSION
 from app.voice.personas import PERSONA_KEYS, PERSONAS, PersonaKey
 
 logger = structlog.get_logger(__name__)
@@ -53,25 +54,51 @@ class PersonaOut(BaseModel):
 
 
 class ManifestEntry(BaseModel):
-    """One clip's entry in frontend/public/voice/manifest.json."""
+    """One clip's entry in frontend/public/voice/manifest.json's ``clips`` map."""
 
     file: str
     hash: str
     dur_ms: int
 
 
+class ManifestPayload(BaseModel):
+    """Top-level shape of frontend/public/voice/manifest.json (P29 S8).
+
+    ``clips``: cue-key (``{persona}.{fault_id}``) -> audio metadata (S2).
+    ``faults``: ``"{exercise}::{cue_text}"`` -> fault_id (S8) — the S1
+    ``app.voice.fault_taxonomy.CUE_TEXT_LOOKUP`` table, folded into this
+    already-fetched-and-cached manifest instead of a second route or a
+    second static asset (S8 decision — see the P29 spec doc's S8 notes).
+    ``version``: see ``app.voice.manifest_schema`` for what bumps it and why.
+    """
+
+    version: int
+    clips: dict[str, ManifestEntry]
+    faults: dict[str, str] = Field(default_factory=dict)
+
+
 @lru_cache(maxsize=1)
-def _load_manifest() -> dict[str, ManifestEntry]:
+def _load_manifest() -> ManifestPayload:
     """Read and parse manifest.json once per process.
 
     The manifest is regenerated only by a dev-time run of
     scripts/gen_voice_clips.py followed by a redeploy, so process-lifetime
-    caching is correct. Callers must not mutate the returned dict; tests
+    caching is correct. Callers must not mutate the returned object; tests
     that swap the file call ``_load_manifest.cache_clear()`` first.
     """
     with MANIFEST_PATH.open(encoding="utf-8") as f:
-        raw: dict[str, dict[str, object]] = json.load(f)
-    return {key: ManifestEntry.model_validate(value) for key, value in raw.items()}
+        raw: dict[str, object] = json.load(f)
+    payload = ManifestPayload.model_validate(raw)
+    if payload.version != MANIFEST_SCHEMA_VERSION:
+        # Ops signal, not a hard failure: the committed manifest wasn't
+        # regenerated after a schema bump. Distinct from (and orthogonal to)
+        # the frontend's own stale-HTTP-cache check on the same field.
+        logger.warning(
+            "voice_manifest_version_mismatch",
+            on_disk=payload.version,
+            expected=MANIFEST_SCHEMA_VERSION,
+        )
+    return payload
 
 
 @router.get("/personas", response_model=list[PersonaOut])
@@ -84,9 +111,9 @@ async def list_personas(response: Response) -> list[PersonaOut]:
     ]
 
 
-@router.get("/manifest", response_model=dict[str, ManifestEntry])
-async def get_manifest(response: Response) -> dict[str, ManifestEntry]:
-    """The cue-key -> {file, hash, dur_ms} manifest scripts/gen_voice_clips.py emits.
+@router.get("/manifest", response_model=ManifestPayload)
+async def get_manifest(response: Response) -> ManifestPayload:
+    """The {version, clips, faults} manifest scripts/gen_voice_clips.py emits.
 
     404s rather than 500s when the manifest hasn't been generated yet (a
     fresh checkout before S2, or a stripped test environment) — mirrors

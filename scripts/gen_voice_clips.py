@@ -38,6 +38,8 @@ from typing import Protocol
 import structlog
 
 from app.voice.clip_plan import ClipSpec, build_clip_plan
+from app.voice.fault_taxonomy import CUE_TEXT_LOOKUP
+from app.voice.manifest_schema import MANIFEST_SCHEMA_VERSION
 from app.voice.personas import PERSONA_KEYS, PersonaKey
 from app.voice.schemas import load_lines_file
 from app.voice.voice_ids import VoiceIdsFile, is_placeholder, load_voice_ids
@@ -190,19 +192,45 @@ def cue_key(clip: ClipSpec) -> str:
     return f"{clip.persona}.{clip.fault_id}"
 
 
-def load_manifest() -> dict[str, dict[str, object]]:
+def load_manifest() -> dict[str, object]:
+    """Load the on-disk envelope as-is: ``{version, clips, faults}`` (S8), or
+    a legacy flat pre-S8 manifest, or ``{}`` for a fresh checkout."""
     if MANIFEST_PATH.exists():
         with MANIFEST_PATH.open(encoding="utf-8") as f:
-            data: dict[str, dict[str, object]] = json.load(f)
+            data: dict[str, object] = json.load(f)
             return data
     return {}
 
 
-def save_manifest(manifest: dict[str, dict[str, object]]) -> None:
+def save_manifest(manifest: dict[str, object]) -> None:
     MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
     with MANIFEST_PATH.open("w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, sort_keys=True)
         f.write("\n")
+
+
+def _clips_section(envelope: dict[str, object]) -> dict[str, dict[str, object]]:
+    """Extract the ``clips`` cue-key -> entry sub-map from the on-disk
+    envelope. Empty for a fresh checkout (no manifest yet) or a legacy
+    pre-S8 flat manifest (no ``clips`` key at all) -- either way, every clip
+    is then correctly treated as needing (re)generation."""
+    raw = envelope.get("clips")
+    return raw if isinstance(raw, dict) else {}
+
+
+def faults_section() -> dict[str, str]:
+    """``"{exercise}::{cue_text}"`` -> fault_id (S8), for the manifest's
+    ``faults`` map.
+
+    Folds ``app.voice.fault_taxonomy.CUE_TEXT_LOOKUP`` (S1) into the
+    already-fetched-and-cached manifest.json so the client-side `cueArbiter`
+    can resolve an incoming WS cue string to a fault id without a second
+    route or a second static asset — an explicit S8 decision (see
+    docs/prompts/P29_VOICE_COACH_PERSONAS.md's S8 notes), not an
+    afterthought. Never affects a clip's hash (``clip_hash`` never reads
+    this), so regenerating it never invalidates cached audio.
+    """
+    return {f"{exercise}::{cue_text}": fault_id for (exercise, cue_text), fault_id in CUE_TEXT_LOOKUP.items()}
 
 
 @dataclass(frozen=True)
@@ -268,8 +296,9 @@ def main(argv: list[str] | None = None) -> int:
         plan = [c for c in plan if c.persona == persona_key]
 
     provider: TTSProvider = PROVIDERS[args.provider]()
-    manifest = load_manifest()
-    to_generate, cached = plan_generation(plan, provider, manifest)
+    envelope = load_manifest()
+    clips_manifest = _clips_section(envelope)
+    to_generate, cached = plan_generation(plan, provider, clips_manifest)
     total_chars = sum(len(pc.clip.text) for pc in to_generate)
 
     logger.info(
@@ -315,11 +344,17 @@ def main(argv: list[str] | None = None) -> int:
         out_path.write_bytes(audio)
         dur_ms = _mp3_duration_ms(audio, TARGET_BITRATE_KBPS)
         key = cue_key(planned.clip)
-        manifest[key] = {"file": planned.relpath.as_posix(), "hash": planned.hash, "dur_ms": dur_ms}
+        clips_manifest[key] = {"file": planned.relpath.as_posix(), "hash": planned.hash, "dur_ms": dur_ms}
         logger.info("voice_clip_generated", cue_key=key, dur_ms=dur_ms, bytes=len(audio))
 
-    if to_generate:
-        save_manifest(manifest)
+    # Always rewritten (S8), unlike the pre-S8 `if to_generate:` gate: the
+    # faults/version fields must stay fresh even on a run that regenerates
+    # zero audio clips, e.g. after a lines.yaml-independent fault-taxonomy
+    # change. Idempotent -- identical content on an unchanged rerun.
+    envelope["version"] = MANIFEST_SCHEMA_VERSION
+    envelope["clips"] = clips_manifest
+    envelope["faults"] = faults_section()
+    save_manifest(envelope)
     print(f"generated {len(to_generate)} clip(s); manifest at {MANIFEST_PATH}")
     return 0
 

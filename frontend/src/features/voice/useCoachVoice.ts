@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { apiJson } from "../../lib/api"
 
-import { DEFAULT_VERBOSITY, VERBOSITY_PRESETS, type VerbosityPreset } from "./cueArbiter"
+import { DEFAULT_VERBOSITY, VERBOSITY_PRESETS, type SuppressReason, type VerbosityPreset } from "./cueArbiter"
 import { DEFAULT_PERSONA, PERSONA_KEYS, PERSONAS, isPersonaKey, type PersonaKey, type PersonaMeta } from "./personas"
 import { PlaybackManager, type PlayOptions, type Severity, type VoiceManifest } from "./playbackManager"
 import { reportCueFired, reportCueSuppressed } from "./telemetry"
@@ -11,6 +11,26 @@ const PERSONA_STORAGE_KEY = "pc.voice.persona"
 const MUTED_STORAGE_KEY = "pc.voice.muted"
 const VERBOSITY_STORAGE_KEY = "pc.voice.verbosity"
 const HANDS_FREE_STORAGE_KEY = "pc.voice.handsfree"
+
+/**
+ * Must match `app.voice.manifest_schema.MANIFEST_SCHEMA_VERSION` (P29 S8).
+ * A fetched manifest with any other version is treated exactly like "not
+ * generated yet" — most commonly a stale `Cache-Control: max-age=86400` copy
+ * of the old flat (pre-S8) shape served right after a deploy.
+ */
+const EXPECTED_MANIFEST_VERSION = 2
+
+/** Wire shape of `GET /api/v1/voice/manifest` — see `app/voice/router.py`'s `ManifestPayload`. */
+interface ManifestPayload {
+  readonly version: number
+  readonly clips: VoiceManifest
+  /** `"{exercise}::{cueText}"` -> template fault id (S1's lookup, folded into this manifest by S8). */
+  readonly faults: Readonly<Record<string, string>>
+}
+
+function faultLookupKey(exercise: string, cueText: string): string {
+  return `${exercise}::${cueText}`
+}
 
 function readStoredPersona(): PersonaKey {
   try {
@@ -79,6 +99,15 @@ export interface UseCoachVoiceResult {
    */
   readonly play: (faultId: string, options: PlayOptions) => boolean
   /**
+   * Resolve a WS frame's raw cue sentence to the S1 template fault id, scoped
+   * to the current exercise (P29 S8 — spec §5's cue-key format's `fault_id`
+   * half). `null` when the cue text has no lookup entry — an out-of-scope
+   * exercise (`app/voice/fault_taxonomy.py`'s `SCOPED_EXERCISES`), not an
+   * error. The returned id is side-agnostic; resolving the side is a
+   * separate step using the frame's `worst_joint` (see `cueBridge.ts`).
+   */
+  readonly resolveFaultId: (exercise: string, cueText: string) => string | null
+  /**
    * Report a cue the arbiter decided to speak, for the thesis metrics in
    * spec §11 (`voice_cue_fired` / `voice_cue_latency_ms`, S7). Persona is
    * filled in automatically from the current selection. Fire-and-forget —
@@ -86,7 +115,7 @@ export interface UseCoachVoiceResult {
    */
   readonly reportFired: (faultId: string, severity: Severity, latencyMs?: number) => void
   /** Report a cue the arbiter suppressed, and why (S7's `voice_cue_suppressed`). */
-  readonly reportSuppressed: (faultId: string, reason: string) => void
+  readonly reportSuppressed: (faultId: string, reason: SuppressReason) => void
 }
 
 /**
@@ -108,6 +137,7 @@ export interface UseCoachVoiceResult {
  */
 export function useCoachVoice(): UseCoachVoiceResult {
   const [manifest, setManifest] = useState<VoiceManifest>({})
+  const [faults, setFaults] = useState<Readonly<Record<string, string>>>({})
   const [ready, setReady] = useState(false)
   const [persona, setPersonaState] = useState<PersonaKey>(readStoredPersona)
   const [muted, setMutedState] = useState<boolean>(readStoredMuted)
@@ -117,11 +147,19 @@ export function useCoachVoice(): UseCoachVoiceResult {
 
   useEffect(() => {
     let cancelled = false
-    apiJson<VoiceManifest>("/api/v1/voice/manifest")
+    apiJson<ManifestPayload>("/api/v1/voice/manifest")
       .then((data) => {
         if (cancelled) return
-        managerRef.current = new PlaybackManager({ manifest: data })
-        setManifest(data)
+        if (data.version !== EXPECTED_MANIFEST_VERSION) {
+          // Stale HTTP-cached copy of an old (or, in principle, a future)
+          // shape this build doesn't understand — treated exactly like "no
+          // manifest yet": voice stays unavailable, CueToast still shows the
+          // text twin per §4, nothing crashes.
+          return
+        }
+        managerRef.current = new PlaybackManager({ manifest: data.clips })
+        setManifest(data.clips)
+        setFaults(data.faults)
         setReady(true)
       })
       .catch(() => {
@@ -182,6 +220,13 @@ export function useCoachVoice(): UseCoachVoiceResult {
 
   const personas = useMemo<readonly PersonaMeta[]>(() => PERSONA_KEYS.map((key) => PERSONAS[key]), [])
 
+  const resolveFaultId = useCallback(
+    (exercise: string, cueText: string): string | null => {
+      return faults[faultLookupKey(exercise, cueText)] ?? null
+    },
+    [faults],
+  )
+
   const reportFired = useCallback(
     (faultId: string, severity: Severity, latencyMs?: number): void => {
       reportCueFired({ faultId, severity, persona, latencyMs })
@@ -209,6 +254,7 @@ export function useCoachVoice(): UseCoachVoiceResult {
     handsFree,
     setHandsFree,
     play,
+    resolveFaultId,
     reportFired,
     reportSuppressed,
   }
