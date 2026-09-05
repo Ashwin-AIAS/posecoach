@@ -1,0 +1,68 @@
+/**
+ * P29 S6 — plain CSS animation for the voice boot card and cue toast.
+ *
+ * No framer-motion (spec §1 "No new animation dependency"). Every rule below
+ * animates only `transform`/`opacity` (plus `animation-delay`) so it stays
+ * on the compositor and never competes with the pose pipeline's paint
+ * budget — the same constraint UI-08's motion pass already applies
+ * elsewhere in this app.
+ *
+ * `prefers-reduced-motion` is deliberately NOT re-declared here.
+ * `src/index.css` already gates every `animation`/`transition` duration to
+ * ~0 for `*, *::before, *::after` project-wide (UI-00 → UI-10), and every
+ * selector below is a plain element using those same properties, so it is
+ * already covered by that one global rule.
+ */
+
+/* Persona chip staggered entrance (BootCard). Each chip sets `--i` (its
+   index) via inline style; `calc(var(--i) * 60ms)` fans the entrance out
+   without a distinct keyframe or delay per chip. */
+@keyframes voice-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.voice-persona-chip {
+  animation: voice-chip-in 240ms var(--ease-spring, ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* Cue toast enter/exit (CueToast). Exit is driven by a `.leaving` class the
+   component adds itself; the component removes the node on that
+   animation's `animationend`, per spec S6 ("Exit animation via a `.leaving`
+   class removed on `animationend`"). */
+@keyframes voice-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes voice-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.voice-cue-toast {
+  animation: voice-toast-in 220ms ease-out both;
+}
+
+.voice-cue-toast.leaving {
+  animation: voice-toast-out 200ms ease-in both;
+}
