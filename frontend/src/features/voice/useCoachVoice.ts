@@ -147,7 +147,17 @@ export function useCoachVoice(): UseCoachVoiceResult {
 
   useEffect(() => {
     let cancelled = false
-    apiJson<ManifestPayload>("/api/v1/voice/manifest")
+    const load = async (): Promise<ManifestPayload> => {
+      try {
+        return await apiJson<ManifestPayload>("/api/v1/voice/manifest")
+      } catch {
+        const res = await fetch("/voice/manifest.json")
+        if (!res.ok) throw new Error("Manifest not found")
+        return (await res.json()) as ManifestPayload
+      }
+    }
+
+    load()
       .then((data) => {
         if (cancelled) return
         if (data.version !== EXPECTED_MANIFEST_VERSION) {
