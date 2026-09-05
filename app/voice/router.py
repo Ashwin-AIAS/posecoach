@@ -16,10 +16,11 @@ never reintroduces that bug here.
 import json
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 import structlog
-from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Response, status
+from pydantic import BaseModel, Field
 
 from app.voice.personas import PERSONA_KEYS, PERSONAS, PersonaKey
 
@@ -96,3 +97,74 @@ async def get_manifest(response: Response) -> dict[str, ManifestEntry]:
         raise HTTPException(status_code=404, detail="voice manifest not found")
     response.headers["Cache-Control"] = _CACHE_CONTROL
     return _load_manifest()
+
+
+# ---------------------------------------------------------------------------
+# Cue telemetry (P29 S7) — thesis metrics §11: cue latency (p95 < 400ms),
+# cues per set, suppression rate. The arbiter (cueArbiter.ts) and the
+# playback core (playbackManager.ts) run entirely client-side, so this is the
+# one place they can reach structlog. No DB, no auth — a fire-and-forget beacon
+# logged for aggregate analysis, never persisted per-user. Cue events carry
+# fault id, severity, persona and timing only — no user content, no PII
+# beyond that (spec §11 "Privacy").
+# ---------------------------------------------------------------------------
+
+Severity = Literal["high", "medium", "low", "milestone"]
+CueEventKind = Literal["fired", "suppressed"]
+
+
+class VoiceCueEvent(BaseModel):
+    """One cue-arbiter decision, reported by `useCoachVoice`/`cueArbiter`.
+
+    ``latency_ms`` (rep-boundary -> audio start, spec §11) is only meaningful
+    for a ``fired`` event; a ``suppressed`` event never played anything, so
+    it carries ``reason`` instead.
+    """
+
+    event: CueEventKind
+    fault_id: str = Field(min_length=1, max_length=128)
+    persona: PersonaKey | None = None
+    severity: Severity | None = None
+    reason: str | None = Field(default=None, max_length=64)
+    latency_ms: float | None = Field(default=None, ge=0)
+
+
+class VoiceCueEventBatch(BaseModel):
+    """Request body for `POST /api/v1/voice/events` — a small batch, not a stream."""
+
+    events: list[VoiceCueEvent] = Field(min_length=1, max_length=50)
+
+
+@router.post("/events", status_code=status.HTTP_204_NO_CONTENT)
+async def record_cue_events(batch: VoiceCueEventBatch) -> Response:
+    """Log each cue-arbiter decision as a structlog event (spec §11 metrics).
+
+    Emits exactly the three event names the thesis pipeline greps for:
+    ``voice_cue_fired``, ``voice_cue_suppressed``, and (only when a fired
+    event carries one) ``voice_cue_latency_ms``. Never raises on a
+    malformed *value* within an otherwise-valid event — a lost beacon is a
+    missed data point, never a reason to break the coaching session that
+    sent it.
+    """
+    for event in batch.events:
+        if event.event == "fired":
+            logger.info(
+                "voice_cue_fired",
+                fault_id=event.fault_id,
+                severity=event.severity,
+                persona=event.persona,
+            )
+            if event.latency_ms is not None:
+                logger.info(
+                    "voice_cue_latency_ms",
+                    fault_id=event.fault_id,
+                    value=event.latency_ms,
+                )
+        else:
+            logger.info(
+                "voice_cue_suppressed",
+                fault_id=event.fault_id,
+                reason=event.reason,
+                persona=event.persona,
+            )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

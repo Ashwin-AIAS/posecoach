@@ -4,7 +4,8 @@ import { apiJson } from "../../lib/api"
 
 import { DEFAULT_VERBOSITY, VERBOSITY_PRESETS, type VerbosityPreset } from "./cueArbiter"
 import { DEFAULT_PERSONA, PERSONA_KEYS, PERSONAS, isPersonaKey, type PersonaKey, type PersonaMeta } from "./personas"
-import { PlaybackManager, type PlayOptions, type VoiceManifest } from "./playbackManager"
+import { PlaybackManager, type PlayOptions, type Severity, type VoiceManifest } from "./playbackManager"
+import { reportCueFired, reportCueSuppressed } from "./telemetry"
 
 const PERSONA_STORAGE_KEY = "pc.voice.persona"
 const MUTED_STORAGE_KEY = "pc.voice.muted"
@@ -77,6 +78,15 @@ export interface UseCoachVoiceResult {
    * arbitration yet; `cueArbiter.ts` (S5) will own *when* this gets called.
    */
   readonly play: (faultId: string, options: PlayOptions) => boolean
+  /**
+   * Report a cue the arbiter decided to speak, for the thesis metrics in
+   * spec §11 (`voice_cue_fired` / `voice_cue_latency_ms`, S7). Persona is
+   * filled in automatically from the current selection. Fire-and-forget —
+   * never throws, never awaited.
+   */
+  readonly reportFired: (faultId: string, severity: Severity, latencyMs?: number) => void
+  /** Report a cue the arbiter suppressed, and why (S7's `voice_cue_suppressed`). */
+  readonly reportSuppressed: (faultId: string, reason: string) => void
 }
 
 /**
@@ -172,6 +182,20 @@ export function useCoachVoice(): UseCoachVoiceResult {
 
   const personas = useMemo<readonly PersonaMeta[]>(() => PERSONA_KEYS.map((key) => PERSONAS[key]), [])
 
+  const reportFired = useCallback(
+    (faultId: string, severity: Severity, latencyMs?: number): void => {
+      reportCueFired({ faultId, severity, persona, latencyMs })
+    },
+    [persona],
+  )
+
+  const reportSuppressed = useCallback(
+    (faultId: string, reason: string): void => {
+      reportCueSuppressed({ faultId, reason, persona })
+    },
+    [persona],
+  )
+
   return {
     ready,
     manifest,
@@ -185,5 +209,7 @@ export function useCoachVoice(): UseCoachVoiceResult {
     handsFree,
     setHandsFree,
     play,
+    reportFired,
+    reportSuppressed,
   }
 }

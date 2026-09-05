@@ -96,3 +96,130 @@ async def test_get_manifest_reflects_the_real_committed_manifest(client: AsyncCl
     assert "atlas.mismatch" in body
     entry = body["atlas.mismatch"]
     assert set(entry) == {"file", "hash", "dur_ms"}
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/voice/events (P29 S7) — cue telemetry
+# ---------------------------------------------------------------------------
+
+
+class _RecordingLogger:
+    """Stand-in for the module's structlog logger — records (event, kwargs) calls.
+
+    Simpler and more robust than wiring caplog through structlog's processor
+    chain (this repo configures structlog for stdlib routing only in
+    `setup_logging()`, which tests never call) — patching the router's own
+    `logger` object is exactly what the code under test actually calls.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict[str, object]]] = []
+
+    def info(self, event: str, **kwargs: object) -> None:
+        self.calls.append((event, kwargs))
+
+
+@pytest.fixture
+def recording_logger(monkeypatch: pytest.MonkeyPatch) -> _RecordingLogger:
+    recorder = _RecordingLogger()
+    monkeypatch.setattr(voice_router_module, "logger", recorder)
+    return recorder
+
+
+async def test_record_cue_events_returns_204(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/v1/voice/events",
+        json={"events": [{"event": "fired", "fault_id": "squat.knee_angle.high", "severity": "high"}]},
+    )
+
+    assert resp.status_code == 204
+
+
+async def test_record_cue_events_logs_voice_cue_fired(
+    client: AsyncClient, recording_logger: _RecordingLogger
+) -> None:
+    await client.post(
+        "/api/v1/voice/events",
+        json={
+            "events": [
+                {
+                    "event": "fired",
+                    "fault_id": "squat.knee_angle.high",
+                    "severity": "high",
+                    "persona": "atlas",
+                }
+            ]
+        },
+    )
+
+    fired = [call for call in recording_logger.calls if call[0] == "voice_cue_fired"]
+    assert len(fired) == 1
+    _, kwargs = fired[0]
+    assert kwargs["fault_id"] == "squat.knee_angle.high"
+    assert kwargs["severity"] == "high"
+    assert kwargs["persona"] == "atlas"
+
+
+async def test_record_cue_events_logs_latency_only_when_present(
+    client: AsyncClient, recording_logger: _RecordingLogger
+) -> None:
+    await client.post(
+        "/api/v1/voice/events",
+        json={
+            "events": [
+                {"event": "fired", "fault_id": "curl.elbow_angle.low", "severity": "medium"},
+                {
+                    "event": "fired",
+                    "fault_id": "deadlift.hip_angle.high",
+                    "severity": "high",
+                    "latency_ms": 187.5,
+                },
+            ]
+        },
+    )
+
+    latency_calls = [call for call in recording_logger.calls if call[0] == "voice_cue_latency_ms"]
+    assert len(latency_calls) == 1
+    _, kwargs = latency_calls[0]
+    assert kwargs["fault_id"] == "deadlift.hip_angle.high"
+    assert kwargs["value"] == 187.5
+
+
+async def test_record_cue_events_logs_voice_cue_suppressed(
+    client: AsyncClient, recording_logger: _RecordingLogger
+) -> None:
+    await client.post(
+        "/api/v1/voice/events",
+        json={
+            "events": [
+                {
+                    "event": "suppressed",
+                    "fault_id": "bench.shoulder_angle.low",
+                    "reason": "fault_cooldown",
+                    "persona": "vector",
+                }
+            ]
+        },
+    )
+
+    suppressed = [call for call in recording_logger.calls if call[0] == "voice_cue_suppressed"]
+    assert len(suppressed) == 1
+    _, kwargs = suppressed[0]
+    assert kwargs["fault_id"] == "bench.shoulder_angle.low"
+    assert kwargs["reason"] == "fault_cooldown"
+    assert kwargs["persona"] == "vector"
+
+
+async def test_record_cue_events_rejects_empty_batch(client: AsyncClient) -> None:
+    resp = await client.post("/api/v1/voice/events", json={"events": []})
+
+    assert resp.status_code == 422
+
+
+async def test_record_cue_events_rejects_unknown_severity(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/v1/voice/events",
+        json={"events": [{"event": "fired", "fault_id": "squat.knee_angle.high", "severity": "extreme"}]},
+    )
+
+    assert resp.status_code == 422

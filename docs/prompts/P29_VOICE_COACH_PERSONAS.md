@@ -3,7 +3,7 @@
 **Place at:** `docs/prompts/P29_VOICE_COACH_PERSONAS.md`
 **Branch:** `feat/p29-voice-coach`
 **Depends on:** P23–P28 merged (PR #9), all four tabs live
-**Status:** spec — not started
+**Status:** S1–S7 implemented on `feat/p29-voice-coach` (not merged to `main`, not deployed to HF)
 
 ---
 
@@ -443,6 +443,43 @@ unchanged and passing.
 ```
 /goal the full backend pytest suite and the frontend vitest suite both pass with persona prompt fragments wired into the chatbot and structlog events voice_cue_fired, voice_cue_suppressed and voice_cue_latency_ms emitted, existing chatbot tests unmodified, ruff mypy tsc eslint all clean, or stop after 20 turns
 ```
+
+**Implementation notes (what S7 actually built, and what's still open):**
+
+- **Persona prompt fragments**: `app/chatbot/prompts.build_persona_system_prompt()` layers
+  a persona's tone fragment onto the right base prompt (`SYSTEM_PROMPT` /
+  `CONVERSATIONAL_SYSTEM_PROMPT` / `VISUAL_SYSTEM_PROMPT`, chosen the same way
+  the pre-P29 code already chose one). `ChatRequest` gained an optional
+  `persona` field; omitting it reproduces the exact pre-P29
+  `system_prompt_override` value byte-for-byte (verified in
+  `tests/test_chat_persona.py`), which is how the existing chatbot test files
+  stayed unmodified. A persona-selected turn is excluded from the answer
+  cache (`_is_cacheable`) since the persona changes the answer's text, not
+  just its grounding.
+- **Cue telemetry**: `POST /api/v1/voice/events` (`app/voice/router.py`)
+  logs `voice_cue_fired`, `voice_cue_suppressed`, and (only on a fired event
+  carrying one) `voice_cue_latency_ms` — exactly the three names spec §11's
+  metrics table names. Frontend side: `features/voice/telemetry.ts` (fire-
+  and-forget POST) plus `useCoachVoice`'s new `reportFired`/`reportSuppressed`
+  methods, which close over the current persona.
+- **Still open — deferred past S7, not silently dropped:**
+  - **Live wiring.** Nothing in the app yet calls `cueArbiter.evaluate()`
+    off the real WS rep-boundary stream, and nothing calls
+    `reportFired`/`reportSuppressed` in production. S6 already deferred
+    mounting `BootCard`/`CueToast` into the live Coach view; S7 adds the
+    telemetry *methods* those call sites will need, but doesn't add the
+    call sites themselves. This is the actual next stage's job.
+  - **Shared `voice_id` for RAG audio** and **"RAG audio suppressed while a
+    set is active"** are unimplemented because there is no RAG-answer TTS
+    subsystem in this codebase at all yet (the existing `speechSynthesis`
+    "Read aloud" button on chat messages is the browser's own generic voice,
+    unrelated to the Kokoro/ElevenLabs persona voices). Both items are
+    meaningful only once that subsystem exists — nothing to wire yet.
+  - **`CLAUDE.md`** (the checked-in, thesis-numbered doc) was deliberately
+    left untouched — P29 isn't part of the P01–P14 numbering it tracks; this
+    repo's convention keeps that kind of incremental feature progress in
+    `CLAUDE.local.md` instead (see its P29 section), which this stage did
+    update.
 
 ---
 
