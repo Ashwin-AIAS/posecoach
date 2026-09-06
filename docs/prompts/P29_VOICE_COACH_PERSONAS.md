@@ -3,7 +3,10 @@
 **Place at:** `docs/prompts/P29_VOICE_COACH_PERSONAS.md`
 **Branch:** `feat/p29-voice-coach`
 **Depends on:** P23–P28 merged (PR #9), all four tabs live
-**Status:** S1–S8 implemented on `feat/p29-voice-coach` (not merged to `main`, not deployed to HF)
+**Status:** ✅ Complete — S1–S8 done, verified live with a real camera, PR #30
+open `feat/p29-voice-coach` → `main` (not yet merged, not deployed to HF).
+Two known gaps carried forward, not silently dropped — see §8's S8 section
+and "Known gaps" below.
 
 ---
 
@@ -555,6 +558,39 @@ confirms no frozen file modified.
 suppressed during a set" remain unimplemented (no RAG-answer TTS subsystem
 exists yet, per S7's note). `CLAUDE.md` left untouched for the same reason
 as S7; `CLAUDE.local.md`'s P29 section updated instead.
+
+---
+
+## Known gaps (P29 is complete with these two carried forward, not silently dropped)
+
+1. **Milestone severity is unreachable from live data.** `"milestone"` exists
+   as a `Severity` type member (`playbackManager.ts`, `app/voice/router.py`),
+   a `CueToast` style (`bg-accent`), and a `hype`-preset allowed severity —
+   but no fault taxonomy entry, authored `lines.yaml` line, or generated
+   clip is a milestone, and `cueBridge.severityFromDeficit()` — the only
+   function that computes a real `Severity` from a live WS frame — can only
+   return `"high" | "medium" | "low"`. It is exercised only by unit tests
+   (synthetic `FaultCandidate`s) and the QA-only `voice-preview.html`
+   harness's fixture data. Reaching it for real would need a genuine
+   milestone-detection signal (a PR, a streak, a form-score jump) that
+   nothing in the app currently computes — out of scope until one exists.
+2. **RAG shared `voice_id`** (the chatbot's spoken answers reusing the
+   coaching persona's exact TTS voice) **and "RAG audio suppressed while a
+   set is active"** are unimplemented. Both are meaningless until a
+   RAG-answer TTS subsystem exists at all — the app's only current spoken
+   surface is the pre-rendered cue-clip bank (S1/S2); the existing
+   `speechSynthesis` "Read aloud" button on chat messages is the browser's
+   own generic voice, unrelated to Kokoro/ElevenLabs persona voices, and
+   was never in scope for this to touch.
+
+Separately (audited, not a gap): commit `255b5e8` ("fix: add static voice
+manifest fallback for offline and standalone dev") was made outside this
+stage process by an external tool. It was reviewed post hoc — no
+framer-motion introduced, no duplicate manifest data (the fallback reads the
+same on-disk file the API route reads, just via the static-file path), full
+gate re-run clean — and kept. See PR #30's description for the full
+disclosure and `useCoachVoice.ts`'s inline comment for the one real issue it
+introduces (it silently swallows the original API failure's cause).
 
 ---
 
