@@ -151,6 +151,21 @@ export function useCoachVoice(): UseCoachVoiceResult {
       try {
         return await apiJson<ManifestPayload>("/api/v1/voice/manifest")
       } catch {
+        // Fallback added outside the normal stage process (commit 255b5e8,
+        // reviewed and kept — see the P29 spec doc's S8 notes) for offline/
+        // standalone dev, where the backend API is unreachable but the
+        // static file (the same frontend/public/voice/manifest.json the API
+        // route itself reads — not a second copy) is still servable.
+        //
+        // This silently swallows the *original* API failure: any cause —
+        // a genuine 5xx from a running backend, a network blip, a CORS
+        // misconfig — falls through to this fetch with no distinction and
+        // no log. In production, if `/api/v1/voice/manifest` starts
+        // breaking for real users behind a working proxy, this fallback
+        // will very likely still succeed (the static file is served from
+        // the same origin) and mask the failure — voice keeps working, but
+        // nothing signals that the API route regressed. If that ever needs
+        // detecting, log the caught error here before falling through.
         const res = await fetch("/voice/manifest.json")
         if (!res.ok) throw new Error("Manifest not found")
         return (await res.json()) as ManifestPayload
