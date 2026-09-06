@@ -41,6 +41,9 @@ prometheus-client==0.21.0
 sentry-sdk[fastapi]==2.14.0      # Optional — set SENTRY_DSN to enable
 
 # ── Utilities ──────────────────────────────────────────────
+pyyaml==6.0.3                    # data/voice/lines.yaml (P29); already a transitive
+                                  # dep of chromadb/ultralytics — pinned directly now
+                                  # that app/voice reads it explicitly
 python-dotenv==1.0.1             # Load .env in dev
 httpx==0.28.1                    # Async HTTP client; >=0.28.1 required by google-genai 2.8.0
 pydantic[email]==2.9.2           # Request/response validation

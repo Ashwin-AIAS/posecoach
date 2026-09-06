@@ -22,6 +22,7 @@ CLAUDE.local.md
 # Data & Models (too large for git)
 data/kaggle/
 data/keypoints/
+data/corpus/
 models/*.pt
 !models/yolo_posecoach_v1.pt
 *.npy

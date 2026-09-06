@@ -30,6 +30,9 @@ from app.chatbot import router as chat_router
 from app.chatbot.prompts import (
     CONVERSATIONAL_SYSTEM_PROMPT,
     SAFETY_NOTE,
+    SYSTEM_PROMPT,
+    VISUAL_SYSTEM_PROMPT,
+    build_persona_system_prompt,
     build_smart_fallback,
     build_sources_footer,
     build_user_prompt,
@@ -37,6 +40,7 @@ from app.chatbot.prompts import (
 )
 from app.metrics import chat_requests_total
 from app.rate_limit import CHAT_RATE_LIMIT, limiter
+from app.voice.personas import PersonaKey
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
@@ -192,6 +196,14 @@ class ChatRequest(BaseModel):
         max_length=10,
         description="Previous conversation turns for multi-turn context",
     )
+    persona: PersonaKey | None = Field(
+        default=None,
+        description=(
+            "Selected voice-coach persona (P29) — shared state with the cue lane. "
+            "Shapes tone only via a system-prompt fragment; never alters retrieved "
+            "facts or safety behaviour."
+        ),
+    )
 
 
 def _sse_event(token: str, done: bool = False) -> str:
@@ -296,10 +308,43 @@ def _is_cacheable(payload: ChatRequest, conversational: bool) -> bool:
     """True if this turn may be served from / written to the answer cache.
 
     Personalized turns are excluded outright: a frame is user imagery, history
-    is that user's conversation, and small talk should stay varied. What is left
-    is a plain question keyed only by (query, exercise) — safe to share.
+    is that user's conversation, small talk should stay varied, and a selected
+    persona changes the answer's *text* (its tone), so a persona-flavoured
+    reply must never be replayed to a different user who picked (or has) no
+    persona. What is left is a plain, persona-less question keyed only by
+    (query, exercise) — safe to share.
     """
-    return not payload.frame and not payload.history and not conversational
+    return (
+        not payload.frame
+        and not payload.history
+        and not conversational
+        and payload.persona is None
+    )
+
+
+def _persona_system_prompt(
+    *, conversational: bool, has_frame: bool, persona: PersonaKey | None
+) -> str | None:
+    """The ``system_prompt_override`` sent to both LLM clients (P29 S7).
+
+    With no persona selected this reproduces the exact pre-P29 behaviour:
+    conversational turns get ``CONVERSATIONAL_SYSTEM_PROMPT`` explicitly,
+    everything else passes ``None`` so each client applies its own default
+    (``SYSTEM_PROMPT`` for Gemini; ``VISUAL_SYSTEM_PROMPT``-if-framed else
+    ``SYSTEM_PROMPT`` for Qwen) — existing chatbot tests exercise only this
+    path and are unaffected. A selected persona always sets an explicit
+    override (its tone fragment layered on the right base prompt) so it
+    applies regardless of provider or whether a frame is attached.
+    """
+    if persona is None:
+        return CONVERSATIONAL_SYSTEM_PROMPT if conversational else None
+    if conversational:
+        base = CONVERSATIONAL_SYSTEM_PROMPT
+    elif has_frame:
+        base = VISUAL_SYSTEM_PROMPT
+    else:
+        base = SYSTEM_PROMPT
+    return build_persona_system_prompt(base, persona)
 
 
 def _history_dicts(history: list[HistoryMessage] | None) -> list[dict[str, str]] | None:
@@ -369,10 +414,15 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
         exercise=payload.exercise,
         query_len=len(payload.query),
         history_turns=len(history) if history else 0,
+        persona=payload.persona,
     )
 
     # How the answer is grounded — known only once retrieval has settled.
     yield _sse_meta(source_mode)
+
+    system_prompt_override = _persona_system_prompt(
+        conversational=conversational, has_frame=has_frame, persona=payload.persona
+    )
 
     emitted_any = False
     # Everything the client receives for this answer, so a cache replay is
@@ -384,9 +434,7 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
                 prompt,
                 frame_b64=payload.frame,
                 history=history,
-                system_prompt_override=(
-                    CONVERSATIONAL_SYSTEM_PROMPT if conversational else None
-                ) if conversational else None,
+                system_prompt_override=system_prompt_override,
             ):
                 emitted_any = True
                 answer_parts.append(token)
@@ -397,9 +445,7 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
                 prompt,
                 executor=executor,
                 history=history,
-                system_prompt_override=(
-                    CONVERSATIONAL_SYSTEM_PROMPT if conversational else None
-                ),
+                system_prompt_override=system_prompt_override,
             ):
                 emitted_any = True
                 answer_parts.append(token)

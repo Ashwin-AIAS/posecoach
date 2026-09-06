@@ -39,6 +39,11 @@ import { TabBar } from "./components/TabBar"
 import type { TabKey } from "./components/TabBar"
 import { UserMenu } from "./components/UserMenu"
 import { Icon } from "./components/ui/Icon"
+import { BootCard } from "./features/voice/BootCard"
+import { CueToast } from "./features/voice/CueToast"
+import { isVoiceBootCardEnabled } from "./features/voice/flag"
+import { useCoachVoice } from "./features/voice/useCoachVoice"
+import { useVoiceCueBridge } from "./features/voice/useVoiceCueBridge"
 import { useAuth } from "./hooks/useAuth"
 import { useCamera } from "./hooks/useCamera"
 import { useCueVoice, isSpeechSupported } from "./hooks/useCueVoice"
@@ -57,6 +62,11 @@ const LATENCY_BUDGET_MS = 100
 // UI-11: resolved once at module load — see features/coach/overlay/flag.ts
 // (default on in dev, gated off in prod until explicitly cut over).
 const OVERLAY_NEON_ENABLED = isOverlayNeonEnabled()
+// P29 S8: resolved once at module load — see features/voice/flag.ts (default
+// on everywhere; the shared e2e dev server pins it off in playwright.config.ts
+// so the pre-P29 e2e suite's first click into the live view isn't blocked by
+// the boot card's full-screen backdrop).
+const VOICE_BOOT_CARD_ENABLED = isVoiceBootCardEnabled()
 
 /** Live inference-latency badge — proves the <100ms thesis metric on screen. */
 const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): JSX.Element {
@@ -167,6 +177,17 @@ export default function App(): JSX.Element {
   const stats = useSessionStats(pose.result)
   const topCue = pose.result?.cues?.[0]
   useCueVoice(topCue, voice)
+
+  // P29 S8: the voice-coach boot card / cue toast / arbitration bridge.
+  // `coachVoice` is a separate `useCoachVoice()` instance from the one
+  // SettingsPanel owns (S6 design — prefs sync only through localStorage,
+  // no shared context; the two screens are never mounted together).
+  // `useVoiceCueBridge` reads `pose.result`/`exercise` read-only, exactly
+  // like the pre-existing `useCueVoice` call above — usePoseStream.ts and
+  // useWebSocket.ts are untouched.
+  const coachVoice = useCoachVoice()
+  const [voiceBootDismissed, setVoiceBootDismissed] = useState(false)
+  const voiceBridge = useVoiceCueBridge({ result: pose.result, exercise, voice: coachVoice })
 
   // Lowest-scoring joint — only set when overall form is poor (no nagging on good reps).
   const worst = useMemo(
@@ -330,6 +351,25 @@ export default function App(): JSX.Element {
         <CoachAiSheet exercise={exercise} onClose={() => setCoachAiOpen(false)} />
       )}
 
+      {/* P29 S8: persona picker + browser-autoplay unmute gate. Shown the
+          first time the live view is entered this app session, then never
+          again (voiceBootDismissed never resets) — dismissing either way
+          ("Stay muted" or "Unmute") is a one-time choice, not a per-set
+          nag. Never forces sound on. */}
+      {VOICE_BOOT_CARD_ENABLED && view === "live" && !voiceBootDismissed && (
+        <BootCard
+          personas={coachVoice.personas}
+          persona={coachVoice.persona}
+          onSelectPersona={coachVoice.setPersona}
+          ready={coachVoice.ready}
+          onUnmute={() => {
+            coachVoice.setMuted(false)
+            setVoiceBootDismissed(true)
+          }}
+          onDismiss={() => setVoiceBootDismissed(true)}
+        />
+      )}
+
       {view === "home" ? (
         <Home
           user={auth.user}
@@ -403,6 +443,14 @@ export default function App(): JSX.Element {
             onShowHowTo={setHowTo}
             worst={worst}
           />
+          {/* P29 S8: on-screen twin of the most recently fired voice cue
+              (spec §4 "Attention budget" — a muted user must lose nothing).
+              Centered below the header so it never competes with the
+              ScoreRing chip (CameraHud, top-right) or the REC indicator
+              (top-left, below). */}
+          <div className="pointer-events-none absolute inset-x-16 top-16 z-20 flex justify-center">
+            <CueToast cue={voiceBridge.toastCue} />
+          </div>
           {/* Live REC indicator — chrome only, deliberately NOT drawn into the
               capture (it lives in the DOM, not in drawHud). */}
           {recorder.recording && (
