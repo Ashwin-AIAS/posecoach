@@ -1,0 +1,46 @@
+# Repo-root Docker build context (Dockerfile, deploy/Dockerfile.web both
+# build with context `.`/`..` — see docker-compose.yml / deploy/docker-compose.prod.yml).
+# Large/irrelevant dirs excluded so they're never even uploaded to the Docker
+# daemon, mirroring .gitignore's "too large for git" list. data/knowledge_base/
+# is deliberately NOT excluded — the main Dockerfile COPYs it in.
+
+# VCS / editor / OS
+.git/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+
+# Frontend build/dev artifacts (each Dockerfile builds its own frontend copy in-stage)
+frontend/node_modules/
+frontend/dist/
+node_modules/
+
+# Data & models too large for a build context (see .gitignore)
+data/kaggle/
+data/keypoints/
+data/corpus/
+data/test-videos/
+data/eval/
+data/thesis/
+data/chroma/
+data/calib_images/
+# NOTE: models/*.pt is NOT excluded here (unlike .gitignore's pattern) --
+# the main Dockerfile's `COPY models/ ./models/` needs the committed
+# yolo_posecoach_v1.pt at build time; .gitignore's exclusion only keeps
+# *other*, uncommitted .pt files out of git via its `!` negation, which has
+# no dockerignore equivalent applied here.
+
+# Test / eval output
+test-results/
+playwright-report/
+*.log

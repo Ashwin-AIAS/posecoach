@@ -1,6 +1,8 @@
 import { memo, useState } from "react"
-import { LogOut, ShieldCheck, Trash2 } from "lucide-react"
+import { LogOut, ShieldCheck, Trash2, Volume2, VolumeX } from "lucide-react"
 
+import type { VerbosityPreset } from "../features/voice/cueArbiter"
+import { useCoachVoice } from "../features/voice/useCoachVoice"
 import type { useAuth } from "../hooks/useAuth"
 import { isLatencyDiagEnabled } from "../hooks/useLatencyProbe"
 import { useUnitPref, type Unit } from "../hooks/useUnitPref"
@@ -13,6 +15,11 @@ type AuthHook = ReturnType<typeof useAuth>
 
 const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "0.1.0"
 const UNITS: readonly Unit[] = ["kg", "lb"]
+const VERBOSITY_OPTIONS: readonly { readonly key: VerbosityPreset; readonly label: string }[] = [
+  { key: "quiet", label: "Quiet" },
+  { key: "normal", label: "Normal" },
+  { key: "hype", label: "Hype" },
+]
 
 // Build marker (injected in vite.config.ts). Makes "which build is live?"
 // answerable at a glance — the build date is the reliable stale-build check.
@@ -42,6 +49,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  */
 function SettingsPanelInner({ auth, onNavigateCoach }: SettingsPanelProps): JSX.Element {
   const { unit, setUnit } = useUnitPref()
+  const voice = useCoachVoice()
   const [showAuth, setShowAuth] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -140,6 +148,122 @@ function SettingsPanelInner({ auth, onNavigateCoach }: SettingsPanelProps): JSX.
                 )
               })}
             </div>
+          </div>
+        </Section>
+
+        <Section title="Voice Coach">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-gray-100">Coach voice</p>
+              <p className="text-xs text-gray-500">
+                Spoken cues between reps. Every cue also shows on screen as a caption.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => voice.setMuted(!voice.muted)}
+              aria-pressed={!voice.muted}
+              aria-label={voice.muted ? "Unmute coach voice" : "Mute coach voice"}
+              className={
+                "flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none " +
+                (voice.muted
+                  ? "bg-surface-base text-gray-400 shadow-elev-1 hover:text-white"
+                  : "bg-accent-soft text-accent shadow-elev-1")
+              }
+              data-testid="voice-mute-toggle"
+            >
+              <Icon icon={voice.muted ? VolumeX : Volume2} size={15} />
+              {voice.muted ? "Muted" : "On"}
+            </button>
+          </div>
+
+          <div className="mt-4 border-t border-surface-hairline pt-4">
+            <p className="text-sm font-medium text-gray-100">Persona</p>
+            <p className="text-xs text-gray-500">Also used by the AI coach chat.</p>
+            <div
+              role="radiogroup"
+              aria-label="Coach persona"
+              className="mt-2 flex flex-wrap gap-1.5"
+            >
+              {voice.personas.map((p) => {
+                const selected = p.key === voice.persona
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => voice.setPersona(p.key)}
+                    title={p.tone}
+                    className={
+                      "min-h-11 rounded-full px-4 text-sm font-medium transition ease-spring focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none " +
+                      (selected ? "bg-accent-soft text-accent" : "bg-surface-base text-gray-400 hover:text-white")
+                    }
+                    data-testid={`voice-persona-opt-${p.key}`}
+                  >
+                    {p.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-surface-hairline pt-4">
+            <div>
+              <p className="text-sm font-medium text-gray-100">Verbosity</p>
+              <p className="text-xs text-gray-500">How often the coach speaks per set</p>
+            </div>
+            <div
+              role="radiogroup"
+              aria-label="Voice verbosity"
+              className="flex shrink-0 rounded-full bg-surface-base p-0.5 shadow-elev-1"
+            >
+              {VERBOSITY_OPTIONS.map(({ key, label }) => {
+                const selected = voice.verbosity === key
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => voice.setVerbosity(key)}
+                    className={
+                      "min-h-11 rounded-full px-3 text-sm font-medium transition ease-spring focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none " +
+                      (selected ? "bg-accent-soft text-accent" : "text-gray-400 hover:text-white")
+                    }
+                    data-testid={`voice-verbosity-${key}`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-surface-hairline pt-4">
+            <div>
+              <p className="text-sm font-medium text-gray-100">Hands-free</p>
+              <p className="text-xs text-gray-500">Phone propped up — raise the voice budget</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={voice.handsFree}
+              aria-label="Hands-free coaching"
+              onClick={() => voice.setHandsFree(!voice.handsFree)}
+              className={
+                "relative h-7 w-12 shrink-0 rounded-full transition ease-spring focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised motion-reduce:transition-none " +
+                (voice.handsFree ? "bg-accent" : "bg-surface-base shadow-elev-1")
+              }
+              data-testid="voice-handsfree-toggle"
+            >
+              <span
+                className={
+                  "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-elev-1 transition ease-spring motion-reduce:transition-none " +
+                  (voice.handsFree ? "left-[1.375rem]" : "left-0.5")
+                }
+              />
+            </button>
           </div>
         </Section>
 

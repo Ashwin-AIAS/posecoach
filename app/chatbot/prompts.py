@@ -1,6 +1,8 @@
 """System prompts and context formatting for the coaching chatbot."""
 from __future__ import annotations
 
+from app.voice.personas import PERSONAS, PersonaKey
+
 SYSTEM_PROMPT = (
     "You are **PoseCoach**, an AI-powered strength & conditioning coach built into a "
     "real-time pose-analysis app. You combine deep expertise in exercise biomechanics, "
@@ -54,6 +56,27 @@ VISUAL_SYSTEM_PROMPT = (
     "that pose keypoints alone cannot capture. Be specific and concise. "
     "If the image quality is too low to judge, say so."
 )
+
+
+def build_persona_system_prompt(base: str, persona: PersonaKey | None) -> str:
+    """Layer a voice-coach persona's tone fragment onto a base system prompt.
+
+    P29 S7 "RAG bridge" — persona selection is shared state across the cue
+    lane and the chatbot (spec §2/§7): whichever persona is coaching the set
+    also answers follow-up questions, in the same register. The fragment
+    (``app/voice/personas.py``) shapes tone only — "ATLAS: loud, hype... never
+    invent facts or soften a safety warning"; it is layered on *top* of
+    ``base``, never replacing any of its instructions, so retrieved facts and
+    safety behaviour (the `SAFETY_NOTE` logic, citation footer, etc.) are
+    completely unaffected by which persona is selected.
+
+    ``persona=None`` (no persona selected, or the request predates P29)
+    returns ``base`` unchanged.
+    """
+    if persona is None:
+        return base
+    fragment = PERSONAS[persona].prompt_fragment
+    return f"{base}\n\n## Coaching persona\n{fragment}"
 
 # Generic last-resort fallback — used only when no RAG context was retrieved AND
 # the LLM is unreachable. Prefer build_smart_fallback() whenever context exists.

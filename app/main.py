@@ -31,6 +31,7 @@ from app.logging_config import setup_logging
 from app.metrics import registry as metrics_registry
 from app.middleware import RequestIdMiddleware, SecurityHeadersMiddleware, TimingMiddleware
 from app.rate_limit import limiter
+from app.voice.router import router as voice_router
 
 logger = structlog.get_logger(__name__)
 
@@ -236,6 +237,7 @@ app.include_router(history_router)
 app.include_router(workouts_router)
 app.include_router(nutrition_router)
 app.include_router(model_assets_router)
+app.include_router(voice_router)
 
 
 @app.get("/health")

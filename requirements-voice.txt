@@ -1,0 +1,13 @@
+# Voice-clip generation dependencies for scripts/gen_voice_clips.py (P29 S2) —
+# NOT installed in the production image, NOT pulled in by requirements-dev.txt.
+# Install only when actually regenerating audio clips:
+#   pip install -r requirements-voice.txt
+#
+# Kokoro (default provider) is local/open-weight — first run downloads the
+# ~330MB Kokoro-82M model from Hugging Face Hub, cached under the usual HF
+# cache dir. No API key. See docs/prompts/P29_VOICE_COACH_PERSONAS.md §6.
+
+kokoro==0.9.4
+misaki[en]==0.9.4
+lameenc==1.8.4      # pure-Python libmp3lame bindings — mono 64kbps MP3 encode,
+                     # no system ffmpeg dependency required

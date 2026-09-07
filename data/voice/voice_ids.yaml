@@ -1,0 +1,26 @@
+# Per-(provider, persona) voice id mapping. Config, not code (P29 spec §2:
+# "Voice IDs live in config, not in code, so clips can be regenerated with a
+# different voice or a different provider without touching any logic") — see
+# app/voice/voice_ids.py for the loader and scripts/gen_voice_clips.py for
+# how it's consumed. Changing a value here and re-running the script is the
+# entire workflow; the clip hash includes voice_id, so the cache invalidates
+# itself correctly.
+#
+# Kokoro ids are provisional and untuned — picked once from the documented
+# Kokoro-82M American-English voice-pack names to roughly match the P29
+# spec's persona-table texture targets (deep/booming, gravelly/older,
+# flat/neutral). Nobody has listened to the actual output yet; re-picking a
+# voice that sounds wrong is a one-line edit here, never a code change.
+
+kokoro:
+  atlas: am_onyx      # texture target: deep/booming
+  forge: am_michael    # texture target: gravelly/older
+  vector: af_nicole    # texture target: flat/neutral
+
+elevenlabs:
+  # Not chosen yet — real ElevenLabs voice ids only needed if S2 falls back
+  # to this provider (P29 spec §6). Placeholder values fail loudly rather
+  # than silently synthesizing against a nonexistent voice.
+  atlas: TBD_ELEVENLABS_VOICE_ID_ATLAS
+  forge: TBD_ELEVENLABS_VOICE_ID_FORGE
+  vector: TBD_ELEVENLABS_VOICE_ID_VECTOR

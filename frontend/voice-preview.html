@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>P29 voice coach preview (QA only)</title>
+    <style>
+      html, body, #root { height: 100%; margin: 0; background: #0a0b0d; }
+    </style>
+  </head>
+  <body>
+    <!--
+      QA-only harness (never built into the production bundle — vite build's
+      default entry is index.html, this file is dev-server-only). Mounts
+      BootCard and CueToast directly with in-page fixture state and control
+      buttons, so Playwright can exercise both without a camera, WebSocket,
+      or backend. See docs/prompts/P29_VOICE_COACH_PERSONAS.md §8 S6.
+    -->
+    <div id="root"></div>
+    <script type="module" src="/src/features/voice/previewEntry.tsx"></script>
+  </body>
+</html>

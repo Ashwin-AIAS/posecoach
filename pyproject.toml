@@ -60,3 +60,10 @@ disallow_untyped_calls = false
 module = ["ultralytics", "ultralytics.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
+
+# Dev-only voice-clip-generation deps (requirements-voice.txt, P29 S2) — never
+# installed in the runtime image, ship no py.typed, and only imported lazily
+# inside scripts/gen_voice_clips.py's provider classes.
+[[tool.mypy.overrides]]
+module = ["kokoro", "kokoro.*", "lameenc"]
+ignore_missing_imports = true
