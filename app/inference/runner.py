@@ -33,6 +33,9 @@ class InferenceOutcome:
     latency_ms: float
     decode_ms: float
     predict_ms: float
+    # Sent-frame width / height. kp_xyn divides x and y by different lengths on a
+    # non-square frame, so angle math must rescale x by this to stay isotropic.
+    aspect: float = 1.0
 
 
 # PyTorch fallback inference size (dev/local convenience only). The production
@@ -205,4 +208,5 @@ async def run_inference(
         latency_ms=latency_ms,
         decode_ms=decode_ms,
         predict_ms=predict_ms,
+        aspect=meta.src_w / meta.src_h,
     )

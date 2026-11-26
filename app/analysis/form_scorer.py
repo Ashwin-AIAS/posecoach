@@ -455,6 +455,7 @@ def score_exercise(
     kp: npt.NDArray[Any],
     kp_conf: npt.NDArray[Any],
     conf_threshold: float = ANGLE_CONF_THRESHOLD,
+    aspect: float = 1.0,
 ) -> FormResult:
     """Score exercise form and return FormResult with cues.
 
@@ -463,6 +464,8 @@ def score_exercise(
         kp: Shape (17, 2) normalized keypoints from YOLO.
         kp_conf: Shape (17,) keypoint confidence scores.
         conf_threshold: Skip joints below this confidence.
+        aspect: Sent-frame width / height, so angles are measured in isotropic
+            geometry (see :func:`compute_angles`). 1.0 for square input.
 
     Returns FormResult with score, cues, and per-joint breakdown.
     """
@@ -473,7 +476,7 @@ def score_exercise(
             status=STATUS_UNKNOWN_EXERCISE,
         )
 
-    angles = compute_angles(kp, kp_conf, conf_threshold)
+    angles = compute_angles(kp, kp_conf, conf_threshold, aspect=aspect)
     target_joints = _EXERCISE_JOINTS[exercise]
 
     unilateral_pair = _UNILATERAL_CAPABLE.get(exercise)
