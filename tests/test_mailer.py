@@ -13,6 +13,7 @@ RESET_URL = "https://posecoach.example/reset-password?token=abc123def456"
 
 async def test_console_backend_logs_reset_url(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MAIL_BACKEND", "console")
+    monkeypatch.setenv("ENVIRONMENT", "development")
     with capture_logs() as logs:
         await mailer.send_password_reset("user@example.com", RESET_URL)
     bodies = [str(entry.get("body", "")) for entry in logs]
@@ -22,6 +23,7 @@ async def test_console_backend_logs_reset_url(monkeypatch: pytest.MonkeyPatch) -
 
 async def test_console_backend_logs_username(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MAIL_BACKEND", "console")
+    monkeypatch.setenv("ENVIRONMENT", "development")
     with capture_logs() as logs:
         await mailer.send_username("user@example.com", "user@example.com")
     assert any(entry.get("event") == "mail_console" for entry in logs)
@@ -93,3 +95,19 @@ async def test_smtp_transport_uses_starttls_and_login(monkeypatch: pytest.Monkey
     mailer._send_smtp(msg)
 
     assert calls == ["connect:smtp.gmail.com:587", "starttls", "login:bot@gmail.com", "send"]
+
+
+@pytest.mark.parametrize("environment", ["production", "staging"])
+async def test_console_backend_outside_development_never_logs_token(
+    monkeypatch: pytest.MonkeyPatch, environment: str
+) -> None:
+    # SECURITY_REVIEW.md H-2: an unset MAIL_BACKEND on a deployed instance must
+    # not write the reset link or the recipient's email into the log stream.
+    monkeypatch.delenv("MAIL_BACKEND", raising=False)
+    monkeypatch.setenv("ENVIRONMENT", environment)
+    with capture_logs() as logs:
+        await mailer.send_password_reset("user@example.com", RESET_URL)
+    rendered = repr(logs)
+    assert "abc123def456" not in rendered
+    assert "user@example.com" not in rendered
+    assert any(e.get("event") == "mail_not_sent_console_backend_in_production" for e in logs)

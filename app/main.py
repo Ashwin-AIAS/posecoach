@@ -30,6 +30,7 @@ from app.inference.onnx_session import OnnxPoseSession
 from app.logging_config import setup_logging
 from app.metrics import registry as metrics_registry
 from app.middleware import RequestIdMiddleware, SecurityHeadersMiddleware, TimingMiddleware
+from app.middleware.body_limit import BodySizeLimitMiddleware
 from app.rate_limit import limiter
 from app.voice.router import router as voice_router
 
@@ -180,11 +181,18 @@ async def lifespan(application: FastAPI) -> AsyncGenerator[None, None]:
     log.info("shutdown_complete")
 
 
+# Interactive API docs hand an attacker a machine-readable map of every route
+# (SECURITY_REVIEW.md L-1). Keep them for local dev/test; hide them in production.
+_DOCS_ENABLED = os.environ.get("ENVIRONMENT", "development") != "production"
+
 app = FastAPI(
     title="PoseCoach API",
     description="Real-time AI gym exercise form correction",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs" if _DOCS_ENABLED else None,
+    redoc_url="/redoc" if _DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if _DOCS_ENABLED else None,
 )
 
 # slowapi rate limiting — shared limiter (auth 10/min + chat 10/min, per IP)
@@ -206,6 +214,9 @@ app.add_middleware(
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(TimingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+# Body-size cap — added last so it is outermost and rejects oversized bodies
+# before any other layer buffers them (SECURITY_REVIEW.md M-1).
+app.add_middleware(BodySizeLimitMiddleware)
 
 def _verify_metrics_token(request: Request) -> None:
     """Authorize a request to /metrics — Prometheus scraper sends a Bearer token.

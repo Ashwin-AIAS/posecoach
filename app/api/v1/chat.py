@@ -182,6 +182,9 @@ async def _cancel_task(task: asyncio.Task[list[web_search.WebResult]] | None) ->
 # Request / SSE helpers
 # ---------------------------------------------------------------------------
 
+MAX_CHAT_FRAME_CHARS = 512 * 1024
+
+
 class HistoryMessage(BaseModel):
     role: str = Field(pattern=r"^(user|assistant)$")
     content: str = Field(max_length=4000)
@@ -190,7 +193,14 @@ class HistoryMessage(BaseModel):
 class ChatRequest(BaseModel):
     query: str = Field(min_length=1, max_length=2000)
     exercise: str | None = Field(default=None, max_length=32)
-    frame: str | None = Field(default=None, description="Base64 JPEG snapshot (optional)")
+    # Capped like the WS frame (SECURITY_REVIEW.md H-1): the client sends a
+    # 480x360 JPEG (~80 KB base64), so 512 KB leaves ample headroom while an
+    # unbounded field let one anonymous request ship megabytes to the VLM.
+    frame: str | None = Field(
+        default=None,
+        max_length=MAX_CHAT_FRAME_CHARS,
+        description="Base64 JPEG snapshot (optional)",
+    )
     history: list[HistoryMessage] | None = Field(
         default=None,
         max_length=10,

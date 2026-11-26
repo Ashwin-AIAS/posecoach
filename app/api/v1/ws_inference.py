@@ -30,6 +30,7 @@ from app.analysis.posing_scorer import (
 from app.analysis.rep_counter import RepCounter
 from app.analysis.score_smoother import ScoreSmoother
 from app.auth.deps import ACCESS_COOKIE, get_user_from_cookie_optional
+from app.client_ip import client_ip as resolve_client_ip
 from app.db import AsyncSessionLocal
 from app.inference.runner import run_inference
 from app.inference.smoother import KeypointSmoother
@@ -142,7 +143,7 @@ async def ws_inference(websocket: WebSocket) -> None:
     # Connection accounting for the ceilings below — `admitted`/`anon_ip_counted`
     # gate the matching decrements in the finally block so the counters stay
     # balanced no matter which path exits.
-    client_ip = websocket.client.host if websocket.client else "unknown"
+    client_ip = resolve_client_ip(websocket)
     admitted = False
     anon_ip_counted = False
 

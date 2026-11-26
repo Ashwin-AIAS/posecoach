@@ -2,11 +2,10 @@
 
 A single ``Limiter`` instance is shared across every router so all endpoints
 count against the same backing store and the same ``app.state.limiter`` that
-``SlowAPIMiddleware`` reads. Keyed by client IP via ``get_remote_address``.
-
-Behind NGINX the real client IP only reaches the app when uvicorn runs with
-``--proxy-headers``; the production compose enables it so the limiter keys on
-the end user, not the proxy.
+``SlowAPIMiddleware`` reads. Keyed by the real client IP via
+:func:`app.client_ip.client_ip`, which reads ``X-Forwarded-For`` from the
+right-hand side according to ``TRUSTED_PROXY_HOPS`` — behind the HF Space proxy
+the TCP peer is the proxy, so keying on it would put every user in one bucket.
 
 The limiter is disabled when ``RATE_LIMIT_ENABLED`` is not "true". The test
 suite sets it to "false" so repeated auth/chat calls don't trip the limit
@@ -17,7 +16,8 @@ from __future__ import annotations
 import os
 
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+
+from app.client_ip import client_ip
 
 # Per-endpoint limits — referenced by the @limiter.limit decorators.
 AUTH_RATE_LIMIT = "10/minute"  # login + register, per IP
@@ -27,4 +27,4 @@ RECOVERY_RATE_LIMIT = "3/hour"  # forgot-password / forgot-username, per IP + pe
 
 _RATE_LIMIT_ENABLED = os.environ.get("RATE_LIMIT_ENABLED", "true").lower() == "true"
 
-limiter = Limiter(key_func=get_remote_address, enabled=_RATE_LIMIT_ENABLED)
+limiter = Limiter(key_func=client_ip, enabled=_RATE_LIMIT_ENABLED)

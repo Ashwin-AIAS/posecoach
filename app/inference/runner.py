@@ -79,6 +79,10 @@ class LetterboxMeta:
     src_h: int  # original sent-frame height h0
 
 
+# Largest frame (in pixels) the decoder will touch. The client sends <= 512 px on
+# the long side, so 4096x4096 is far above any legitimate frame.
+MAX_DECODE_PIXELS = 4096 * 4096
+
 # YOLO's standard letterbox pad color.
 _LETTERBOX_PAD = (114, 114, 114)
 
@@ -92,8 +96,14 @@ def _decode_frame(frame_b64: str, size: int) -> tuple[npt.NDArray[np.uint8], Let
     invert the transform on the model's output keypoints.
     """
     raw = base64.b64decode(frame_b64)
-    img = Image.open(BytesIO(raw)).convert("RGB")
-    w0, h0 = img.size
+    header = Image.open(BytesIO(raw))  # lazy: reads the header only, no pixel decode yet
+    w0, h0 = header.size
+    # Decompression-bomb guard (SECURITY_REVIEW.md M-4): a tiny JPEG can declare
+    # a huge canvas and allocate hundreds of MB on decode. Reject on the header
+    # dimensions before any pixels are decoded; run_inference's except absorbs it.
+    if w0 * h0 > MAX_DECODE_PIXELS:
+        raise ValueError(f"frame too large to decode: {w0}x{h0}")
+    img = header.convert("RGB")
     scale = min(size / w0, size / h0)
     new_w, new_h = max(1, round(w0 * scale)), max(1, round(h0 * scale))
     resized = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
