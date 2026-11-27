@@ -46,6 +46,10 @@ import { isVoiceBootCardEnabled } from "./features/voice/flag"
 import { useCoachVoice } from "./features/voice/useCoachVoice"
 import { useVoiceCueBridge } from "./features/voice/useVoiceCueBridge"
 import { SetCountdownOverlay } from "./features/live/SetCountdownOverlay"
+import { Wordmark } from "./features/brand/Wordmark"
+import { Onboarding } from "./features/onboarding/Onboarding"
+import { isOnboardingEnabled } from "./features/onboarding/flag"
+import { readOnboarding } from "./features/onboarding/storage"
 import { useAuth } from "./hooks/useAuth"
 import { useCamera } from "./hooks/useCamera"
 import { useCueVoice, isSpeechSupported } from "./hooks/useCueVoice"
@@ -70,6 +74,8 @@ const OVERLAY_NEON_ENABLED = isOverlayNeonEnabled()
 // so the pre-P29 e2e suite's first click into the live view isn't blocked by
 // the boot card's full-screen backdrop).
 const VOICE_BOOT_CARD_ENABLED = isVoiceBootCardEnabled()
+// P36: first-run onboarding, gated like the boot card (pinned off for e2e).
+const ONBOARDING_ENABLED = isOnboardingEnabled()
 
 /** Live inference-latency badge — proves the <100ms thesis metric on screen. */
 const LatencyBadge = memo(function LatencyBadge({ ms }: { ms: number | null }): JSX.Element {
@@ -119,6 +125,11 @@ export default function App(): JSX.Element {
   // Chat sub-tab. Coach AI is now one tap from Home (text-only sheet, no
   // camera) and one tap in the live view (opens the tray straight on Chat).
   const [coachAiOpen, setCoachAiOpen] = useState(false)
+  // P36 C3: an insight card's "Ask Coach" opens the sheet with this prefilled.
+  const [coachInitialPrompt, setCoachInitialPrompt] = useState<string | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => ONBOARDING_ENABLED && readOnboarding() === null,
+  )
   // True when the tray was opened *by* the Coach AI button — the chat then
   // renders expanded instead of behind its own "Ask the coach" toggle, so the
   // entry point really is one tap. Opening the tray the old way is unchanged.
@@ -313,9 +324,7 @@ export default function App(): JSX.Element {
           style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}
         >
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-            <h1 className="shrink-0 whitespace-nowrap font-display text-lg font-semibold tracking-tight">
-              Pose<span className="text-accent">Coach</span>
-            </h1>
+            <Wordmark />
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
@@ -323,18 +332,55 @@ export default function App(): JSX.Element {
         </header>
       )}
 
-      {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
+      {showHistory && (
+        <HistoryPanel
+          onClose={() => setShowHistory(false)}
+          onStart={() => {
+            setShowHistory(false)
+            setView("live")
+          }}
+        />
+      )}
       {showPrep && <PrepProgressPanel onClose={() => setShowPrep(false)} />}
       <HowToDrawer exercise={howTo} onClose={() => setHowTo(null)} />
       {summary !== null && (
-        <SessionSummary exercise={exercise} stats={summary} onClose={closeSummary} />
+        <SessionSummary
+          exercise={exercise}
+          stats={summary}
+          recording={recorder.lastRecording}
+          onClose={closeSummary}
+        />
       )}
-      {recorder.lastRecording !== null && (
+      {/* The summary replays reps from the recording itself (P36 B4), so the
+          standalone preview only shows once the summary is dismissed. */}
+      {recorder.lastRecording !== null && summary === null && (
         <RecordingPreview session={recorder.lastRecording} onClose={recorder.clearRecording} />
       )}
       <InstallBanner />
       {coachAiOpen && (
-        <CoachAiSheet exercise={exercise} onClose={() => setCoachAiOpen(false)} />
+        <CoachAiSheet
+          exercise={exercise}
+          initialPrompt={coachInitialPrompt}
+          onSignIn={() => {
+            setCoachAiOpen(false)
+            setCoachInitialPrompt(null)
+            setTab("settings")
+          }}
+          onClose={() => {
+            setCoachAiOpen(false)
+            setCoachInitialPrompt(null)
+          }}
+        />
+      )}
+
+      {showOnboarding && (
+        <Onboarding
+          defaultExercise={exercise}
+          onComplete={(state) => {
+            setExercise(state.firstExercise)
+            setShowOnboarding(false)
+          }}
+        />
       )}
 
       {/* P29 S8: persona picker + browser-autoplay unmute gate. Shown the
@@ -363,6 +409,10 @@ export default function App(): JSX.Element {
           onStart={() => setView("live")}
           onShowHistory={() => setShowHistory(true)}
           onOpenCoachAi={openCoachAi}
+          onAskCoach={(prompt) => {
+            setCoachInitialPrompt(prompt)
+            setCoachAiOpen(true)
+          }}
         />
       ) : (
         <div className="flex min-h-0 flex-1 animate-fade-in flex-col">

@@ -74,7 +74,7 @@ async function shot(page, name) {
       const ctx = await browser.newContext({ viewport, deviceScaleFactor: dpr, permissions: ["camera", "microphone"] })
       const page = await ctx.newPage()
       await mock(page, { authed })
-      await page.goto(BASE + "/?voiceBoot=0")
+      await page.goto(BASE + "/?voiceBoot=0&onboarding=0")
       await page.waitForTimeout(2000)
       await shot(page, `${tag}-01-home`)
       for (const t of ["workouts", "calories", "settings"]) {
@@ -85,14 +85,14 @@ async function shot(page, name) {
           await shot(page, `${tag}-tab-${t}`)
         }
       }
-      await page.goto(BASE + "/?voiceBoot=0")
+      await page.goto(BASE + "/?voiceBoot=0&onboarding=0")
       await page.waitForTimeout(1500)
       const coach = page.locator("[data-testid=coach-ai-btn]")
       if (await coach.count()) {
         await coach.click()
         await page.waitForTimeout(1200)
         await shot(page, `${tag}-02-coach-ai`)
-        await page.goto(BASE + "/?voiceBoot=0")
+        await page.goto(BASE + "/?voiceBoot=0&onboarding=0")
         await page.waitForTimeout(1500)
       }
       const start = page.locator("[data-testid=start-workout-btn]")

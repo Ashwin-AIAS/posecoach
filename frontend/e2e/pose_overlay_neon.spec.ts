@@ -9,7 +9,7 @@ import type { Page } from "@playwright/test"
  * pose_overlay.spec.ts, which must stay green and untouched.
  */
 
-const STATUS_DOT = { x: 19, y: 37 } // matches drawStatusLine's dot position
+const STATUS_DOT = { x: 19, y: 37 } // where drawStatusLine's dot used to paint (removed in P36 A1)
 const GOOD_RGB = [0x2b, 0xf5, 0xb0] as const
 const ERROR_RGB = [0xff, 0x4d, 0x6d] as const
 const CUE_BY_STATE = {
@@ -65,12 +65,12 @@ for (const stateName of ["good", "fault"] as const) {
     // since the chip itself is drawn to canvas rather than as DOM text.
     await expect(canvas).toHaveAttribute("aria-label", CUE_BY_STATE[stateName])
 
-    // Status dot color: mint for good, rose for a fault/error state.
-    const expected = stateName === "good" ? GOOD_RGB : ERROR_RGB
-    const other = stateName === "good" ? ERROR_RGB : GOOD_RGB
+    // P36 A1: the canvas no longer draws HUD chrome (status line, legend,
+    // brackets, cue chip) — the DOM CameraHud is the single source, so the two
+    // never overlap. Guard against the canvas status dot coming back.
     const pixel = await samplePixel(page, STATUS_DOT.x, STATUS_DOT.y)
-    expect(channelDistance(pixel, expected)).toBeLessThan(channelDistance(pixel, other))
-    expect(channelDistance(pixel, expected)).toBeLessThan(40)
+    expect(channelDistance(pixel, GOOD_RGB)).toBeGreaterThan(40)
+    expect(channelDistance(pixel, ERROR_RGB)).toBeGreaterThan(40)
 
     await canvas.screenshot({ path: `test-results/pose_overlay_neon_${stateName}.png` })
   })

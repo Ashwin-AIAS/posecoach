@@ -25,6 +25,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import ACCESS_COOKIE, get_user_from_cookie_optional
@@ -372,7 +373,10 @@ async def _load_user_session_summary(request: Request, db: AsyncSession) -> str 
         )
         rows = list(result.scalars().all())
         return _format_recent_sessions_summary(rows)
-    except Exception:  # noqa: BLE001 — fail open, never break chat
+    except SQLAlchemyError as exc:
+        # Fail open — memory is an enhancement and must never break chat.
+        # Log the error class only: never the summary, user data, or token.
+        logger.warning("chat_memory_load_failed", error=type(exc).__name__)
         return None
 
 
