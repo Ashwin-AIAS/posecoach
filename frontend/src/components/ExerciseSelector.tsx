@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, CircleHelp } from "lucide-react"
 import { memo, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 
@@ -77,9 +77,9 @@ function ExerciseCard({
         type="button"
         onClick={onShowHowTo}
         aria-label={`How to ${meta.label}`}
-        className="absolute right-2 top-2 grid h-6 w-6 place-content-center rounded-full bg-surface-base/80 text-xs text-gray-400 shadow-elev-1 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="absolute right-2 top-2 grid h-7 w-7 place-content-center rounded-full bg-surface-base/80 text-xs text-gray-400 shadow-elev-1 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        ?
+        <Icon icon={CircleHelp} size={14} />
       </button>
     </div>
   )

@@ -517,32 +517,29 @@ export default function App(): JSX.Element {
               camera.facingMode === "user" ? "Switch to back camera" : "Switch to front camera"
             }
             title="Flip camera (front / back)"
-            className="absolute bottom-3 right-3 z-20 grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="absolute bottom-3 right-3 z-20 grid min-h-11 h-11 w-11 shrink-0 place-content-center rounded-full bg-surface-raised/85 text-gray-200 shadow-elev-1 backdrop-blur-md transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             data-testid="flip-camera"
           >
             <Icon icon={RefreshCw} size={16} />
           </button>
-          {/* Score detector overlaid on the camera stage on mobile (P21) — keeps
-              it directly on the camera instead of pushing the stage down, so the
-              camera's own box still owns the bulk of the viewport (≥70% rule).
-              Desktop keeps the non-overlaid version in the aside below. */}
+          {/* Score detector overlaid on the camera stage on mobile (P21/P36 A6) —
+              inset between the bottom-left CircleHelp button and bottom-right
+              flip-camera button so none of the bottom controls collide. */}
           {posing && (
-            <div className="absolute bottom-3 left-3 right-16 z-10 lg:hidden">
+            <div className="absolute bottom-3 left-16 right-16 z-10 lg:hidden">
               <PosingPanel result={pose.result} pose={poseName} compact />
             </div>
           )}
-          {/* Floating triggers (P21/P22) — Coaching/Chat (every mode) and the
-              reference video (exercise mode only) open as on-tap sheets rather
-              than a permanent stacked strip, so the camera keeps the full row
-              (≥85% rule) in every mode, not just posing. Stacked below the
-              ScoreRing chip so they never overlap it. */}
+          {/* Floating triggers (P21/P22/P36 A6) — styled to §0.4 Secondary
+              (rounded-full min-h-11 bg-surface-raised shadow-elev-1 text-gray-200)
+              and stacked below the ScoreRing chip so they never overlap it. */}
           <div className="absolute right-3 top-44 z-20 flex flex-col gap-2 lg:hidden">
             <button
               type="button"
               onClick={openTray}
               aria-label="Open coaching and chat"
               title="Coaching / Chat"
-              className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="grid min-h-11 h-11 w-11 shrink-0 place-content-center rounded-full bg-surface-raised/85 text-gray-200 shadow-elev-1 backdrop-blur-md transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               data-testid="tray-trigger"
             >
               <Icon icon={MessageCircle} size={16} />
@@ -553,7 +550,7 @@ export default function App(): JSX.Element {
                 onClick={() => setReferenceOpen(true)}
                 aria-label="Open reference video"
                 title="Reference video"
-                className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="grid min-h-11 h-11 w-11 shrink-0 place-content-center rounded-full bg-surface-raised/85 text-gray-200 shadow-elev-1 backdrop-blur-md transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 data-testid="reference-trigger"
               >
                 <Icon icon={PlayCircle} size={16} />
@@ -566,7 +563,7 @@ export default function App(): JSX.Element {
               onClick={openTrayChat}
               aria-label="Open Coach AI"
               title="Coach AI — ask about form, sets, nutrition"
-              className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-black/55 text-gray-200 shadow-elev-1 backdrop-blur-sm transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="grid min-h-11 h-11 w-11 shrink-0 place-content-center rounded-full bg-surface-raised/85 text-gray-200 shadow-elev-1 backdrop-blur-md transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               data-testid="coach-ai-trigger"
             >
               <Icon icon={Bot} size={16} />
@@ -738,7 +735,7 @@ export default function App(): JSX.Element {
           type="button"
           onClick={finishSet}
           disabled={!camera.ready}
-          className="flex min-h-11 items-center justify-center rounded-full bg-accent px-4 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="flex min-h-12 items-center justify-center rounded-full bg-accent px-6 text-xs font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           data-testid="finish-set-btn"
         >
           Finish set

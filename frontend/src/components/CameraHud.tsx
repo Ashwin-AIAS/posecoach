@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react"
-import { TriangleAlert } from "lucide-react"
+import { CircleHelp, TriangleAlert } from "lucide-react"
 
 import { formFrameBand, formFrameBoxShadow, formFrameColor } from "../features/live/formFrame"
 import { triggerRepHaptic } from "../lib/haptics"
@@ -121,15 +121,15 @@ function CameraHudInner({
       )}
 
       {/* How-to info button (re-opens the demo for the active exercise) — kept
-          bottom-left so it never collides with the flip-camera control, which
-          owns bottom-right on the camera stage (P20). */}
+          bottom-left with a 44x44px tap target and Lucide CircleHelp icon (P36 A6). */}
       <button
         type="button"
         onClick={() => onShowHowTo(exercise)}
         aria-label="Show how-to demo"
-        className="pointer-events-auto absolute bottom-4 left-4 grid h-9 w-9 place-content-center rounded-full bg-surface-base/55 text-gray-300 shadow-elev-1 backdrop-blur-md transition hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="pointer-events-auto absolute bottom-3 left-3 grid h-11 w-11 place-content-center rounded-full bg-surface-raised/85 text-gray-200 shadow-elev-1 backdrop-blur-md transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        data-testid="hud-howto-btn"
       >
-        ?
+        <Icon icon={CircleHelp} size={18} />
       </button>
 
       {/* Top-left dashboard cluster: plank hold timer or the large rep counter,
