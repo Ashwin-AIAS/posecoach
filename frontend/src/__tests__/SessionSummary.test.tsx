@@ -121,4 +121,25 @@ describe("SessionSummary", () => {
     expect(screen.getByText("83")).toBeInTheDocument()
     expect(screen.queryByText("98")).not.toBeInTheDocument()
   })
+
+  it("renders a one-line verdict, deterministic set insights, and triggers celebration when avg >= 80 (B2)", async () => {
+    mockApiJson.mockResolvedValueOnce([
+      { id: "h1", exercise: "squat", avg_form_score: 75, started_at: "2026-06-10T10:00:00Z" },
+    ])
+    const strongSet: SessionStats = {
+      reps: 6,
+      avgScore: 81,
+      bestScore: 88,
+      samples: 90,
+      repScores: [86, 88, 85, 84, 59, 57],
+      holdSeries: [],
+      worstJoint: "left_knee_angle",
+    }
+    render(<SessionSummary exercise="squat" stats={strongSet} onClose={vi.fn()} />)
+    expect(screen.getByTestId("set-verdict")).toHaveTextContent("Form broke down late")
+    expect(await screen.findByTestId("summary-celebration")).toBeInTheDocument()
+    const items = await screen.findAllByTestId("set-insight-item")
+    expect(items.map((el) => el.textContent)).toContain("Reps 5–6 dropped to 58 — fatigue?")
+    expect(items.map((el) => el.textContent)).toContain("Avg 81, +6 vs your last Squat")
+  })
 })

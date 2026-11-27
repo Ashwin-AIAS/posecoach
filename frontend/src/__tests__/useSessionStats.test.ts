@@ -68,4 +68,22 @@ describe("useSessionStats per-rep timeline", () => {
     expect(snap.repScores).toEqual([])
     expect(snap.holdSeries).toEqual([])
   })
+
+  it("tracks the lowest-scoring joint across frames when mean < 80", () => {
+    const { result, rerender } = renderHook((r: PoseResult | null) => useSessionStats(r), {
+      initialProps: frame({
+        reps: 1,
+        score: 72,
+        joint_scores: { left_knee_angle: 62, left_hip_angle: 85 },
+      }) as PoseResult | null,
+    })
+    rerender(
+      frame({
+        reps: 2,
+        score: 74,
+        joint_scores: { left_knee_angle: 66, left_hip_angle: 83 },
+      }),
+    )
+    expect(result.current.snapshot().worstJoint).toBe("left_knee_angle")
+  })
 })
