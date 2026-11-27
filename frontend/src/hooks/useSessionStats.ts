@@ -13,8 +13,12 @@ export interface SessionStats {
   readonly samples: number
   /** Form score captured at each rep boundary — one entry per counted rep. */
   readonly repScores: readonly number[]
+  /** Wall-clock ms (`Date.now()`) captured at each counted rep boundary (P36 B4). */
+  readonly repTimesMs: readonly number[]
   /** Form score samples gathered during an isometric hold (plank); empty otherwise. */
   readonly holdSeries: readonly number[]
+  /** Lowest-scoring joint key across the set when mean joint score < 80, or null. */
+  readonly worstJoint?: string | null
 }
 
 interface UseSessionStats {
@@ -36,7 +40,10 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
   const reps = useRef(0)
   const lastReps = useRef(0)
   const repScores = useRef<number[]>([])
+  const repTimesMs = useRef<number[]>([])
   const holdSeries = useRef<number[]>([])
+  const jointTotals = useRef<Record<string, { sum: number; count: number }>>({})
+  const worstCounts = useRef<Record<string, number>>({})
 
   useEffect(() => {
     if (result === null) return
@@ -49,6 +56,7 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
       // the instantaneous score at the boundary can be noisy.
       if (result.reps > lastReps.current && hasScore) {
         repScores.current.push(score)
+        repTimesMs.current.push(Date.now())
       }
       lastReps.current = result.reps
       reps.current = result.reps
@@ -61,7 +69,40 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
       // Isometric holds (plank) don't increment reps — capture a hold timeline.
       if (result.hold_s !== undefined) holdSeries.current.push(score)
     }
+
+    if (result.joint_scores !== undefined) {
+      for (const [key, val] of Object.entries(result.joint_scores)) {
+        const entry = jointTotals.current[key] ?? { sum: 0, count: 0 }
+        entry.sum += val
+        entry.count += 1
+        jointTotals.current[key] = entry
+      }
+    } else if (result.worst_joint) {
+      worstCounts.current[result.worst_joint] = (worstCounts.current[result.worst_joint] ?? 0) + 1
+    }
   }, [result])
+
+  const computeWorstJoint = (): string | null => {
+    let worstKey: string | null = null
+    let worstMean = 80
+    for (const [key, { sum: s, count: c }] of Object.entries(jointTotals.current)) {
+      if (c <= 0) continue
+      const mean = s / c
+      if (mean < worstMean) {
+        worstMean = mean
+        worstKey = key
+      }
+    }
+    if (worstKey !== null) return worstKey
+    let topCount = 0
+    for (const [key, c] of Object.entries(worstCounts.current)) {
+      if (c > topCount) {
+        topCount = c
+        worstKey = key
+      }
+    }
+    return worstKey
+  }
 
   const snapshot = useCallback(
     (): SessionStats => ({
@@ -70,7 +111,9 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
       bestScore: best.current,
       samples: count.current,
       repScores: [...repScores.current],
+      repTimesMs: [...repTimesMs.current],
       holdSeries: [...holdSeries.current],
+      worstJoint: computeWorstJoint(),
     }),
     [],
   )
@@ -82,7 +125,10 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
     reps.current = 0
     lastReps.current = 0
     repScores.current = []
+    repTimesMs.current = []
     holdSeries.current = []
+    jointTotals.current = {}
+    worstCounts.current = {}
   }, [])
 
   return { snapshot, reset }

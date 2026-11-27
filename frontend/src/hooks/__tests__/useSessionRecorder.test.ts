@@ -156,6 +156,7 @@ describe("useSessionRecorder lifecycle", () => {
   })
 
   it("stop() sets lastRecording with the recorded blob for in-app preview", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_010_000)
     const { result } = renderHook(() => useSessionRecorder(options()))
     act(() => result.current.start())
 
@@ -174,6 +175,7 @@ describe("useSessionRecorder lifecycle", () => {
     expect(result.current.lastRecording?.blob).toBeInstanceOf(Blob)
     expect(result.current.lastRecording?.mimeType).toBe(SUPPORTED_MP4)
     expect(result.current.lastRecording?.fileName).toMatch(/^posecoach-squat-\d+\.mp4$/)
+    expect(result.current.lastRecording?.startedAtMs).toBe(1_700_000_010_000)
   })
 
   it("clearRecording() dismisses the recording", async () => {

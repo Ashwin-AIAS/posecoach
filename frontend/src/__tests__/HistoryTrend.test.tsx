@@ -12,10 +12,11 @@ const sessions: TrendSession[] = [
 ]
 
 describe("HistoryTrend", () => {
-  it("renders one point per session for the default (first present) exercise", () => {
+  it("renders one point per session and shows the active exercise's personal best", () => {
     render(<HistoryTrend sessions={sessions} />)
-    // Default exercise = squat (first seen) → 3 sessions → 3 points.
+    // Default exercise = squat (first seen) -> 3 sessions -> 3 points, PB 88.
     expect(screen.getAllByTestId("trend-point")).toHaveLength(3)
+    expect(screen.getByTestId("trend-personal-best")).toHaveTextContent("88")
   })
 
   it("renders a friendly hint and no chart when there is no history", () => {
@@ -24,12 +25,13 @@ describe("HistoryTrend", () => {
     expect(screen.getByText(/train a few sessions/i)).toBeInTheDocument()
   })
 
-  it("re-plots when the exercise filter changes", () => {
+  it("re-plots and updates PB when the exercise filter changes", () => {
     render(<HistoryTrend sessions={sessions} />)
     fireEvent.change(screen.getByLabelText(/filter by exercise/i), {
       target: { value: "bench" },
     })
     expect(screen.getAllByTestId("trend-point")).toHaveLength(1)
+    expect(screen.getByTestId("trend-personal-best")).toHaveTextContent("60")
   })
 
   it("handles a single data point without a broken axis", () => {
