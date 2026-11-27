@@ -26,6 +26,11 @@ class RepSignal:
 
     primary: tuple[str, ...]
     secondary: tuple[str, ...] = ()
+    # Also drive the count off the hips' vertical drop (see
+    # :class:`_HipDropMachine`). For squat-pattern lifts the knee angle alone
+    # fails when filmed from the front: the knees bend toward the lens and the
+    # 2D angle barely moves. Hip drop is visible from any camera angle.
+    hip_drop: bool = False
 
 
 # Per-exercise rep signal. The driving joint is chosen for the movement, not a
@@ -37,10 +42,12 @@ REP_SIGNAL: dict[str, RepSignal] = {
     "squat": RepSignal(
         ("left_knee_angle", "right_knee_angle"),
         ("left_hip_angle", "right_hip_angle"),
+        hip_drop=True,
     ),
     "lunge": RepSignal(
         ("left_knee_angle", "right_knee_angle"),
         ("left_hip_angle", "right_hip_angle"),
+        hip_drop=True,
     ),
     # Hinge — hip angle drives, knee flexion is context (deadlift vs RDL, P13)
     "deadlift": RepSignal(
@@ -238,6 +245,63 @@ class _JointRepMachine:
         return self._up
 
 
+# Hip-drop signal (squat-pattern lifts). The raw signal is hip height above the
+# ankles divided by the lifter's *standing* hip height, so it is 1.0 upright and
+# falls as they descend: ~0.5 at a parallel squat, ~0.85 at a half squat. It is
+# rescaled to the same 0-180 "degree-like" range as a joint angle so the shared
+# One-Euro filter (tuned in degrees/frame) and hysteresis machine apply as-is.
+_HIP_DROP_SCALE = 180.0
+# Prior band for the ratio, in the same role as a joint's Fit3D [p5, p95]. With
+# the 0.30 hysteresis this puts the first "down" gate at a ratio of ~0.62 (thighs
+# roughly 15 degrees above parallel) and "up" at ~0.84, before the thresholds
+# recentre onto the lifter's own depth after the first rep.
+_HIP_DROP_RATIO_LO = 0.45
+_HIP_DROP_RATIO_HI = 1.0
+# Per-frame decay of the standing-height reference toward the current height.
+# The reference is a running max (upright frames refresh it instantly); the slow
+# decay lets it recover from an upward keypoint glitch or the lifter stepping
+# further from the camera, without collapsing during a paused rep (a 2 s pause at
+# 15 fps moves it only ~7% of the way toward the bottom position).
+_HIP_REF_DECAY = 0.005
+
+
+class _HipDropMachine:
+    """Rep machine driven by hip height relative to standing height.
+
+    Wraps a :class:`_JointRepMachine` (same filtering, hysteresis, amplitude,
+    cadence and dropout-bridging rules) and feeds it the hip-height ratio. Only
+    y coordinates are used, so the signal is independent of camera yaw and of
+    frame aspect ratio. Streaming and deterministic.
+    """
+
+    def __init__(self) -> None:
+        self._ref: float | None = None
+        self._machine = _JointRepMachine(
+            _HIP_DROP_RATIO_LO * _HIP_DROP_SCALE, _HIP_DROP_RATIO_HI * _HIP_DROP_SCALE
+        )
+
+    def update(self, height: float) -> None:
+        """Feed one frame's hip height (frame-height units, > 0)."""
+        if self._ref is None or height > self._ref:
+            self._ref = height
+        else:
+            self._ref -= _HIP_REF_DECAY * (self._ref - height)
+        ratio = min(1.0, height / self._ref)
+        self._machine.update(ratio * _HIP_DROP_SCALE)
+
+    def on_missing(self) -> None:
+        """Hips or ankles were not visible this frame — bridge or freeze."""
+        self._machine.on_missing()
+
+    @property
+    def count(self) -> int:
+        return self._machine.count
+
+    @property
+    def state(self) -> str:
+        return self._machine.state
+
+
 class RepCounter:
     """Deterministic streaming rep counter for the live inference loop.
 
@@ -260,14 +324,28 @@ class RepCounter:
             if bounds is not None:
                 lo, hi = bounds
                 self._machines[joint] = _JointRepMachine(lo, hi)
+        # Camera-angle-independent hip-drop machine for squat-pattern lifts.
+        # Only added alongside at least one joint machine, so an exercise with
+        # no usable range never starts counting off hip height alone.
+        self._hip_drop: _HipDropMachine | None = (
+            _HipDropMachine() if signal is not None and signal.hip_drop and self._machines else None
+        )
 
-    def update(self, angles: Mapping[str, float | None]) -> int:
+    def update(
+        self, angles: Mapping[str, float | None], hip_height: float | None = None
+    ) -> int:
         """Feed one frame's joint angles; return the running rep count.
 
         Each tracked joint advances its own machine when its angle is present
         this frame; a missing angle bridges through a brief dropout (pillar C,
         :data:`MAX_BRIDGE_FRAMES`) instead of being silently skipped, so a
         short occlusion mid-rep never loses the trough/peak.
+
+        Args:
+            angles: Joint angles for this frame (None where confidence-gated).
+            hip_height: Hip height above the ankles for this frame (see
+                :func:`app.analysis.keypoint_utils.hip_height`), or None when not
+                visible. Only used by squat-pattern exercises.
         """
         for joint, machine in self._machines.items():
             angle = angles.get(joint)
@@ -275,14 +353,22 @@ class RepCounter:
                 machine.update(angle)
             else:
                 machine.on_missing()
+        if self._hip_drop is not None:
+            if hip_height is not None:
+                self._hip_drop.update(hip_height)
+            else:
+                self._hip_drop.on_missing()
         return self.count
 
     @property
     def count(self) -> int:
-        """Reps counted so far — the max across primary-joint machines."""
+        """Reps counted so far — the max across all rep machines."""
         if not self._machines:
             return 0
-        return max(m.count for m in self._machines.values())
+        joint_max = max(m.count for m in self._machines.values())
+        if self._hip_drop is None:
+            return joint_max
+        return max(joint_max, self._hip_drop.count)
 
     @property
     def down_thr(self) -> float | None:
@@ -317,6 +403,8 @@ class RepCounter:
             return "hold"
         if any(m.state == "down" for m in self._machines.values()):
             return "down"
+        if self._hip_drop is not None and self._hip_drop.state == "down":
+            return "down"
         return "up"
 
     def reset(self) -> None:
@@ -326,3 +414,5 @@ class RepCounter:
             if bounds is not None:
                 lo, hi = bounds
                 self._machines[joint] = _JointRepMachine(lo, hi)
+        if self._hip_drop is not None:
+            self._hip_drop = _HipDropMachine()

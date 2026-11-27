@@ -27,12 +27,12 @@ from datetime import UTC, datetime, timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.schemas import ForgotRequest, GenericMessageResponse, ResetPasswordRequest
 from app.auth.security import hash_password, hash_token
+from app.client_ip import client_ip
 from app.db import get_db
 from app.mail import send_password_reset, send_username
 from app.models import PasswordResetToken, User
@@ -79,7 +79,7 @@ def _email_rate_key(request: Request) -> str:
             email = str(payload.get("email", "")).strip().lower()
         except (ValueError, TypeError, AttributeError):
             email = ""
-    return f"pwreset:email:{email}" if email else f"pwreset:ip:{get_remote_address(request)}"
+    return f"pwreset:email:{email}" if email else f"pwreset:ip:{client_ip(request)}"
 
 
 async def _find_user(email: str, db: AsyncSession) -> User | None:

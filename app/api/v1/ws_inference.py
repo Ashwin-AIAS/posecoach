@@ -20,7 +20,7 @@ from app.analysis.form_scorer import (
     score_exercise,
     worst_joint,
 )
-from app.analysis.keypoint_utils import compute_angles
+from app.analysis.keypoint_utils import compute_angles, hip_height
 from app.analysis.posing_scorer import STATUS_OK as POSING_STATUS_OK
 from app.analysis.posing_scorer import (
     SUPPORTED_POSES,
@@ -30,6 +30,7 @@ from app.analysis.posing_scorer import (
 from app.analysis.rep_counter import RepCounter
 from app.analysis.score_smoother import ScoreSmoother
 from app.auth.deps import ACCESS_COOKIE, get_user_from_cookie_optional
+from app.client_ip import client_ip as resolve_client_ip
 from app.db import AsyncSessionLocal
 from app.inference.runner import run_inference
 from app.inference.smoother import KeypointSmoother
@@ -142,7 +143,7 @@ async def ws_inference(websocket: WebSocket) -> None:
     # Connection accounting for the ceilings below — `admitted`/`anon_ip_counted`
     # gate the matching decrements in the finally block so the counters stay
     # balanced no matter which path exits.
-    client_ip = websocket.client.host if websocket.client else "unknown"
+    client_ip = resolve_client_ip(websocket)
     admitted = False
     anon_ip_counted = False
 
@@ -443,7 +444,7 @@ async def ws_inference(websocket: WebSocket) -> None:
             t_ks1 = time.perf_counter()
 
             # Score form
-            form = score_exercise(exercise, kp_smooth, kp_conf)
+            form = score_exercise(exercise, kp_smooth, kp_conf, aspect=result.aspect)
             t_scoring = time.perf_counter()
 
             # Rep counting (streaming, deterministic) — reset on exercise change
@@ -451,8 +452,8 @@ async def ws_inference(websocket: WebSocket) -> None:
                 rep_counter = RepCounter(exercise)
             # Keep the rep counter's angle view named so the P11 audit can count
             # how many tracked joints actually carried a valid (non-None) angle.
-            frame_angles = compute_angles(kp_smooth, kp_conf)
-            reps = rep_counter.update(frame_angles)
+            frame_angles = compute_angles(kp_smooth, kp_conf, aspect=result.aspect)
+            reps = rep_counter.update(frame_angles, hip_height=hip_height(kp_smooth, kp_conf))
             t_rep = time.perf_counter()
 
             # Exercise-verification gate (P13): does the observed movement match the

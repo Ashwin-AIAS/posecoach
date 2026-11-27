@@ -62,6 +62,13 @@ async def _deliver(to: str, subject: str, body: str, event: str) -> None:
         # Prod path: never log the recipient, token, or body.
         logger.info("mail_sent", backend="smtp", event_name=event)
         return
+    # Fail closed outside development: the console transport writes the raw
+    # reset link (a live account-takeover token) and the recipient's email into
+    # the log stream. If MAIL_BACKEND was never set on a deployed instance, drop
+    # the message loudly instead of leaking it (SECURITY_REVIEW.md H-2).
+    if os.environ.get("ENVIRONMENT", "development") != "development":
+        logger.error("mail_not_sent_console_backend_in_production", event_name=event)
+        return
     # Dev console transport — intentionally logs the link so it's copyable.
     logger.info("mail_console", backend="console", event_name=event, to=to, body=body)
 

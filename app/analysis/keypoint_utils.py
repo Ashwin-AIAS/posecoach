@@ -69,12 +69,29 @@ def compute_angles(
     kp: npt.NDArray[Any],
     kp_conf: npt.NDArray[Any],
     conf_threshold: float = ANGLE_CONF_THRESHOLD,
+    aspect: float = 1.0,
 ) -> dict[str, float | None]:
     """Compute all named joint angles from a (17, 2) keypoint array.
 
     Returns None for any angle where one or more constituent keypoints
     fall below the confidence threshold.
+
+    Args:
+        kp: Shape (17, 2) keypoints normalized to the sent frame (x / width,
+            y / height).
+        kp_conf: Shape (17,) keypoint confidences.
+        conf_threshold: Per-keypoint confidence gate.
+        aspect: Frame width / height. Normalized coordinates divide x and y by
+            different lengths on a non-square frame, so angles computed on them
+            directly are distorted (on a 9:16 portrait phone frame horizontal
+            offsets are inflated ~1.8x — a knee angle can read 20-30 degrees
+            off). Scaling x by ``aspect`` restores isotropic geometry before the
+            angle is measured. ``1.0`` (square / already-isotropic input) is a
+            no-op, which keeps stored snapshots and synthetic fixtures unchanged.
     """
+    if aspect != 1.0:
+        kp = np.array(kp, dtype=float, copy=True)
+        kp[:, 0] *= aspect
     angles: dict[str, float | None] = {}
     for name, (idx_a, idx_b, idx_c) in ANGLE_TRIPLETS.items():
         if kp_conf[idx_a] < conf_threshold or kp_conf[idx_b] < conf_threshold or kp_conf[idx_c] < conf_threshold:
@@ -96,3 +113,38 @@ def compute_angles(
         angles["hip_trunk_angle"] = None
 
     return angles
+
+
+def _confident_mean_y(
+    kp: npt.NDArray[Any], kp_conf: npt.NDArray[Any], idx: tuple[int, int], conf_threshold: float
+) -> float | None:
+    """Mean y of whichever of the two (left/right) keypoints clear the gate."""
+    ys = [float(kp[i, 1]) for i in idx if kp_conf[i] >= conf_threshold]
+    if not ys:
+        return None
+    return sum(ys) / len(ys)
+
+
+def hip_height(
+    kp: npt.NDArray[Any],
+    kp_conf: npt.NDArray[Any],
+    conf_threshold: float = ANGLE_CONF_THRESHOLD,
+) -> float | None:
+    """Vertical height of the hips above the ankles, in frame-height units.
+
+    A camera-angle-independent squat/lunge signal: the hips drop by the same
+    proportion of standing height whether the lifter is filmed from the front,
+    the side or a diagonal — unlike the 2D knee angle, which barely changes when
+    the knees bend toward the lens. Uses only y coordinates, so it is unaffected
+    by frame aspect ratio. Image y grows downward, so height = ankle_y - hip_y.
+
+    Returns None when no hip or no ankle clears the confidence gate, or when the
+    geometry is degenerate (hips at or below the ankles — a tracking glitch, or
+    the lifter is lying down).
+    """
+    hip_y = _confident_mean_y(kp, kp_conf, (LEFT_HIP, RIGHT_HIP), conf_threshold)
+    ankle_y = _confident_mean_y(kp, kp_conf, (LEFT_ANKLE, RIGHT_ANKLE), conf_threshold)
+    if hip_y is None or ankle_y is None:
+        return None
+    height = ankle_y - hip_y
+    return height if height > 0.0 else None
