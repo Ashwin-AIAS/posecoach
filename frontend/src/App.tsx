@@ -24,7 +24,6 @@ import { Home } from "./components/Home"
 import { HowToDrawer } from "./components/HowToDrawer"
 import { DivisionSelector } from "./components/DivisionSelector"
 import { InstallBanner } from "./components/InstallBanner"
-import { ModeToggle } from "./components/ModeToggle"
 import { PoseOverlay } from "./components/PoseOverlay"
 import { toOverlayFrame, isOverlayNeonEnabled, PoseOverlayNeon } from "./features/coach/overlay"
 import { PoseSelector } from "./components/PoseSelector"
@@ -288,54 +287,21 @@ export default function App(): JSX.Element {
           are new, additive surfaces rendered in its place. */}
       {tab === "coach" && (
         <>
-      <header
-        className="relative z-30 flex items-center justify-between gap-2 bg-surface-raised/40 px-3 py-1 shadow-elev-1 backdrop-blur-md sm:gap-4 sm:px-4"
-        style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}
-      >
-        <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-          {view === "live" && (
-            <button
-              type="button"
-              onClick={() => setView("home")}
-              aria-label="Back to home"
-              title="Back to home"
-              className="grid h-11 w-11 shrink-0 place-content-center rounded-full text-gray-400 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              data-testid="back-home-btn"
-            >
-              <Icon icon={ChevronLeft} size={18} />
-            </button>
-          )}
-          <h1 className="shrink-0 whitespace-nowrap font-display text-lg font-semibold tracking-tight">
-            Pose<span className="text-accent">Coach</span>
-          </h1>
-          {view === "live" && <LatencyBadge ms={pose.result?.latency_ms ?? null} />}
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-          {view === "live" && (
-            <>
-              {isSpeechSupported() && (
-                <button
-                  type="button"
-                  onClick={() => setVoice((v) => !v)}
-                  aria-pressed={voice}
-                  aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
-                  title="Voice coaching cues"
-                  className={
-                    "grid h-11 w-11 shrink-0 place-content-center rounded-full transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
-                    (voice
-                      ? "bg-accent-soft text-accent shadow-glow-sm"
-                      : "bg-surface-raised text-gray-400 shadow-elev-1 hover:text-white")
-                  }
-                  data-testid="voice-toggle"
-                >
-                  <Icon icon={voice ? Volume2 : VolumeX} size={16} />
-                </button>
-              )}
-            </>
-          )}
-          <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
-        </div>
-      </header>
+      {view === "home" && (
+        <header
+          className="relative z-30 flex items-center justify-between gap-2 bg-surface-raised/40 px-3 py-1 shadow-elev-1 backdrop-blur-md sm:gap-4 sm:px-4"
+          style={{ paddingTop: "max(0.375rem, env(safe-area-inset-top))" }}
+        >
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
+            <h1 className="shrink-0 whitespace-nowrap font-display text-lg font-semibold tracking-tight">
+              Pose<span className="text-accent">Coach</span>
+            </h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+            <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} />
+          </div>
+        </header>
+      )}
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
       {showPrep && <PrepProgressPanel onClose={() => setShowPrep(false)} />}
@@ -380,35 +346,10 @@ export default function App(): JSX.Element {
         />
       ) : (
         <div className="flex min-h-0 flex-1 animate-fade-in flex-col">
-          <div
-            className="relative z-20 flex min-w-0 items-start gap-x-2 bg-surface-base/60 px-4 py-0.5 shadow-elev-1"
-            data-testid="selector-row"
-          >
-            <ModeToggle value={mode} onChange={setMode} />
-            {posing ? (
-              <>
-                <DivisionSelector value={division} onChange={selectDivision} />
-                <span className="shrink-0 text-sm text-gray-500" aria-hidden="true">
-                  &middot;
-                </span>
-                <PoseSelector value={poseName} onChange={setPoseName} poses={DIVISIONS[division].mandatories} />
-              </>
-            ) : (
-              <ExerciseSelector value={exercise} onChange={setExercise} onShowHowTo={setHowTo} />
-            )}
-          </div>
-
-          {!posing && <RecommendationCard exercise={exercise} />}
-
           <main
             className={
-              // P22 generalizes P21's camera-dominance rule to every mode: the
-              // tray never sits in the grid template on mobile (it's an
-              // on-tap sheet below), so the camera row is the only row and
-              // gets the full 1fr, regardless of Exercise vs Posing. Padding
-              // is trimmed on mobile too — every pixel counts on a 568px-tall
-              // floor device once the header/selector/action-bar chrome is
-              // accounted for. Desktop (lg) is untouched: two columns, one row.
+              // P22/P36 A2: the camera owns >=85% of the phone viewport; the top
+              // bar floats over the camera stage instead of stacking above it.
               "grid flex-1 grid-cols-1 grid-rows-[minmax(180px,1fr)] gap-2 overflow-hidden p-1 lg:gap-4 lg:p-4 lg:grid-cols-[1fr_360px] lg:grid-rows-1"
             }
           >
@@ -416,6 +357,70 @@ export default function App(): JSX.Element {
           className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-black shadow-elev-3"
           data-testid="camera-stage"
         >
+          {/* P36 A2: compact floating top bar over the camera — back button,
+              exercise pill (with ModeToggle folded into its picker sheet),
+              voice mute, and overflow menu (History, account). */}
+          <header
+            className="absolute inset-x-2 top-2 z-30 flex h-12 items-center justify-between gap-1.5 rounded-full bg-surface-base/65 px-1.5 shadow-elev-2 backdrop-blur-md"
+            style={{ marginTop: "env(safe-area-inset-top)" }}
+            data-testid="selector-row"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setView("home")}
+                aria-label="Back to home"
+                title="Back to home"
+                className="grid h-11 w-11 shrink-0 place-content-center rounded-full text-gray-300 transition hover:bg-surface-overlay hover:text-white active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                data-testid="back-home-btn"
+              >
+                <Icon icon={ChevronLeft} size={18} />
+              </button>
+              <ExerciseSelector
+                value={exercise}
+                onChange={(next) => {
+                  setExercise(next)
+                  setMode("exercise")
+                }}
+                onShowHowTo={setHowTo}
+                mode={mode}
+                onModeChange={setMode}
+              />
+              {posing && (
+                <>
+                  <DivisionSelector value={division} onChange={selectDivision} />
+                  <PoseSelector
+                    value={poseName}
+                    onChange={setPoseName}
+                    poses={DIVISIONS[division].mandatories}
+                  />
+                </>
+              )}
+              <LatencyBadge ms={pose.result?.latency_ms ?? null} />
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {isSpeechSupported() && (
+                <button
+                  type="button"
+                  onClick={() => setVoice((v) => !v)}
+                  aria-pressed={voice}
+                  aria-label={voice ? "Turn off voice cues" : "Turn on voice cues"}
+                  title="Voice coaching cues"
+                  className={
+                    "grid h-11 w-11 shrink-0 place-content-center rounded-full transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+                    (voice
+                      ? "bg-accent-soft text-accent shadow-glow-sm"
+                      : "bg-surface-raised/80 text-gray-300 shadow-elev-1 hover:text-white")
+                  }
+                  data-testid="voice-toggle"
+                >
+                  <Icon icon={voice ? Volume2 : VolumeX} size={16} />
+                </button>
+              )}
+              <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} compact />
+            </div>
+          </header>
+
           <CameraFeed
             ref={camera.videoRef}
             error={camera.error}
@@ -445,17 +450,15 @@ export default function App(): JSX.Element {
           />
           {/* P29 S8: on-screen twin of the most recently fired voice cue
               (spec §4 "Attention budget" — a muted user must lose nothing).
-              Centered below the header so it never competes with the
-              ScoreRing chip (CameraHud, top-right) or the REC indicator
-              (top-left, below). */}
-          <div className="pointer-events-none absolute inset-x-16 top-16 z-20 flex justify-center">
+              Centered below the floating top bar and worst-joint chip. */}
+          <div className="pointer-events-none absolute inset-x-16 top-28 z-20 flex justify-center">
             <CueToast cue={voiceBridge.toastCue} />
           </div>
           {/* Live REC indicator — chrome only, deliberately NOT drawn into the
               capture (it lives in the DOM, not in drawHud). */}
           {recorder.recording && (
             <div
-              className="pointer-events-none absolute left-3 top-16 z-20 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 backdrop-blur-sm"
+              className="pointer-events-none absolute left-3 top-44 z-20 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 backdrop-blur-sm"
               data-testid="rec-indicator"
             >
               <span className="h-2 w-2 animate-pulse-dot rounded-full bg-score-bad" aria-hidden="true" />
@@ -493,9 +496,9 @@ export default function App(): JSX.Element {
           {/* Floating triggers (P21/P22) — Coaching/Chat (every mode) and the
               reference video (exercise mode only) open as on-tap sheets rather
               than a permanent stacked strip, so the camera keeps the full row
-              (≥70% rule) in every mode, not just posing. Stacked below the
-              ScoreRing chip (top-3, ~140px tall) so they never overlap it. */}
-          <div className="absolute right-3 top-40 z-20 flex flex-col gap-2 lg:hidden">
+              (≥85% rule) in every mode, not just posing. Stacked below the
+              ScoreRing chip so they never overlap it. */}
+          <div className="absolute right-3 top-44 z-20 flex flex-col gap-2 lg:hidden">
             <button
               type="button"
               onClick={openTray}
@@ -538,6 +541,7 @@ export default function App(): JSX.Element {
             see the sheets below — so the side column only exists at lg). */}
         <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto lg:flex">
           <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+            {!posing && <RecommendationCard exercise={exercise} />}
             {posing && <PosingPanel result={pose.result} pose={poseName} />}
             <CoachingCues
               result={pose.result}

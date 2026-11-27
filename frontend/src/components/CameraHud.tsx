@@ -50,16 +50,17 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      {/* Corner score ring on a glass chip — the dominant, glanceable readout */}
-      <div className="absolute right-3 top-3 rounded-2xl bg-surface-base/45 p-1.5 shadow-elev-1 backdrop-blur-md">
+      {/* Corner score ring on a glass chip — sits below the floating top bar */}
+      <div className="absolute right-3 top-16 rounded-2xl bg-surface-base/45 p-1.5 shadow-elev-1 backdrop-blur-md">
         <ScoreRing score={score} size={128} />
       </div>
 
       {/* Worst-joint callout — a soft accent glow, never a hard outline, so it
-          reads as a gentle highlight rather than an alarm. */}
+          reads as a gentle highlight rather than an alarm. Positioned below the
+          floating top bar so it never collides with it (P36 A2/A3). */}
       {!blocked && worst !== null && (
         <div
-          className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-score-bad/15 px-3 py-1 text-sm font-medium text-score-bad backdrop-blur-md"
+          className="absolute left-1/2 top-16 -translate-x-1/2 rounded-full bg-score-bad/15 px-3 py-1 text-sm font-medium text-score-bad backdrop-blur-md"
           style={{ boxShadow: "0 0 24px -2px rgba(255, 77, 77, 0.5)" }}
           data-testid="worst-joint-chip"
         >
@@ -83,7 +84,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
           with the exercise name receding underneath in smaller, low-contrast text. */}
       {isPlank ? (
         holdS !== undefined && (
-          <div className="absolute left-3 top-3 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md">
+          <div className="absolute left-3 top-16 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md">
             <div className="flex items-baseline gap-1.5">
               <span className="hud-numerals font-display text-3xl font-semibold leading-none text-accent">
                 {holdS.toFixed(1)}s
@@ -97,7 +98,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         )
       ) : (
         <div
-          className="absolute left-3 top-3 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md"
+          className="absolute left-3 top-16 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md"
           data-testid="rep-counter"
         >
           <div className="flex items-baseline gap-1.5">

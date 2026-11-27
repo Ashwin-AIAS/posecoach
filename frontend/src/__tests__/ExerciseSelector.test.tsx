@@ -63,4 +63,21 @@ describe("ExerciseSelector", () => {
     render(<ExerciseSelector value="squat" onChange={vi.fn()} onShowHowTo={vi.fn()} disabled />)
     expect(screen.getByTestId("exercise-change-btn")).toBeDisabled()
   })
+
+  it("folds ModeToggle into the picker sheet when onModeChange is provided (P36 A2)", () => {
+    const onModeChange = vi.fn()
+    render(
+      <ExerciseSelector
+        value="squat"
+        onChange={vi.fn()}
+        onShowHowTo={vi.fn()}
+        mode="exercise"
+        onModeChange={onModeChange}
+      />,
+    )
+    openSheet()
+    expect(screen.getByTestId("mode-exercise")).toHaveAttribute("aria-checked", "true")
+    fireEvent.click(screen.getByTestId("mode-posing"))
+    expect(onModeChange).toHaveBeenCalledWith("posing")
+  })
 })
