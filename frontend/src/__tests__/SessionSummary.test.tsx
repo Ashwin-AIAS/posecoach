@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { SessionSummary } from "../components/SessionSummary"
 import { apiJson, submitEffort } from "../lib/api"
+import { shareResultCard } from "../lib/shareCard"
 import type { SessionStats } from "../hooks/useSessionStats"
 
 vi.mock("../lib/api", () => ({ apiJson: vi.fn(), submitEffort: vi.fn() }))
+vi.mock("../lib/shareCard", () => ({ shareResultCard: vi.fn(async () => "downloaded") }))
 const mockApiJson = vi.mocked(apiJson)
 const mockSubmitEffort = vi.mocked(submitEffort)
+const mockShareResultCard = vi.mocked(shareResultCard)
 
 const stats: SessionStats = {
   reps: 9,
@@ -141,5 +144,22 @@ describe("SessionSummary", () => {
     const items = await screen.findAllByTestId("set-insight-item")
     expect(items.map((el) => el.textContent)).toContain("Reps 5–6 dropped to 58 — fatigue?")
     expect(items.map((el) => el.textContent)).toContain("Avg 81, +6 vs your last Squat")
+  })
+
+  it("triggers on-device result card sharing when Share is tapped (B3)", async () => {
+    mockApiJson.mockResolvedValueOnce([])
+    mockShareResultCard.mockResolvedValueOnce("downloaded")
+    render(<SessionSummary exercise="squat" stats={stats} onClose={vi.fn()} />)
+    const shareBtn = screen.getByTestId("share-card-btn")
+    fireEvent.click(shareBtn)
+    await waitFor(() => expect(mockShareResultCard).toHaveBeenCalledTimes(1))
+    expect(mockShareResultCard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        exerciseId: "squat",
+        exerciseLabel: "Squat",
+        reps: 9,
+      }),
+    )
+    await waitFor(() => expect(shareBtn).toHaveTextContent("Saved"))
   })
 })

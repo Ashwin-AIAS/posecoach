@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Award, Check, Sparkles, X } from "lucide-react"
+import { Award, Check, Share2, Sparkles, X } from "lucide-react"
 
 import "../features/summary/summary.css"
 import type { SessionStats } from "../hooks/useSessionStats"
@@ -12,6 +12,7 @@ import {
   isPersonalBestSet,
   priorSessionsFromHistory,
 } from "../lib/setInsights"
+import { shareResultCard } from "../lib/shareCard"
 import { scoreColor } from "../lib/skeleton"
 import { Icon } from "./ui/Icon"
 import { Sparkline, StatTile } from "./ui/Sparkline"
@@ -126,6 +127,8 @@ export function SessionSummary({
   const [authed, setAuthed] = useState(true)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [rated, setRated] = useState<EffortRating | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [shareStatus, setShareStatus] = useState<"idle" | "shared" | "downloaded">("idle")
 
   const reduced = prefersReducedMotion()
   const displayedReps = useRepCountUp(stats.reps, reduced)
@@ -200,6 +203,30 @@ export function SessionSummary({
 
   const best = stats.bestScore
   const celebrate = (stats.samples > 0 && stats.avgScore >= 80) || isPb
+
+  const handleShareCard = async (): Promise<void> => {
+    if (sharing) return
+    setSharing(true)
+    try {
+      const result = await shareResultCard({
+        exerciseId: exercise,
+        exerciseLabel: label,
+        reps: stats.reps,
+        avgScore: stats.avgScore,
+        bestScore: stats.bestScore,
+        samples: stats.samples,
+        repScores: stats.repScores,
+        verdict,
+      })
+      if (result === "shared" || result === "downloaded") {
+        setShareStatus(result)
+      }
+    } catch {
+      // Canvas/share unavailable (e.g. headless environment) — fail gracefully.
+    } finally {
+      setSharing(false)
+    }
+  }
 
   return (
     <div
@@ -388,12 +415,30 @@ export function SessionSummary({
           </div>
         </div>
 
-        {/* Sticky footer CTA (§0.4 Primary CTA) */}
-        <div className="shrink-0 px-5 pt-2">
+        {/* Sticky footer actions (§0.4 Secondary Share + Primary CTA) */}
+        <div className="flex shrink-0 items-center gap-2.5 px-5 pt-2">
+          <button
+            type="button"
+            onClick={() => void handleShareCard()}
+            disabled={sharing}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-surface-overlay px-5 text-sm font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:text-white active:scale-[0.97] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            data-testid="share-card-btn"
+          >
+            <Icon icon={Share2} size={16} />
+            <span>
+              {sharing
+                ? "Preparing…"
+                : shareStatus === "downloaded"
+                  ? "Saved"
+                  : shareStatus === "shared"
+                    ? "Shared"
+                    : "Share"}
+            </span>
+          </button>
           <button
             type="button"
             onClick={onClose}
-            className="flex min-h-12 w-full items-center justify-center rounded-full bg-accent px-6 font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:brightness-110 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised"
+            className="flex min-h-12 flex-1 items-center justify-center rounded-full bg-accent px-6 font-semibold text-surface-base shadow-elev-1 transition ease-spring hover:brightness-110 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-raised"
           >
             Train again
           </button>
