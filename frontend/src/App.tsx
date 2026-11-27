@@ -5,6 +5,7 @@ import {
   MessageCircle,
   PlayCircle,
   RefreshCw,
+  Vibrate,
   Volume2,
   VolumeX,
 } from "lucide-react"
@@ -51,6 +52,7 @@ import { useSessionRecorder } from "./hooks/useSessionRecorder"
 import { useSessionStats } from "./hooks/useSessionStats"
 import type { SessionStats } from "./hooks/useSessionStats"
 import { isFarSubject } from "./lib/framing"
+import { readHapticsEnabled, writeHapticsEnabled } from "./lib/haptics"
 import type { HudScene } from "./lib/hudRenderer"
 import { renderHud } from "./lib/hudRenderer"
 import { worstJoint } from "./lib/joints"
@@ -134,6 +136,14 @@ export default function App(): JSX.Element {
   const [howTo, setHowTo] = useState<Exercise | null>(null)
   const [summary, setSummary] = useState<SessionStats | null>(null)
   const [voice, setVoice] = useState(false)
+  const [haptics, setHaptics] = useState<boolean>(() => readHapticsEnabled())
+  const toggleHaptics = useCallback((): void => {
+    setHaptics((prev) => {
+      const next = !prev
+      writeHapticsEnabled(next)
+      return next
+    })
+  }, [])
   const auth = useAuth()
   const camera = useCamera({ width: 640, height: 480, facingMode: "user" })
   const cameraStart = camera.start
@@ -417,6 +427,22 @@ export default function App(): JSX.Element {
                   <Icon icon={voice ? Volume2 : VolumeX} size={16} />
                 </button>
               )}
+              <button
+                type="button"
+                onClick={toggleHaptics}
+                aria-pressed={haptics}
+                aria-label={haptics ? "Turn off rep haptics" : "Turn on rep haptics"}
+                title="Rep vibration feedback"
+                className={
+                  "grid h-11 w-11 shrink-0 place-content-center rounded-full transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
+                  (haptics
+                    ? "bg-accent-soft text-accent shadow-glow-sm"
+                    : "bg-surface-raised/80 text-gray-400 shadow-elev-1 hover:text-white")
+                }
+                data-testid="haptics-toggle"
+              >
+                <Icon icon={Vibrate} size={16} />
+              </button>
               <UserMenu auth={auth} onShowHistory={() => setShowHistory(true)} compact />
             </div>
           </header>
@@ -447,6 +473,7 @@ export default function App(): JSX.Element {
             exercise={exercise}
             onShowHowTo={setHowTo}
             worst={worst}
+            hapticsEnabled={haptics}
           />
           {/* P29 S8: on-screen twin of the most recently fired voice cue
               (spec §4 "Attention budget" — a muted user must lose nothing).

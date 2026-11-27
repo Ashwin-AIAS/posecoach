@@ -1,7 +1,8 @@
-import { memo } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { TriangleAlert } from "lucide-react"
 
 import { formFrameBand, formFrameBoxShadow, formFrameColor } from "../features/live/formFrame"
+import { triggerRepHaptic } from "../lib/haptics"
 import type { Exercise, PoseResult, PoseStatus } from "../types"
 import type { WorstJoint } from "../lib/joints"
 import { exerciseLabel } from "../lib/exercises"
@@ -25,19 +26,50 @@ interface CameraHudProps {
   readonly onShowHowTo: (ex: Exercise) => void
   /** Lowest-scoring joint to name, or null when form is good. */
   readonly worst?: WorstJoint | null
+  /** Whether tactile vibration on rep increment is enabled (P36 A4). */
+  readonly hapticsEnabled?: boolean
 }
+
+const REP_PULSE_MS = 260
 
 /**
  * Floating heads-up display drawn over the camera stage: a corner form-score
  * ring and the top coaching cue rendered as a lower-third caption. Pointer
  * events pass through to the stage; only chrome animates (never the frame path).
  */
-function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }: CameraHudProps): JSX.Element | null {
+function CameraHudInner({
+  result,
+  active,
+  exercise,
+  onShowHowTo,
+  worst = null,
+  hapticsEnabled = true,
+}: CameraHudProps): JSX.Element | null {
+  const reps = result?.reps ?? 0
+  const prevRepsRef = useRef<number>(reps)
+  const [repPulse, setRepPulse] = useState(false)
+
+  useEffect(() => {
+    if (!active) {
+      prevRepsRef.current = reps
+      setRepPulse(false)
+      return undefined
+    }
+    if (reps > prevRepsRef.current) {
+      prevRepsRef.current = reps
+      triggerRepHaptic(hapticsEnabled)
+      setRepPulse(true)
+      const timer = setTimeout(() => setRepPulse(false), REP_PULSE_MS)
+      return () => clearTimeout(timer)
+    }
+    prevRepsRef.current = reps
+    return undefined
+  }, [reps, active, hapticsEnabled])
+
   if (!active) return null
   const score = result?.score ?? null
   const topCue = result?.cues?.[0]
   const holdS = result?.hold_s
-  const reps = result?.reps ?? 0
   const isPlank = exercise === "plank"
   // A missing status (older server) means a normally-scored frame.
   const status: PoseStatus = result?.status ?? "ok"
@@ -50,12 +82,13 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
   const expected = result?.expected_exercise ?? exercise
   const frameBand = formFrameBand(score, status)
   const frameColor = formFrameColor(score, status)
-  const frameShadow = formFrameBoxShadow(score, status)
+  const frameShadow = formFrameBoxShadow(score, status, repPulse)
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      {/* P36 A3: 3-4px inset form-colour frame on the camera stage edge,
-          tinted by the score ramp and easing over 300ms (never flashing). */}
+      {/* P36 A3/A4: 3-4px inset form-colour frame on the camera stage edge,
+          tinted by the score ramp and easing over 300ms, with a brief accent
+          flash on every rep increment. */}
       <div
         className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{
@@ -65,6 +98,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         data-testid="form-colour-frame"
         data-band={frameBand}
         data-tint={frameColor}
+        data-rep-pulse={repPulse ? "true" : "false"}
         aria-hidden="true"
       />
 
@@ -124,6 +158,7 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
               key={reps}
               className="hud-numerals inline-block animate-number-pop font-display text-[4.5rem] font-semibold leading-none text-white"
               data-testid="rep-hero-number"
+              data-rep-pulse={repPulse ? "true" : "false"}
             >
               {reps}
             </span>

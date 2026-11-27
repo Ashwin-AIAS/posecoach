@@ -134,4 +134,38 @@ describe("CameraHud", () => {
     )
     expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "neutral")
   })
+
+  it("flashes the form frame and triggers haptics on rep increment (P36 A4)", () => {
+    const vibrateMock = vi.fn(() => true)
+    Object.defineProperty(navigator, "vibrate", {
+      value: vibrateMock,
+      configurable: true,
+      writable: true,
+    })
+
+    const { rerender } = render(
+      <CameraHud
+        result={{ ...base, reps: 2 }}
+        active
+        exercise="squat"
+        onShowHowTo={vi.fn()}
+        hapticsEnabled
+      />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-rep-pulse", "false")
+    expect(vibrateMock).not.toHaveBeenCalled()
+
+    rerender(
+      <CameraHud
+        result={{ ...base, reps: 3 }}
+        active
+        exercise="squat"
+        onShowHowTo={vi.fn()}
+        hapticsEnabled
+      />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-rep-pulse", "true")
+    expect(screen.getByTestId("rep-hero-number")).toHaveAttribute("data-rep-pulse", "true")
+    expect(vibrateMock).toHaveBeenCalledWith(15)
+  })
 })
