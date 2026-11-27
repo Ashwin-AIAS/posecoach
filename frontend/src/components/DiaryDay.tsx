@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Sun,
   Undo2,
+  Utensils,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -278,11 +279,21 @@ function DiaryDayInner({
                   className="mt-4 flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-10 text-center shadow-elev-1"
                   data-testid="diary-empty"
                 >
-                  <p className="max-w-xs text-sm text-gray-400">
-                    Nothing logged {isToday(dateISO) ? "yet today" : "this day"}. Scan a barcode,
-                    search a food you&apos;ve used before, or type one in.
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft">
+                    <Icon icon={Utensils} size={20} className="text-accent" />
+                  </div>
+                  <p className="mt-3 font-display text-base font-semibold text-gray-100">
+                    Nothing logged {isToday(dateISO) ? "yet today" : "this day"}
                   </p>
-                  <button type="button" onClick={onAddFood} className={`${PRIMARY_BTN} mt-6`} data-testid="diary-empty-add">
+                  <p className="mt-1 max-w-xs text-sm text-gray-400">
+                    Log meals in seconds by scanning a barcode, searching foods, or typing them in.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onAddFood}
+                    className="mt-6 flex min-h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 text-sm font-semibold text-surface-base transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
+                    data-testid="diary-empty-add"
+                  >
                     <Icon icon={CalendarPlus} size={18} />
                     Add food
                   </button>
