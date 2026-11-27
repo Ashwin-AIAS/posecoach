@@ -109,4 +109,29 @@ describe("CameraHud", () => {
     )
     expect(screen.getByTestId("status-banner").textContent).toContain("Step into frame")
   })
+
+  it("maps form score bands to the camera-stage form-colour frame (P36 A3)", () => {
+    const { rerender } = render(
+      <CameraHud result={{ ...base, score: 85 }} active exercise="squat" onShowHowTo={vi.fn()} />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "good")
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-tint", "#36D399")
+
+    rerender(
+      <CameraHud result={{ ...base, score: 68 }} active exercise="squat" onShowHowTo={vi.fn()} />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "mid")
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-tint", "#FFB23D")
+
+    rerender(
+      <CameraHud result={{ ...base, score: 45 }} active exercise="squat" onShowHowTo={vi.fn()} />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "bad")
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-tint", "#FF4D4D")
+
+    rerender(
+      <CameraHud result={{ ...base, score: null }} active exercise="squat" onShowHowTo={vi.fn()} />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "neutral")
+  })
 })

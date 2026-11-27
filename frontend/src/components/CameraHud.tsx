@@ -1,6 +1,7 @@
 import { memo } from "react"
 import { TriangleAlert } from "lucide-react"
 
+import { formFrameBand, formFrameBoxShadow, formFrameColor } from "../features/live/formFrame"
 import type { Exercise, PoseResult, PoseStatus } from "../types"
 import type { WorstJoint } from "../lib/joints"
 import { exerciseLabel } from "../lib/exercises"
@@ -47,12 +48,29 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
   const statusMessage = blocked ? (topCue ?? STATUS_FALLBACK[status]) : undefined
   // What the movement was checked against — names the exercise in the banner.
   const expected = result?.expected_exercise ?? exercise
+  const frameBand = formFrameBand(score, status)
+  const frameColor = formFrameColor(score, status)
+  const frameShadow = formFrameBoxShadow(score, status)
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      {/* Corner score ring on a glass chip — sits below the floating top bar */}
+      {/* P36 A3: 3-4px inset form-colour frame on the camera stage edge,
+          tinted by the score ramp and easing over 300ms (never flashing). */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl"
+        style={{
+          boxShadow: frameShadow,
+          transition: "box-shadow 300ms ease-out",
+        }}
+        data-testid="form-colour-frame"
+        data-band={frameBand}
+        data-tint={frameColor}
+        aria-hidden="true"
+      />
+
+      {/* Compact secondary score ring (88px) on a glass chip below the floating top bar */}
       <div className="absolute right-3 top-16 rounded-2xl bg-surface-base/45 p-1.5 shadow-elev-1 backdrop-blur-md">
-        <ScoreRing score={score} size={128} />
+        <ScoreRing score={score} size={88} />
       </div>
 
       {/* Worst-joint callout — a soft accent glow, never a hard outline, so it
@@ -98,17 +116,18 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         )
       ) : (
         <div
-          className="absolute left-3 top-16 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md"
+          className="absolute left-3 top-16 rounded-2xl bg-surface-base/45 px-3.5 py-2 shadow-elev-1 backdrop-blur-md"
           data-testid="rep-counter"
         >
           <div className="flex items-baseline gap-1.5">
             <span
               key={reps}
-              className="hud-numerals inline-block animate-number-pop font-display text-4xl font-semibold leading-none text-white"
+              className="hud-numerals inline-block animate-number-pop font-display text-[4.5rem] font-semibold leading-none text-white"
+              data-testid="rep-hero-number"
             >
               {reps}
             </span>
-            <span className="text-[11px] uppercase tracking-wide text-gray-400">reps</span>
+            <span className="text-xs uppercase tracking-wide text-gray-400">reps</span>
           </div>
           <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
             {exerciseLabel(exercise)}
@@ -149,12 +168,13 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         </div>
       )}
 
-      {/* Lower-third coaching caption (only on normally-scored frames) */}
+      {/* Lower-third coaching caption (only on normally-scored frames): >=20px, max 2 lines */}
       {!blocked && topCue !== undefined && topCue.length > 0 && (
         <div className="absolute inset-x-0 bottom-6 flex justify-center px-4">
           <p
             key={topCue}
-            className="animate-caption-in max-w-md rounded-full bg-surface-base/65 px-5 py-2.5 text-center text-base font-medium text-white shadow-elev-1 backdrop-blur-md"
+            data-testid="hud-top-cue"
+            className="animate-caption-in line-clamp-2 max-w-lg rounded-2xl bg-surface-base/75 px-5 py-2.5 text-center text-xl font-medium leading-snug text-white shadow-elev-1 backdrop-blur-md"
           >
             {topCue}
           </p>

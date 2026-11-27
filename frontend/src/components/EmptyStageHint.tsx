@@ -22,7 +22,7 @@ interface EmptyStageHintProps {
 export function EmptyStageHint({ exercise, message }: EmptyStageHintProps): JSX.Element {
   const meta = EXERCISE_META[exercise]
   return (
-    <div className="pointer-events-none absolute left-3 top-44 z-20 max-w-[15rem] animate-fade-in rounded-full bg-surface-base/65 px-3 py-1.5 shadow-elev-1 backdrop-blur-md">
+    <div className="pointer-events-none absolute left-3 top-48 z-20 max-w-[15rem] animate-fade-in rounded-full bg-surface-base/65 px-3 py-1.5 shadow-elev-1 backdrop-blur-md">
       <p className="text-xs leading-snug text-gray-300">
         {message !== undefined ? (
           message
