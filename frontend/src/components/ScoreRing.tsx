@@ -71,7 +71,8 @@ function useCountUp(target: number, reduced: boolean): number {
  */
 function ScoreRingInner({ score, size = 132, label = "FORM" }: ScoreRingProps): JSX.Element {
   const gradientId = useId()
-  const radius = (size - STROKE) / 2
+  const strokeWidth = size < 100 ? Math.max(8, Math.round(size * 0.115)) : STROKE
+  const radius = Math.max(4, (size - strokeWidth) / 2 - 2)
   const circumference = 2 * Math.PI * radius
   const pct = score === null ? 0 : Math.max(0, Math.min(100, score)) / 100
   const offset = circumference * (1 - pct)
@@ -98,12 +99,15 @@ function ScoreRingInner({ score, size = 132, label = "FORM" }: ScoreRingProps): 
 
   return (
     <div
-      className={"relative grid place-items-center" + (celebrating ? " animate-ring-celebrate" : "")}
+      className={
+        "relative grid place-items-center rounded-full" +
+        (celebrating ? " animate-ring-celebrate" : "")
+      }
       style={{ width: size, height: size }}
       role="img"
       aria-label={score === null ? "Form score unavailable" : `Form score ${Math.round(score)} of 100`}
     >
-      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+      <svg width={size} height={size} className="-rotate-90 overflow-visible" aria-hidden="true">
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#FF4D4D" />
@@ -111,32 +115,46 @@ function ScoreRingInner({ score, size = 132, label = "FORM" }: ScoreRingProps): 
             <stop offset="100%" stopColor="#36D399" />
           </linearGradient>
         </defs>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={TRACK} strokeWidth={STROKE} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={TRACK}
+          strokeWidth={strokeWidth}
+        />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
           stroke={score === null ? color : `url(#${gradientId})`}
-          strokeWidth={STROKE}
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           style={{
             transition: "stroke-dashoffset 0.45s ease-out",
-            filter: `drop-shadow(0 0 8px ${color}66)`,
+            filter: score === null ? undefined : `drop-shadow(0 0 6px ${color}55)`,
           }}
         />
       </svg>
       <div className="absolute inset-0 grid place-content-center text-center">
         <span
           className="hud-numerals font-display font-semibold leading-none"
-          style={{ color, fontSize: size * 0.3 }}
+          style={{ color, fontSize: Math.round(size * 0.3) }}
           data-testid="ring-score-value"
         >
           {score === null ? "—" : Math.round(displayed)}
         </span>
-        <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-gray-500">{label}</span>
+        <span
+          className={
+            "mt-1 font-medium uppercase tracking-[0.2em] text-gray-500 " +
+            (size < 100 ? "text-[9px]" : "text-[10px]")
+          }
+        >
+          {label}
+        </span>
       </div>
     </div>
   )
