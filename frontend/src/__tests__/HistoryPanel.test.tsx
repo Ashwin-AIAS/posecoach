@@ -22,6 +22,15 @@ const sessions = [
     started_at: "2026-06-11T10:00:00Z",
     ended_at: "2026-06-11T10:05:00Z",
   },
+  {
+    id: "s3",
+    exercise: "bench",
+    session_type: "exercise",
+    rep_count: 6,
+    avg_form_score: 81,
+    started_at: "2026-06-12T10:00:00Z",
+    ended_at: "2026-06-12T10:05:00Z",
+  },
 ]
 
 const detail = {
@@ -40,13 +49,18 @@ vi.mock("../lib/api", () => ({
   getSessionDetail: vi.fn(async () => detail),
 }))
 
-describe("HistoryPanel (UI-06)", () => {
-  it("renders Apple-style summary cards from real history data", async () => {
+describe("HistoryPanel (UI-06 + P36 B5)", () => {
+  it("renders Apple-style summary cards and per-exercise personal bests", async () => {
     render(<HistoryPanel onClose={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId("history-stats")).toBeInTheDocument())
     expect(screen.getByText("Sessions")).toBeInTheDocument()
     expect(screen.getByText("Avg form")).toBeInTheDocument()
     expect(screen.getByText("Best streak")).toBeInTheDocument()
+
+    const pbStrip = screen.getByTestId("history-personal-bests")
+    expect(pbStrip).toBeInTheDocument()
+    expect(screen.getByTestId("pb-card-squat")).toHaveTextContent("92")
+    expect(screen.getByTestId("pb-card-bench")).toHaveTextContent("81")
   })
 
   it("opens a tap-in session detail view that reuses the per-rep timeline primitives", async () => {
@@ -58,11 +72,17 @@ describe("HistoryPanel (UI-06)", () => {
     await waitFor(() => expect(screen.getByText("Snapshots")).toBeInTheDocument())
   })
 
-  it("shows nothing for summary cards when there is no history", async () => {
+  it("shows empty state with icon, value line, and 'Start a set' CTA wired to onStart (B5)", async () => {
     const { apiJson } = await import("../lib/api")
     vi.mocked(apiJson).mockResolvedValueOnce([])
-    render(<HistoryPanel onClose={vi.fn()} />)
+    const onStart = vi.fn()
+    render(<HistoryPanel onClose={vi.fn()} onStart={onStart} />)
     await waitFor(() => expect(screen.getByText("No sessions yet.")).toBeInTheDocument())
     expect(screen.queryByTestId("history-stats")).not.toBeInTheDocument()
+
+    const cta = screen.getByTestId("history-start-btn")
+    expect(cta).toHaveTextContent("Start a set")
+    fireEvent.click(cta)
+    expect(onStart).toHaveBeenCalledTimes(1)
   })
 })

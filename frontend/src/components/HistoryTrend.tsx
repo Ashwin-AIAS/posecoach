@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react"
+import { Award } from "lucide-react"
 
 import type { Exercise } from "../types"
 import { EXERCISES } from "../types"
 import { exerciseLabel } from "../lib/exercises"
+import { scoreColor } from "../lib/skeleton"
+import { Icon } from "./ui/Icon"
 
 /** Minimal shape needed to plot a trend — a subset of the history session row. */
 export interface TrendSession {
@@ -29,9 +32,8 @@ function labelFor(ex: string): string {
 
 /**
  * Progress-over-time chart: average form score across sessions for one exercise,
- * plotted as a pure-SVG area + line (no chart library — keeps the bundle lean).
- * Filterable by exercise; the Y axis is fixed 0–100 so a single point never
- * produces a broken axis.
+ * plotted as a pure-SVG area + line (no chart library — keeps the bundle lean),
+ * with the selected exercise's personal best highlighted alongside the filter.
  */
 export function HistoryTrend({ sessions }: { sessions: readonly TrendSession[] }): JSX.Element {
   // Distinct exercises present in the history, in first-seen order.
@@ -54,10 +56,15 @@ export function HistoryTrend({ sessions }: { sessions: readonly TrendSession[] }
     [sessions, active],
   )
 
+  const personalBest = useMemo(() => {
+    const positive = values.filter((v) => v > 0)
+    return positive.length > 0 ? Math.max(...positive) : null
+  }, [values])
+
   if (sessions.length === 0) {
     return (
       <div className="rounded-2xl bg-surface-raised p-4 shadow-elev-1">
-        <p className="text-sm text-gray-500">Train a few sessions to see your progress.</p>
+        <p className="text-sm text-gray-400">Train a few sessions to see your progress.</p>
       </div>
     )
   }
@@ -76,14 +83,33 @@ export function HistoryTrend({ sessions }: { sessions: readonly TrendSession[] }
   const gridStops = [0, 25, 50, 75, 100]
 
   return (
-    <div className="rounded-2xl bg-surface-raised p-4 shadow-elev-1">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">Progress</h3>
+    <div className="rounded-2xl bg-surface-overlay p-4 shadow-elev-1">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+            Progress
+          </h3>
+          {personalBest !== null && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-surface-raised px-2.5 py-1 text-xs shadow-elev-1"
+              data-testid="trend-personal-best"
+            >
+              <Icon icon={Award} size={12} className="text-accent" />
+              <span className="text-gray-400">PB</span>
+              <span
+                className="hud-numerals font-display font-semibold"
+                style={{ color: scoreColor(personalBest) }}
+              >
+                {Math.round(personalBest)}
+              </span>
+            </span>
+          )}
+        </div>
         <select
           value={active}
           onChange={(e) => setSelected(e.target.value)}
           aria-label="Filter by exercise"
-          className="rounded-md border border-surface-hairline bg-surface-overlay px-2 py-1 text-xs text-gray-200 focus:border-accent focus:outline-none"
+          className="min-h-11 rounded-full bg-surface-raised px-3.5 text-xs font-medium text-gray-200 shadow-elev-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {present.map((ex) => (
             <option key={ex} value={ex}>
@@ -123,7 +149,14 @@ export function HistoryTrend({ sessions }: { sessions: readonly TrendSession[] }
           />
         )}
         {values.map((v, i) => (
-          <circle key={i} cx={x(i)} cy={y(v)} r={3} fill="rgb(var(--accent))" data-testid="trend-point" />
+          <circle
+            key={i}
+            cx={x(i)}
+            cy={y(v)}
+            r={3}
+            fill="rgb(var(--accent))"
+            data-testid="trend-point"
+          />
         ))}
       </svg>
     </div>
