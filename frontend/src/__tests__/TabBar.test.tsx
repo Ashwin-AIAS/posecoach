@@ -22,6 +22,8 @@ describe("TabBar", () => {
     }
     expect(screen.getByTestId("tab-coach")).toHaveAttribute("aria-selected", "true")
     expect(screen.getByTestId("tab-workouts")).toHaveAttribute("aria-selected", "false")
+    expect(screen.getByTestId("tab-pill-coach")).toHaveAttribute("data-active", "true")
+    expect(screen.getByTestId("tab-pill-workouts")).toHaveAttribute("data-active", "false")
   })
 
   it("exposes tablist/tab roles for assistive tech", () => {
