@@ -5,6 +5,7 @@ import {
   MessageCircle,
   PlayCircle,
   RefreshCw,
+  Timer,
   Vibrate,
   Volume2,
   VolumeX,
@@ -44,6 +45,7 @@ import { CueToast } from "./features/voice/CueToast"
 import { isVoiceBootCardEnabled } from "./features/voice/flag"
 import { useCoachVoice } from "./features/voice/useCoachVoice"
 import { useVoiceCueBridge } from "./features/voice/useVoiceCueBridge"
+import { SetCountdownOverlay } from "./features/live/SetCountdownOverlay"
 import { useAuth } from "./hooks/useAuth"
 import { useCamera } from "./hooks/useCamera"
 import { useCueVoice, isSpeechSupported } from "./hooks/useCueVoice"
@@ -135,6 +137,7 @@ export default function App(): JSX.Element {
   const [showPrep, setShowPrep] = useState(false)
   const [howTo, setHowTo] = useState<Exercise | null>(null)
   const [summary, setSummary] = useState<SessionStats | null>(null)
+  const [countingDown, setCountingDown] = useState(false)
   const [voice, setVoice] = useState(false)
   const [haptics, setHaptics] = useState<boolean>(() => readHapticsEnabled())
   const toggleHaptics = useCallback((): void => {
@@ -246,10 +249,17 @@ export default function App(): JSX.Element {
 
   // A new exercise, pose, or mode is a new set — reset the accumulated stats.
   useEffect(() => {
+    setCountingDown(false)
     stats.reset()
   }, [exercise, mode, poseName, stats])
 
+  const handleCountdownComplete = useCallback((): void => {
+    setCountingDown(false)
+    stats.reset()
+  }, [stats])
+
   const finishSet = (): void => {
+    setCountingDown(false)
     recorder.stop() // never leave a recording running past the end of a set
     setSummary(stats.snapshot())
     camera.stop()
@@ -469,12 +479,13 @@ export default function App(): JSX.Element {
           )}
           <CameraHud
             result={pose.result}
-            active={camera.ready}
+            active={camera.ready && !countingDown}
             exercise={exercise}
             onShowHowTo={setHowTo}
             worst={worst}
             hapticsEnabled={haptics}
           />
+          {countingDown && <SetCountdownOverlay onComplete={handleCountdownComplete} />}
           {/* P29 S8: on-screen twin of the most recently fired voice cue
               (spec §4 "Attention budget" — a muted user must lose nothing).
               Centered below the floating top bar and worst-joint chip. */}
@@ -687,6 +698,17 @@ export default function App(): JSX.Element {
             Prep
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => setCountingDown(true)}
+          disabled={!camera.ready || countingDown}
+          title="3-2-1 countdown to walk back to the mirror and reset set stats"
+          className="flex min-h-11 items-center gap-1.5 rounded-full bg-surface-raised px-3.5 text-xs font-medium text-gray-200 shadow-elev-1 transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-white disabled:translate-y-0 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          data-testid="start-set-btn"
+        >
+          <Icon icon={Timer} size={14} />
+          Start set
+        </button>
         {recorder.supported && (
           <button
             type="button"
