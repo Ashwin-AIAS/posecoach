@@ -109,4 +109,63 @@ describe("CameraHud", () => {
     )
     expect(screen.getByTestId("status-banner").textContent).toContain("Step into frame")
   })
+
+  it("maps form score bands to the camera-stage form-colour frame (P36 A3)", () => {
+    const { rerender } = render(
+      <CameraHud result={{ ...base, score: 85 }} active exercise="squat" onShowHowTo={vi.fn()} />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "good")
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-tint", "#36D399")
+
+    rerender(
+      <CameraHud result={{ ...base, score: 68 }} active exercise="squat" onShowHowTo={vi.fn()} />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "mid")
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-tint", "#FFB23D")
+
+    rerender(
+      <CameraHud result={{ ...base, score: 45 }} active exercise="squat" onShowHowTo={vi.fn()} />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "bad")
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-tint", "#FF4D4D")
+
+    rerender(
+      <CameraHud result={{ ...base, score: null }} active exercise="squat" onShowHowTo={vi.fn()} />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-band", "neutral")
+  })
+
+  it("flashes the form frame and triggers haptics on rep increment (P36 A4)", () => {
+    const vibrateMock = vi.fn(() => true)
+    Object.defineProperty(navigator, "vibrate", {
+      value: vibrateMock,
+      configurable: true,
+      writable: true,
+    })
+
+    const { rerender } = render(
+      <CameraHud
+        result={{ ...base, reps: 2 }}
+        active
+        exercise="squat"
+        onShowHowTo={vi.fn()}
+        hapticsEnabled
+      />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-rep-pulse", "false")
+    expect(vibrateMock).not.toHaveBeenCalled()
+
+    rerender(
+      <CameraHud
+        result={{ ...base, reps: 3 }}
+        active
+        exercise="squat"
+        onShowHowTo={vi.fn()}
+        hapticsEnabled
+      />,
+    )
+    expect(screen.getByTestId("form-colour-frame")).toHaveAttribute("data-rep-pulse", "true")
+    expect(screen.getByTestId("rep-hero-number")).toHaveAttribute("data-rep-pulse", "true")
+    expect(vibrateMock).toHaveBeenCalledWith(15)
+  })
 })

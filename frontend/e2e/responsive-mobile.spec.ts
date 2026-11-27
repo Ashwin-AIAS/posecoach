@@ -1,4 +1,11 @@
 import { expect, test } from "@playwright/test"
+import type { Page } from "@playwright/test"
+
+/** P36 A2: Exercise/Posing now lives inside the exercise picker sheet. */
+async function enterPosing(page: Page): Promise<void> {
+  await page.getByTestId("exercise-change-btn").click()
+  await page.getByTestId("mode-posing").click()
+}
 
 /**
  * Responsive mobile E2E (P19-P22) — verifies the action bar is reachable on
@@ -58,7 +65,7 @@ test("posing mode selector row collapses to a single line, leaving more room for
   await page.goto("/")
   await page.getByTestId("start-workout-btn").click()
 
-  await page.getByTestId("mode-posing").click()
+  await enterPosing(page)
   await expect(page.getByRole("radiogroup", { name: "Pose" })).toHaveCount(0)
   await expect(page.getByTestId("pose-current-label")).toBeVisible()
 
@@ -76,7 +83,7 @@ for (const { width, height, label } of [
     await page.setViewportSize({ width, height })
     await page.goto("/")
     await page.getByTestId("start-workout-btn").click()
-    await page.getByTestId("mode-posing").click()
+    await enterPosing(page)
 
     // The category is visible on the collapsed row before opening anything.
     const row = page.getByTestId("selector-row")
@@ -120,7 +127,7 @@ for (const mode of ["exercise", "posing"] as const) {
       await page.setViewportSize({ width, height })
       await page.goto("/")
       await page.getByTestId("start-workout-btn").click()
-      if (mode === "posing") await page.getByTestId("mode-posing").click()
+      if (mode === "posing") await enterPosing(page)
 
       const cameraBox = await page.getByTestId("camera-stage").boundingBox()
       const selectorBox = await page.getByTestId("selector-row").boundingBox()

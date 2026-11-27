@@ -17,14 +17,18 @@ On LLM failure, a single FALLBACK_MESSAGE event is emitted before completion.
 import asyncio
 import contextlib
 import json
-from collections.abc import AsyncIterator, Coroutine
+from collections.abc import AsyncIterator, Coroutine, Sequence
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.deps import ACCESS_COOKIE, get_user_from_cookie_optional
 from app.chatbot import answer_cache, gemini_client, qwen_client, rag, web_search
 from app.chatbot import router as chat_router
 from app.chatbot.prompts import (
@@ -38,7 +42,9 @@ from app.chatbot.prompts import (
     build_user_prompt,
     is_safety_sensitive,
 )
+from app.db import get_db
 from app.metrics import chat_requests_total
+from app.models import WorkoutSession
 from app.rate_limit import CHAT_RATE_LIMIT, limiter
 from app.voice.personas import PersonaKey
 
@@ -314,39 +320,102 @@ def _replay_chunks(text: str) -> list[str]:
     return [text[i : i + _REPLAY_CHUNK_CHARS] for i in range(0, len(text), _REPLAY_CHUNK_CHARS)]
 
 
-def _is_cacheable(payload: ChatRequest, conversational: bool) -> bool:
+_MAX_SESSION_SUMMARY_CHARS = 400
+_RECENT_SESSIONS_LIMIT = 5
+
+
+def _format_recent_sessions_summary(
+    sessions: Sequence[WorkoutSession],
+    max_chars: int = _MAX_SESSION_SUMMARY_CHARS,
+) -> str | None:
+    """Format up to 5 recent WorkoutSession rows into a <= 400-char prompt snippet."""
+    if not sessions:
+        return None
+    prefix = "Recent sessions: "
+    parts: list[str] = []
+    used = len(prefix)
+    for s in sessions[:_RECENT_SESSIONS_LIMIT]:
+        day = s.started_at.strftime("%Y-%m-%d") if s.started_at else "unknown"
+        score = round(s.avg_form_score)
+        entry = f"{s.exercise} ({day}, avg {score}, {s.rep_count} reps)"
+        sep = "; " if parts else ""
+        if used + len(sep) + len(entry) > max_chars:
+            break
+        parts.append(entry)
+        used += len(sep) + len(entry)
+    if not parts:
+        # Fallback if a single exercise name was unusually long
+        first = sessions[0]
+        day = first.started_at.strftime("%Y-%m-%d") if first.started_at else "unknown"
+        raw = f"{prefix}{first.exercise} ({day}, avg {round(first.avg_form_score)}, {first.rep_count} reps)"
+        return raw[:max_chars]
+    return prefix + "; ".join(parts)
+
+
+async def _load_user_session_summary(request: Request, db: AsyncSession) -> str | None:
+    """Load the authenticated user's last 5 WorkoutSession rows server-side (P36 C7).
+
+    Returns None for anonymous requests or users with no sessions. Never trusts
+    client-sent context and never logs the returned summary.
+    """
+    access_token = request.cookies.get(ACCESS_COOKIE)
+    if not access_token:
+        return None
+    try:
+        user = await get_user_from_cookie_optional(access_token, db)
+        if user is None:
+            return None
+        result = await db.execute(
+            select(WorkoutSession)
+            .where(WorkoutSession.user_id == user.id)
+            .order_by(WorkoutSession.started_at.desc())
+            .limit(_RECENT_SESSIONS_LIMIT)
+        )
+        rows = list(result.scalars().all())
+        return _format_recent_sessions_summary(rows)
+    except SQLAlchemyError as exc:
+        # Fail open — memory is an enhancement and must never break chat.
+        # Log the error class only: never the summary, user data, or token.
+        logger.warning("chat_memory_load_failed", error=type(exc).__name__)
+        return None
+
+
+def _is_cacheable(
+    payload: ChatRequest,
+    conversational: bool,
+    *,
+    has_session_memory: bool = False,
+) -> bool:
     """True if this turn may be served from / written to the answer cache.
 
     Personalized turns are excluded outright: a frame is user imagery, history
-    is that user's conversation, small talk should stay varied, and a selected
-    persona changes the answer's *text* (its tone), so a persona-flavoured
-    reply must never be replayed to a different user who picked (or has) no
-    persona. What is left is a plain, persona-less question keyed only by
-    (query, exercise) — safe to share.
+    is that user's conversation, small talk should stay varied, a selected
+    persona changes tone, and authenticated session memory personalizes the
+    system prompt — none of these may be replayed to other users.
     """
     return (
         not payload.frame
         and not payload.history
         and not conversational
         and payload.persona is None
+        and not has_session_memory
     )
 
 
 def _persona_system_prompt(
-    *, conversational: bool, has_frame: bool, persona: PersonaKey | None
+    *,
+    conversational: bool,
+    has_frame: bool,
+    persona: PersonaKey | None,
+    session_summary: str | None = None,
 ) -> str | None:
-    """The ``system_prompt_override`` sent to both LLM clients (P29 S7).
+    """The ``system_prompt_override`` sent to both LLM clients (P29 S7 + P36 C7).
 
-    With no persona selected this reproduces the exact pre-P29 behaviour:
-    conversational turns get ``CONVERSATIONAL_SYSTEM_PROMPT`` explicitly,
-    everything else passes ``None`` so each client applies its own default
-    (``SYSTEM_PROMPT`` for Gemini; ``VISUAL_SYSTEM_PROMPT``-if-framed else
-    ``SYSTEM_PROMPT`` for Qwen) — existing chatbot tests exercise only this
-    path and are unaffected. A selected persona always sets an explicit
-    override (its tone fragment layered on the right base prompt) so it
-    applies regardless of provider or whether a frame is attached.
+    With no persona and no session summary this reproduces the exact pre-P29
+    behaviour. When either is present, the resolved base prompt is layered with
+    the persona tone fragment and/or the server-loaded session summary.
     """
-    if persona is None:
+    if persona is None and not session_summary:
         return CONVERSATIONAL_SYSTEM_PROMPT if conversational else None
     if conversational:
         base = CONVERSATIONAL_SYSTEM_PROMPT
@@ -354,7 +423,10 @@ def _persona_system_prompt(
         base = VISUAL_SYSTEM_PROMPT
     else:
         base = SYSTEM_PROMPT
-    return build_persona_system_prompt(base, persona)
+    prompt = build_persona_system_prompt(base, persona)
+    if session_summary:
+        prompt = f"{prompt}\n\n## User recent workout context\n{session_summary}"
+    return prompt
 
 
 def _history_dicts(history: list[HistoryMessage] | None) -> list[dict[str, str]] | None:
@@ -365,7 +437,12 @@ def _history_dicts(history: list[HistoryMessage] | None) -> list[dict[str, str]]
     return [{"role": m.role, "content": m.content} for m in trimmed]
 
 
-async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterator[str]:
+async def _stream_tokens(
+    request: Request,
+    payload: ChatRequest,
+    *,
+    session_summary: str | None = None,
+) -> AsyncIterator[str]:
     # The status event is the FIRST thing on the wire — before any await. It
     # used to be emitted after _gather_context(), so the client sat blank
     # through embedding + ChromaDB + (worst case) a 2 s web-search round-trip
@@ -383,7 +460,11 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
 
     # --- Answer cache: replay an identical, non-personalized turn ---
     redis_client = getattr(request.app.state, "redis", None)
-    cacheable = _is_cacheable(payload, conversational)
+    cacheable = _is_cacheable(
+        payload,
+        conversational,
+        has_session_memory=bool(session_summary),
+    )
     if cacheable and redis_client is not None:
         cached_answer = await answer_cache.load(redis_client, payload.query, payload.exercise)
         if cached_answer is not None:
@@ -431,7 +512,10 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
     yield _sse_meta(source_mode)
 
     system_prompt_override = _persona_system_prompt(
-        conversational=conversational, has_frame=has_frame, persona=payload.persona
+        conversational=conversational,
+        has_frame=has_frame,
+        persona=payload.persona,
+        session_summary=session_summary,
     )
 
     emitted_any = False
@@ -494,10 +578,15 @@ async def _stream_tokens(request: Request, payload: ChatRequest) -> AsyncIterato
 
 @router.post("/stream")
 @limiter.limit(CHAT_RATE_LIMIT)
-async def chat_stream(request: Request, payload: ChatRequest) -> StreamingResponse:
+async def chat_stream(
+    request: Request,
+    payload: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
     """Stream a coaching answer back as SSE."""
+    session_summary = await _load_user_session_summary(request, db)
     return StreamingResponse(
-        _stream_tokens(request, payload),
+        _stream_tokens(request, payload, session_summary=session_summary),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

@@ -1,6 +1,8 @@
-import { memo } from "react"
-import { TriangleAlert } from "lucide-react"
+import { memo, useEffect, useRef, useState } from "react"
+import { CircleHelp, TriangleAlert } from "lucide-react"
 
+import { formFrameBand, formFrameBoxShadow, formFrameColor } from "../features/live/formFrame"
+import { triggerRepHaptic } from "../lib/haptics"
 import type { Exercise, PoseResult, PoseStatus } from "../types"
 import type { WorstJoint } from "../lib/joints"
 import { exerciseLabel } from "../lib/exercises"
@@ -24,19 +26,50 @@ interface CameraHudProps {
   readonly onShowHowTo: (ex: Exercise) => void
   /** Lowest-scoring joint to name, or null when form is good. */
   readonly worst?: WorstJoint | null
+  /** Whether tactile vibration on rep increment is enabled (P36 A4). */
+  readonly hapticsEnabled?: boolean
 }
+
+const REP_PULSE_MS = 260
 
 /**
  * Floating heads-up display drawn over the camera stage: a corner form-score
  * ring and the top coaching cue rendered as a lower-third caption. Pointer
  * events pass through to the stage; only chrome animates (never the frame path).
  */
-function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }: CameraHudProps): JSX.Element | null {
+function CameraHudInner({
+  result,
+  active,
+  exercise,
+  onShowHowTo,
+  worst = null,
+  hapticsEnabled = true,
+}: CameraHudProps): JSX.Element | null {
+  const reps = result?.reps ?? 0
+  const prevRepsRef = useRef<number>(reps)
+  const [repPulse, setRepPulse] = useState(false)
+
+  useEffect(() => {
+    if (!active) {
+      prevRepsRef.current = reps
+      setRepPulse(false)
+      return undefined
+    }
+    if (reps > prevRepsRef.current) {
+      prevRepsRef.current = reps
+      triggerRepHaptic(hapticsEnabled)
+      setRepPulse(true)
+      const timer = setTimeout(() => setRepPulse(false), REP_PULSE_MS)
+      return () => clearTimeout(timer)
+    }
+    prevRepsRef.current = reps
+    return undefined
+  }, [reps, active, hapticsEnabled])
+
   if (!active) return null
   const score = result?.score ?? null
   const topCue = result?.cues?.[0]
   const holdS = result?.hold_s
-  const reps = result?.reps ?? 0
   const isPlank = exercise === "plank"
   // A missing status (older server) means a normally-scored frame.
   const status: PoseStatus = result?.status ?? "ok"
@@ -47,19 +80,39 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
   const statusMessage = blocked ? (topCue ?? STATUS_FALLBACK[status]) : undefined
   // What the movement was checked against — names the exercise in the banner.
   const expected = result?.expected_exercise ?? exercise
+  const frameBand = formFrameBand(score, status)
+  const frameColor = formFrameColor(score, status)
+  const frameShadow = formFrameBoxShadow(score, status, repPulse)
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      {/* Corner score ring on a glass chip — the dominant, glanceable readout */}
-      <div className="absolute right-3 top-3 rounded-2xl bg-surface-base/45 p-1.5 shadow-elev-1 backdrop-blur-md">
-        <ScoreRing score={score} size={128} />
+      {/* P36 A3/A4: 3-4px inset form-colour frame on the camera stage edge,
+          tinted by the score ramp and easing over 300ms, with a brief accent
+          flash on every rep increment. */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-2xl"
+        style={{
+          boxShadow: frameShadow,
+          transition: "box-shadow 300ms ease-out",
+        }}
+        data-testid="form-colour-frame"
+        data-band={frameBand}
+        data-tint={frameColor}
+        data-rep-pulse={repPulse ? "true" : "false"}
+        aria-hidden="true"
+      />
+
+      {/* Compact secondary score ring (88px) on a glass chip below the floating top bar */}
+      <div className="absolute right-3 top-16 rounded-2xl bg-surface-base/45 p-1.5 shadow-elev-1 backdrop-blur-md">
+        <ScoreRing score={score} size={88} />
       </div>
 
       {/* Worst-joint callout — a soft accent glow, never a hard outline, so it
-          reads as a gentle highlight rather than an alarm. */}
+          reads as a gentle highlight rather than an alarm. Positioned below the
+          floating top bar so it never collides with it (P36 A2/A3). */}
       {!blocked && worst !== null && (
         <div
-          className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-score-bad/15 px-3 py-1 text-sm font-medium text-score-bad backdrop-blur-md"
+          className="absolute left-1/2 top-16 -translate-x-1/2 rounded-full bg-score-bad/15 px-3 py-1 text-sm font-medium text-score-bad backdrop-blur-md"
           style={{ boxShadow: "0 0 24px -2px rgba(255, 77, 77, 0.5)" }}
           data-testid="worst-joint-chip"
         >
@@ -68,22 +121,22 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
       )}
 
       {/* How-to info button (re-opens the demo for the active exercise) — kept
-          bottom-left so it never collides with the flip-camera control, which
-          owns bottom-right on the camera stage (P20). */}
+          bottom-left with a 44x44px tap target and Lucide CircleHelp icon (P36 A6). */}
       <button
         type="button"
         onClick={() => onShowHowTo(exercise)}
         aria-label="Show how-to demo"
-        className="pointer-events-auto absolute bottom-4 left-4 grid h-9 w-9 place-content-center rounded-full bg-surface-base/55 text-gray-300 shadow-elev-1 backdrop-blur-md transition hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="pointer-events-auto absolute bottom-3 left-3 grid h-11 w-11 place-content-center rounded-full bg-surface-raised/85 text-gray-200 shadow-elev-1 backdrop-blur-md transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        data-testid="hud-howto-btn"
       >
-        ?
+        <Icon icon={CircleHelp} size={18} />
       </button>
 
       {/* Top-left dashboard cluster: plank hold timer or the large rep counter,
           with the exercise name receding underneath in smaller, low-contrast text. */}
       {isPlank ? (
         holdS !== undefined && (
-          <div className="absolute left-3 top-3 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md">
+          <div className="absolute left-3 top-16 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md">
             <div className="flex items-baseline gap-1.5">
               <span className="hud-numerals font-display text-3xl font-semibold leading-none text-accent">
                 {holdS.toFixed(1)}s
@@ -97,17 +150,19 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         )
       ) : (
         <div
-          className="absolute left-3 top-3 rounded-2xl bg-surface-base/45 px-3 py-2 shadow-elev-1 backdrop-blur-md"
+          className="absolute left-3 top-16 rounded-2xl bg-surface-base/45 px-3.5 py-2 shadow-elev-1 backdrop-blur-md"
           data-testid="rep-counter"
         >
           <div className="flex items-baseline gap-1.5">
             <span
               key={reps}
-              className="hud-numerals inline-block animate-number-pop font-display text-4xl font-semibold leading-none text-white"
+              className="hud-numerals inline-block animate-number-pop font-display text-[4.5rem] font-semibold leading-none text-white"
+              data-testid="rep-hero-number"
+              data-rep-pulse={repPulse ? "true" : "false"}
             >
               {reps}
             </span>
-            <span className="text-[11px] uppercase tracking-wide text-gray-400">reps</span>
+            <span className="text-xs uppercase tracking-wide text-gray-400">reps</span>
           </div>
           <span className="mt-0.5 block text-[11px] font-medium text-gray-500">
             {exerciseLabel(exercise)}
@@ -148,12 +203,13 @@ function CameraHudInner({ result, active, exercise, onShowHowTo, worst = null }:
         </div>
       )}
 
-      {/* Lower-third coaching caption (only on normally-scored frames) */}
+      {/* Lower-third coaching caption (only on normally-scored frames): >=20px, max 2 lines */}
       {!blocked && topCue !== undefined && topCue.length > 0 && (
         <div className="absolute inset-x-0 bottom-6 flex justify-center px-4">
           <p
             key={topCue}
-            className="animate-caption-in max-w-md rounded-full bg-surface-base/65 px-5 py-2.5 text-center text-base font-medium text-white shadow-elev-1 backdrop-blur-md"
+            data-testid="hud-top-cue"
+            className="animate-caption-in line-clamp-2 max-w-lg rounded-2xl bg-surface-base/75 px-5 py-2.5 text-center text-xl font-medium leading-snug text-white shadow-elev-1 backdrop-blur-md"
           >
             {topCue}
           </p>

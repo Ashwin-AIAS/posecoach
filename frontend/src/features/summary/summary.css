@@ -1,0 +1,41 @@
+/**
+ * P36 Lane B — summary sheet entrance & celebration pulse.
+ *
+ * Pure CSS only (no animation library). Animations touch only `transform` and
+ * `opacity` / `box-shadow`, and automatically collapse to ~0ms under the
+ * project-wide `@media (prefers-reduced-motion: reduce)` rule in `src/index.css`.
+ */
+
+@keyframes summary-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes summary-celebrate-pulse {
+  0% {
+    transform: scale(0.96);
+    box-shadow: 0 0 0 0 rgb(54 211 153 / 0.45);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 14px rgb(54 211 153 / 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(54 211 153 / 0);
+  }
+}
+
+.summary-sheet-enter {
+  animation: summary-sheet-up 240ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+}
+
+.summary-celebrate {
+  animation: summary-celebrate-pulse 650ms ease-out 1;
+}

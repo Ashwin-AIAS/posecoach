@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react"
-import { BookOpen, ClipboardList, Play, Plus } from "lucide-react"
+import { BookOpen, ClipboardList, Dumbbell, Play, Plus } from "lucide-react"
 
 import type { Exercise, ExerciseSummary, ExerciseDetail, WorkoutLog, WorkoutSummary } from "../types"
 import { apiJson, friendlyMessage, isNetworkError, UnauthenticatedError } from "../lib/api"
@@ -442,7 +442,30 @@ function WorkoutPanelInner({
             <ErrorRetry message={recentError.message} onRetry={recentError.retry} />
           )
         ) : recentWorkouts.length === 0 ? (
-          <p className="text-sm text-gray-600">No workouts logged yet.</p>
+          <div
+            className="flex flex-col items-center rounded-2xl bg-surface-raised px-6 py-8 text-center shadow-elev-1"
+            data-testid="workouts-empty"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft">
+              <Icon icon={Dumbbell} size={20} className="text-accent" />
+            </div>
+            <p className="mt-3 font-display text-base font-semibold text-gray-100">
+              No workouts logged yet.
+            </p>
+            <p className="mt-1 max-w-xs text-sm text-gray-400">
+              Track sets, weights, and link live form checks in one place.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleStartWorkout()}
+              disabled={startingWorkout}
+              className="mt-5 flex min-h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 text-sm font-semibold text-surface-base transition ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] hover:brightness-110 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              data-testid="workouts-empty-cta"
+            >
+              <Icon icon={Plus} size={16} />
+              Start your first workout
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col gap-2">
             {recentWorkouts.map((w) => (

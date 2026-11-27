@@ -112,3 +112,6 @@ docs/enhancements/RESPONSIVE_MOBILE_P19-P22.md
 # Calibration images (large dataset)
 data/calib_images/
 
+
+# P36 lane UI screenshots
+.shots/

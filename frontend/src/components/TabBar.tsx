@@ -96,22 +96,23 @@ function TabBarInner({ active, onChange, hidden }: TabBarProps): JSX.Element | n
             }
             data-testid={`tab-${key}`}
           >
-            {/* Smooth active indicator — fades rather than mount/unmounts so the
-                transition reads as movement between tabs. */}
+            {/* Filled pill behind the active icon (P36 C8) — replaces the 2px top line. */}
             <span
-              aria-hidden="true"
               className={
-                "absolute inset-x-5 top-0 h-0.5 rounded-full bg-accent transition-opacity ease-spring motion-reduce:transition-none " +
-                (selected ? "opacity-100" : "opacity-0")
+                "flex items-center justify-center rounded-full px-4 py-1 transition ease-spring motion-reduce:transition-none " +
+                (selected ? "bg-accent-soft" : "bg-transparent")
               }
-            />
-            <Icon
-              icon={icon}
-              size={20}
-              className={
-                "transition ease-spring motion-reduce:transition-none " + (selected ? "scale-110" : "")
-              }
-            />
+              data-testid={`tab-pill-${key}`}
+              data-active={selected ? "true" : "false"}
+            >
+              <Icon
+                icon={icon}
+                size={20}
+                className={
+                  "transition ease-spring motion-reduce:transition-none " + (selected ? "scale-105" : "")
+                }
+              />
+            </span>
             <span>{label}</span>
           </button>
         )

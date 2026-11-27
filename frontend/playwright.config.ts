@@ -43,6 +43,6 @@ export default defineConfig({
     // of every pre-P29 spec that enters the live view. e2e/voice-live-wiring.spec.ts
     // forces it back on per-page-load via the flag's `?voiceBoot=1` override
     // instead of needing its own dev server.
-    env: { VITE_OVERLAY_NEON: "false", VITE_VOICE_BOOT_CARD: "false" },
+    env: { VITE_OVERLAY_NEON: "false", VITE_VOICE_BOOT_CARD: "false", VITE_ONBOARDING: "false" },
   },
 })

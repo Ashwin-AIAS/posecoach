@@ -78,6 +78,7 @@ describe("WorkoutDetail", () => {
     // 2 sets × 100 kg × 5 reps = 1,000 kg total volume.
     expect(screen.getByText(/1,000 kg total volume/)).toBeInTheDocument()
     expect(screen.getByText("warm-up")).toBeInTheDocument()
+    expect(screen.getByTestId("detail-exercise-best-le1")).toHaveTextContent("Best 100 kg × 5")
   })
 
   it("shows a form-score badge only on CV-linked sets", async () => {

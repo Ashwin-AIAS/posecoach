@@ -125,12 +125,15 @@ describe("DiaryDay", () => {
     expect(onDateChange).toHaveBeenCalledWith(todayISO())
   })
 
-  it("empty day shows the friendly state and Add food fires onAddFood", async () => {
+  it("empty day renders BudgetSummary with all-zero totals and Add food fires onAddFood", async () => {
     vi.mocked(getDailyLog).mockResolvedValue(mkDay([]))
     const onAddFood = vi.fn()
     render(<DiaryDay dateISO={todayISO()} onDateChange={vi.fn()} onAddFood={onAddFood} />)
 
-    fireEvent.click(await screen.findByTestId("diary-empty-add"))
+    expect(await screen.findByTestId("daily-totals")).toBeInTheDocument()
+    expect(screen.getByTestId("totals-kcal")).toHaveTextContent("0")
+    expect(screen.getByTestId("diary-empty")).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId("diary-empty-add"))
     expect(onAddFood).toHaveBeenCalled()
   })
 

@@ -35,6 +35,22 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
+/* 300ms branded first-paint fade (P36 C8) — automatically disabled by reduced-motion below. */
+@keyframes brand-first-paint {
+  0% {
+    opacity: 0;
+    transform: scale(0.992);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#root {
+  animation: brand-first-paint 300ms var(--ease-spring) both;
+}
+
 /* Mirror class — applied to the front-camera <video> and its overlay <canvas>
    so the user sees themselves as in a mirror. Dropped for the back camera. */
 .mirror {
