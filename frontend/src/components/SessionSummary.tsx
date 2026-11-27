@@ -68,6 +68,7 @@ function RepBars({ values }: { values: readonly number[] }): JSX.Element {
  */
 export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps): JSX.Element {
   const [trend, setTrend] = useState<number[] | null>(null)
+  const [personalBest, setPersonalBest] = useState<number | null>(null)
   const [authed, setAuthed] = useState(true)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [rated, setRated] = useState<EffortRating | null>(null)
@@ -82,6 +83,10 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
         // that just finished, which is the one the effort rating belongs to.
         const latest = sessions.find((s) => s.exercise === exercise)
         setSessionId(latest?.id ?? null)
+        const exScores = sessions
+          .filter((s) => s.exercise === exercise && s.avg_form_score > 0)
+          .map((s) => s.avg_form_score)
+        setPersonalBest(exScores.length > 0 ? Math.max(...exScores) : null)
         const series = [...sessions]
           .sort((a, b) => a.started_at.localeCompare(b.started_at))
           .map((s) => s.avg_form_score)
@@ -105,7 +110,7 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
     })
   }
 
-  const best = trend && trend.length > 0 ? Math.max(...trend, stats.bestScore) : stats.bestScore
+  const best = stats.bestScore
 
   return (
     <div
@@ -148,6 +153,21 @@ export function SessionSummary({ exercise, stats, onClose }: SessionSummaryProps
             color={best > 0 ? scoreColor(best) : undefined}
           />
         </div>
+
+        {personalBest !== null && (
+          <div
+            className="mt-3 flex items-center justify-between rounded-2xl bg-surface-overlay px-3.5 py-2 text-xs shadow-elev-1"
+            data-testid="personal-best"
+          >
+            <span className="text-gray-400">Personal best ({exerciseLabel(exercise)})</span>
+            <span
+              className="hud-numerals font-display text-sm font-semibold"
+              style={{ color: scoreColor(personalBest) }}
+            >
+              {Math.round(personalBest)}
+            </span>
+          </div>
+        )}
 
         {authed && sessionId !== null && (
           <div className="mt-5" data-testid="effort-question">

@@ -78,4 +78,47 @@ describe("SessionSummary", () => {
     )
     expect(screen.queryByTestId("effort-question")).not.toBeInTheDocument()
   })
+
+  it("never leaks another exercise's history score into Best on a 0-rep set (B1 regression)", async () => {
+    mockApiJson.mockResolvedValueOnce([
+      { id: "h1", exercise: "deadlift", avg_form_score: 90, started_at: "2026-06-10T10:00:00Z" },
+      { id: "h2", exercise: "bench", avg_form_score: 95, started_at: "2026-06-11T10:00:00Z" },
+    ])
+    const emptySet: SessionStats = {
+      reps: 0,
+      avgScore: 0,
+      bestScore: 0,
+      samples: 0,
+      repScores: [],
+      holdSeries: [],
+    }
+    render(<SessionSummary exercise="squat" stats={emptySet} onClose={vi.fn()} />)
+    await waitFor(() =>
+      expect(screen.getByRole("img", { name: /average score trend/i })).toBeInTheDocument(),
+    )
+    expect(screen.queryByText("90")).not.toBeInTheDocument()
+    expect(screen.queryByText("95")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("personal-best")).not.toBeInTheDocument()
+  })
+
+  it("shows Best for this set only and Personal best scoped to the active exercise", async () => {
+    mockApiJson.mockResolvedValueOnce([
+      { id: "h1", exercise: "squat", avg_form_score: 91, started_at: "2026-06-10T10:00:00Z" },
+      { id: "h2", exercise: "deadlift", avg_form_score: 98, started_at: "2026-06-11T10:00:00Z" },
+    ])
+    const setStats: SessionStats = {
+      reps: 5,
+      avgScore: 76,
+      bestScore: 83,
+      samples: 50,
+      repScores: [72, 75, 83, 74, 76],
+      holdSeries: [],
+    }
+    render(<SessionSummary exercise="squat" stats={setStats} onClose={vi.fn()} />)
+    const pb = await screen.findByTestId("personal-best")
+    expect(pb).toHaveTextContent("Personal best (Squat)")
+    expect(pb).toHaveTextContent("91")
+    expect(screen.getByText("83")).toBeInTheDocument()
+    expect(screen.queryByText("98")).not.toBeInTheDocument()
+  })
 })
