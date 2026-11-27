@@ -33,6 +33,8 @@ export interface RecordedSession {
   readonly blob: Blob
   readonly fileName: string
   readonly mimeType: string
+  /** Wall-clock ms (`Date.now()`) when recording started, for rep-replay seeking (P36 B4). */
+  readonly startedAtMs: number
 }
 
 export interface UseSessionRecorderOptions {
@@ -157,6 +159,7 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
   const rafRef = useRef(0)
   const recordingRef = useRef(false)
   const startedAtRef = useRef(0)
+  const startedAtWallMsRef = useRef(0)
   const lastDrawRef = useRef(0)
   const lastElapsedRef = useRef(0)
 
@@ -230,7 +233,12 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
     const blob = new Blob(chunks, { type: mime })
     const ext = extensionForMime(mime)
     const name = `posecoach-${optsRef.current.exercise}-${Date.now()}.${ext}`
-    setLastRecording({ blob, fileName: name, mimeType: mime })
+    setLastRecording({
+      blob,
+      fileName: name,
+      mimeType: mime,
+      startedAtMs: startedAtWallMsRef.current,
+    })
   }, [])
 
   const start = useCallback((): void => {
@@ -281,6 +289,7 @@ export function useSessionRecorder(options: UseSessionRecorderOptions): UseSessi
 
     const now = performance.now()
     startedAtRef.current = now
+    startedAtWallMsRef.current = Date.now()
     lastDrawRef.current = 0
     lastElapsedRef.current = now
     recordingRef.current = true

@@ -13,6 +13,8 @@ export interface SessionStats {
   readonly samples: number
   /** Form score captured at each rep boundary — one entry per counted rep. */
   readonly repScores: readonly number[]
+  /** Wall-clock ms (`Date.now()`) captured at each counted rep boundary (P36 B4). */
+  readonly repTimesMs: readonly number[]
   /** Form score samples gathered during an isometric hold (plank); empty otherwise. */
   readonly holdSeries: readonly number[]
   /** Lowest-scoring joint key across the set when mean joint score < 80, or null. */
@@ -38,6 +40,7 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
   const reps = useRef(0)
   const lastReps = useRef(0)
   const repScores = useRef<number[]>([])
+  const repTimesMs = useRef<number[]>([])
   const holdSeries = useRef<number[]>([])
   const jointTotals = useRef<Record<string, { sum: number; count: number }>>({})
   const worstCounts = useRef<Record<string, number>>({})
@@ -53,6 +56,7 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
       // the instantaneous score at the boundary can be noisy.
       if (result.reps > lastReps.current && hasScore) {
         repScores.current.push(score)
+        repTimesMs.current.push(Date.now())
       }
       lastReps.current = result.reps
       reps.current = result.reps
@@ -107,6 +111,7 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
       bestScore: best.current,
       samples: count.current,
       repScores: [...repScores.current],
+      repTimesMs: [...repTimesMs.current],
       holdSeries: [...holdSeries.current],
       worstJoint: computeWorstJoint(),
     }),
@@ -120,6 +125,7 @@ export function useSessionStats(result: PoseResult | null): UseSessionStats {
     reps.current = 0
     lastReps.current = 0
     repScores.current = []
+    repTimesMs.current = []
     holdSeries.current = []
     jointTotals.current = {}
     worstCounts.current = {}

@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
-import { Award, Check, Share2, Sparkles, X } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Award, Check, Play, Share2, Sparkles, Video, X } from "lucide-react"
 
 import "../features/summary/summary.css"
+import { computeReplayWindow } from "../features/summary/repReplay"
+import type { RecordedSession } from "../hooks/useSessionRecorder"
 import type { SessionStats } from "../hooks/useSessionStats"
 import type { EffortRating, Exercise } from "../types"
 import { apiJson, submitEffort } from "../lib/api"
@@ -37,6 +39,8 @@ interface SessionSummaryProps {
   readonly onClose: () => void
   /** Optional explicit worst-joint override; defaults to `stats.worstJoint`. */
   readonly worstJoint?: string | null
+  /** Optional completed session recording for in-summary per-rep replay (P36 B4). */
+  readonly recording?: RecordedSession | null
 }
 
 /** jsdom (tests) and old browsers lack matchMedia — snap immediately when reduced. */
@@ -73,53 +77,88 @@ function useRepCountUp(target: number, reduced: boolean): number {
   return value
 }
 
-/** One bar per counted rep, height proportional to that rep's form score, colored by score. */
-function RepBars({ values }: { values: readonly number[] }): JSX.Element {
+/**
+ * One bar per counted rep, height proportional to that rep's form score, colored
+ * by score. When `onSelectRep` is provided (recording available), each bar has a
+ * tappable button overlay so tapping a rep replays that ~3s slice.
+ */
+function RepBars({
+  values,
+  activeRepIdx,
+  onSelectRep,
+}: {
+  readonly values: readonly number[]
+  readonly activeRepIdx: number | null
+  readonly onSelectRep?: (index: number) => void
+}): JSX.Element {
   const w = 260
   const h = 56
   const gap = 4
   const slot = w / values.length
   const barW = Math.max(3, slot - gap)
+
   return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      className="h-14 w-full"
-      preserveAspectRatio="none"
-      role="img"
-      aria-label="Per-rep form scores"
-    >
-      {values.map((v, i) => {
-        const clamped = Math.max(0, Math.min(100, v))
-        const barH = Math.max(2, (clamped / 100) * h)
-        return (
-          <rect
-            key={i}
-            x={(i * slot).toFixed(1)}
-            y={(h - barH).toFixed(1)}
-            width={barW.toFixed(1)}
-            height={barH.toFixed(1)}
-            rx={3}
-            fill={scoreColor(v)}
-          />
-        )
-      })}
-    </svg>
+    <div className="relative">
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="h-14 w-full"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="Per-rep form scores"
+      >
+        {values.map((v, i) => {
+          const clamped = Math.max(0, Math.min(100, v))
+          const barH = Math.max(2, (clamped / 100) * h)
+          const selected = activeRepIdx === i
+          return (
+            <rect
+              key={i}
+              x={(i * slot).toFixed(1)}
+              y={(h - barH).toFixed(1)}
+              width={barW.toFixed(1)}
+              height={barH.toFixed(1)}
+              rx={3}
+              fill={scoreColor(v)}
+              opacity={activeRepIdx === null || selected ? 1 : 0.45}
+            />
+          )
+        })}
+      </svg>
+      {onSelectRep !== undefined && (
+        <div className="absolute inset-0 flex">
+          {values.map((v, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onSelectRep(i)}
+              aria-label={`Replay rep ${i + 1} (score ${Math.round(v)})`}
+              aria-pressed={activeRepIdx === i}
+              className="min-h-14 flex-1 rounded transition active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              data-testid={`rep-replay-btn-${i}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
 /**
- * End-of-set payoff sheet (P36 Lane B — B1 + B2):
+ * End-of-set payoff sheet (P36 Lane B — B1..B4):
  * - Full-height mobile sheet (elevated modal sheet on desktop)
  * - Hero rep count with count-up animation + one-line verdict
  * - Deterministic set insights (fatigue, history delta, consistency, joint cue)
  * - Scoped current-set Best + per-exercise Personal best
  * - Celebration pulse when avg >= 80 or new personal best
+ * - On-device 1080x1920 shareable PNG card
+ * - Per-rep video replay when `recording` is present; discovery hint when absent
  */
 export function SessionSummary({
   exercise,
   stats,
   onClose,
   worstJoint,
+  recording = null,
 }: SessionSummaryProps): JSX.Element {
   const [historySessions, setHistorySessions] = useState<HistorySession[] | null>(null)
   const [trend, setTrend] = useState<number[] | null>(null)
@@ -130,8 +169,28 @@ export function SessionSummary({
   const [sharing, setSharing] = useState(false)
   const [shareStatus, setShareStatus] = useState<"idle" | "shared" | "downloaded">("idle")
 
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const replayEndSecRef = useRef<number | null>(null)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [activeRepIdx, setActiveRepIdx] = useState<number | null>(null)
+
   const reduced = prefersReducedMotion()
   const displayedReps = useRepCountUp(stats.reps, reduced)
+
+  useEffect(() => {
+    if (!recording) {
+      setVideoUrl(null)
+      setActiveRepIdx(null)
+      replayEndSecRef.current = null
+      return
+    }
+    const url = URL.createObjectURL(recording.blob)
+    setVideoUrl(url)
+    return () => {
+      URL.revokeObjectURL(url)
+      setVideoUrl(null)
+    }
+  }, [recording])
 
   useEffect(() => {
     let cancelled = false
@@ -171,6 +230,39 @@ export function SessionSummary({
     })
   }
 
+  const handleSelectRep = useCallback(
+    (repIndex: number): void => {
+      if (!recording) return
+      const video = videoRef.current
+      const win = computeReplayWindow(
+        stats.repTimesMs,
+        recording.startedAtMs,
+        repIndex,
+        video?.duration,
+      )
+      setActiveRepIdx(repIndex)
+      if (win === null || video === null) return
+      replayEndSecRef.current = win.endSec
+      video.currentTime = win.startSec
+      const playPromise = video.play()
+      if (playPromise !== undefined) {
+        void playPromise.catch(() => {
+          // Ignore autoplay/jsdom interruption errors
+        })
+      }
+    },
+    [recording, stats.repTimesMs],
+  )
+
+  const handleTimeUpdate = useCallback((): void => {
+    const video = videoRef.current
+    const endSec = replayEndSecRef.current
+    if (video !== null && endSec !== null && video.currentTime >= endSec) {
+      video.pause()
+      replayEndSecRef.current = null
+    }
+  }, [])
+
   const label = exerciseLabel(exercise)
   const effectiveWorstJoint = worstJoint !== undefined ? worstJoint : (stats.worstJoint ?? null)
 
@@ -203,6 +295,7 @@ export function SessionSummary({
 
   const best = stats.bestScore
   const celebrate = (stats.samples > 0 && stats.avgScore >= 80) || isPb
+  const canReplay = recording !== null && stats.repScores.length > 0
 
   const handleShareCard = async (): Promise<void> => {
     if (sharing) return
@@ -222,7 +315,7 @@ export function SessionSummary({
         setShareStatus(result)
       }
     } catch {
-      // Canvas/share unavailable (e.g. headless environment) — fail gracefully.
+      // Canvas/share unavailable — fail gracefully.
     } finally {
       setSharing(false)
     }
@@ -381,13 +474,43 @@ export function SessionSummary({
             </div>
           )}
 
-          {/* Per-rep bars or hold timeline */}
+          {/* Per-rep bars (with inline replay when recorded) or hold timeline */}
           {stats.repScores.length > 0 ? (
             <div className="rounded-2xl bg-surface-overlay p-4 shadow-elev-1">
-              <h3 className="mb-2.5 text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                Per-rep scores
-              </h3>
-              <RepBars values={stats.repScores} />
+              <div className="mb-2.5 flex items-center justify-between">
+                <h3 className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                  Per-rep scores
+                </h3>
+                {canReplay && (
+                  <span className="inline-flex items-center gap-1 text-xs text-accent">
+                    <Icon icon={Play} size={12} />
+                    {activeRepIdx !== null
+                      ? `Rep ${activeRepIdx + 1} · ${Math.round(stats.repScores[activeRepIdx])}`
+                      : "Tap a bar to replay"}
+                  </span>
+                )}
+              </div>
+              <RepBars
+                values={stats.repScores}
+                activeRepIdx={activeRepIdx}
+                onSelectRep={canReplay ? handleSelectRep : undefined}
+              />
+              {canReplay && videoUrl !== null && (
+                <div className="mt-3 overflow-hidden rounded-xl bg-black">
+                  <video
+                    ref={videoRef}
+                    src={videoUrl}
+                    controls
+                    muted
+                    playsInline
+                    onTimeUpdate={handleTimeUpdate}
+                    className="max-h-64 w-full object-contain"
+                    data-testid="rep-replay-video"
+                  >
+                    <track kind="captions" />
+                  </video>
+                </div>
+              )}
             </div>
           ) : stats.holdSeries.length > 1 ? (
             <div className="rounded-2xl bg-surface-overlay p-4 shadow-elev-1">
@@ -397,6 +520,17 @@ export function SessionSummary({
               <Sparkline values={stats.holdSeries} label="Hold form-score timeline" />
             </div>
           ) : null}
+
+          {/* Replay discovery hint when no recording was captured */}
+          {recording === null && (
+            <div
+              className="flex items-center gap-2.5 rounded-2xl bg-surface-overlay px-4 py-3 text-xs text-gray-400 shadow-elev-1"
+              data-testid="rep-replay-hint"
+            >
+              <Icon icon={Video} size={15} className="shrink-0 text-gray-400" />
+              <span>Tap Record before a set to replay reps</span>
+            </div>
+          )}
 
           {/* Recent trend */}
           <div className="rounded-2xl bg-surface-overlay p-4 shadow-elev-1">

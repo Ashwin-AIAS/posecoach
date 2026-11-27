@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { SessionSummary } from "../components/SessionSummary"
 import { apiJson, submitEffort } from "../lib/api"
 import { shareResultCard } from "../lib/shareCard"
+import type { RecordedSession } from "../hooks/useSessionRecorder"
 import type { SessionStats } from "../hooks/useSessionStats"
 
 vi.mock("../lib/api", () => ({ apiJson: vi.fn(), submitEffort: vi.fn() }))
@@ -18,6 +19,7 @@ const stats: SessionStats = {
   bestScore: 96,
   samples: 120,
   repScores: [],
+  repTimesMs: [],
   holdSeries: [],
 }
 
@@ -25,6 +27,13 @@ describe("SessionSummary", () => {
   beforeEach(() => {
     mockApiJson.mockReset()
     mockSubmitEffort.mockReset()
+    mockShareResultCard.mockReset()
+    URL.createObjectURL = vi.fn(() => "blob:replay")
+    URL.revokeObjectURL = vi.fn()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it("shows this session's reps, avg, and best", async () => {
@@ -93,6 +102,7 @@ describe("SessionSummary", () => {
       bestScore: 0,
       samples: 0,
       repScores: [],
+      repTimesMs: [],
       holdSeries: [],
     }
     render(<SessionSummary exercise="squat" stats={emptySet} onClose={vi.fn()} />)
@@ -115,6 +125,7 @@ describe("SessionSummary", () => {
       bestScore: 83,
       samples: 50,
       repScores: [72, 75, 83, 74, 76],
+      repTimesMs: [],
       holdSeries: [],
     }
     render(<SessionSummary exercise="squat" stats={setStats} onClose={vi.fn()} />)
@@ -135,6 +146,7 @@ describe("SessionSummary", () => {
       bestScore: 88,
       samples: 90,
       repScores: [86, 88, 85, 84, 59, 57],
+      repTimesMs: [],
       holdSeries: [],
       worstJoint: "left_knee_angle",
     }
@@ -161,5 +173,69 @@ describe("SessionSummary", () => {
       }),
     )
     await waitFor(() => expect(shareBtn).toHaveTextContent("Saved"))
+  })
+
+  it("shows the Record hint and disables rep-bar buttons when recording is absent (B4)", async () => {
+    mockApiJson.mockResolvedValueOnce([])
+    const setWithReps: SessionStats = {
+      reps: 2,
+      avgScore: 82,
+      bestScore: 86,
+      samples: 40,
+      repScores: [78, 86],
+      repTimesMs: [14_000, 18_500],
+      holdSeries: [],
+    }
+    render(<SessionSummary exercise="squat" stats={setWithReps} onClose={vi.fn()} />)
+    expect(screen.getByText("Tap Record before a set to replay reps")).toBeInTheDocument()
+    expect(screen.queryByTestId("rep-replay-btn-0")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("rep-replay-video")).not.toBeInTheDocument()
+  })
+
+  it("seeks to repTimesMs[i] - startedAtMs - 1500ms and plays when a rep bar is tapped (B4)", async () => {
+    mockApiJson.mockResolvedValueOnce([])
+    const playSpy = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockImplementation(async () => {})
+    const pauseSpy = vi
+      .spyOn(HTMLMediaElement.prototype, "pause")
+      .mockImplementation(() => {})
+
+    const recording: RecordedSession = {
+      blob: new Blob(["vid"], { type: "video/mp4" }),
+      fileName: "posecoach-squat-1.mp4",
+      mimeType: "video/mp4",
+      startedAtMs: 10_000,
+    }
+    const setWithReps: SessionStats = {
+      reps: 2,
+      avgScore: 82,
+      bestScore: 86,
+      samples: 40,
+      repScores: [78, 86],
+      repTimesMs: [14_000, 18_500],
+      holdSeries: [],
+    }
+    render(
+      <SessionSummary
+        exercise="squat"
+        stats={setWithReps}
+        recording={recording}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId("rep-replay-hint")).not.toBeInTheDocument()
+
+    const video = (await screen.findByTestId("rep-replay-video")) as HTMLVideoElement
+    fireEvent.click(screen.getByTestId("rep-replay-btn-1"))
+
+    // 18_500 - 10_000 - 1500 = 7000ms -> 7.0s
+    expect(video.currentTime).toBe(7)
+    expect(playSpy).toHaveBeenCalledTimes(1)
+
+    // Advancing past endSec (10.0s) pauses automatically
+    video.currentTime = 10.1
+    fireEvent.timeUpdate(video)
+    expect(pauseSpy).toHaveBeenCalledTimes(1)
   })
 })

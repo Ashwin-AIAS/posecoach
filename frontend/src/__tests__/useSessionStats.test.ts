@@ -1,8 +1,12 @@
 import { renderHook } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { useSessionStats } from "../hooks/useSessionStats"
 import type { PoseResult } from "../types"
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 function frame(partial: Partial<PoseResult>): PoseResult {
   return {
@@ -85,5 +89,25 @@ describe("useSessionStats per-rep timeline", () => {
       }),
     )
     expect(result.current.snapshot().worstJoint).toBe("left_knee_angle")
+  })
+
+  it("records wall-clock repTimesMs for each counted rep and clears them on reset (B4)", () => {
+    let fakeNow = 1_700_000_000_000
+    vi.spyOn(Date, "now").mockImplementation(() => fakeNow)
+
+    const { result, rerender } = renderHook((r: PoseResult | null) => useSessionStats(r), {
+      initialProps: frame({ reps: 0, score: 80 }) as PoseResult | null,
+    })
+
+    fakeNow = 1_700_000_003_200
+    rerender(frame({ reps: 1, score: 82 }))
+    fakeNow = 1_700_000_007_500
+    rerender(frame({ reps: 2, score: 85 }))
+
+    const snap = result.current.snapshot()
+    expect(snap.repTimesMs).toEqual([1_700_000_003_200, 1_700_000_007_500])
+
+    result.current.reset()
+    expect(result.current.snapshot().repTimesMs).toEqual([])
   })
 })
