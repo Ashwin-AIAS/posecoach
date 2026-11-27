@@ -23,7 +23,7 @@
 import { memo, useEffect, useRef } from "react"
 
 import { drawArcs, drawBones, drawNodes, projectKeypoints } from "./drawSkeleton"
-import { drawCornerBrackets, drawCueChip, drawGridAndVignette, drawLegend, drawScanBand, drawStatusLine } from "./drawHud"
+import { drawGridAndVignette, drawScanBand } from "./drawHud"
 import { computeCoverProjection } from "./geometry"
 import { OVERLAY } from "./overlayTheme"
 import type { OverlayFrame } from "./types"
@@ -120,11 +120,6 @@ function PoseOverlayNeonInner({ frame, videoRef, videoSize, className }: PoseOve
       drawArcs(ctx, drawFrame, pts)
       drawNodes(ctx, drawFrame, pts, pulse)
       ctx.restore()
-
-      drawCornerBrackets(ctx, cssW, cssH)
-      drawStatusLine(ctx, f.state)
-      drawCueChip(ctx, cssW, cssH, f.cue, f.state)
-      drawLegend(ctx, cssW)
 
       if (!skipMotion) {
         const progress = (now % OVERLAY.motion.scanPeriodMs) / OVERLAY.motion.scanPeriodMs
