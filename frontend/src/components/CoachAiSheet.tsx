@@ -32,7 +32,7 @@ function CoachAiSheetInner({
   onClose,
   initialPrompt,
   onSignIn,
-  memoryEnabled = false,
+  memoryEnabled = true,
 }: CoachAiSheetProps): JSX.Element {
   const { sessions, authed, loading } = useHistorySessions()
 

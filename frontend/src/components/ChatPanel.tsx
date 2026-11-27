@@ -86,7 +86,7 @@ function ChatPanelInner({
   authed,
   onSignIn,
   initialPrompt,
-  memoryEnabled = false,
+  memoryEnabled = true,
 }: ChatPanelProps): JSX.Element {
   const [open, setOpen] = useState(startOpen)
   const [input, setInput] = useState(initialPrompt ?? "")
